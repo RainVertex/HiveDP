@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  // core surfaces & text
+  /* core surfaces & text */
   --color-app-bg: var(--c-bg);
   --color-app-bg-sunken: var(--c-bg-sunken);
   --color-app-surface: var(--c-surface);
@@ -14,7 +14,7 @@
   --color-app-overlay: var(--c-overlay);
   --color-app-focus-ring: var(--c-focus-ring);
 
-  // primary family
+  /* primary family */
   --color-app-primary: var(--c-primary);
   --color-app-primary-hover: var(--c-primary-hover);
   --color-app-primary-soft: var(--c-primary-soft);
@@ -22,7 +22,7 @@
   --color-app-primary-soft-foreground: var(--c-primary-soft-foreground);
   --color-app-accent: var(--c-accent);
 
-  // status families
+  /* status families */
   --color-app-success: var(--c-success);
   --color-app-success-soft: var(--c-success-soft);
   --color-app-success-foreground: var(--c-success-foreground);
@@ -33,12 +33,12 @@
   --color-app-danger-soft: var(--c-danger-soft);
   --color-app-danger-foreground: var(--c-danger-foreground);
 
-  // shape (shared across themes; overridable per-theme later)
+  /* shape (shared across themes; overridable per-theme later) */
   --radius-app-sm: 0.25rem;
   --radius-app-md: 0.5rem;
   --radius-app-lg: 0.75rem;
 
-  // shadows — consume the per-theme --c-shadow-color triplet
+  /* shadows — consume the per-theme --c-shadow-color triplet */
   --shadow-app-sm: 0 1px 2px 0 rgb(var(--c-shadow-color) / 0.06);
   --shadow-app-md:
     0 4px 6px -1px rgb(var(--c-shadow-color) / 0.1),
@@ -48,7 +48,7 @@
     0 4px 6px -4px rgb(var(--c-shadow-color) / 0.08);
 }
 
-// WCAG AA audit (body 4.5:1, large/UI 3:1) — passed for all 10 themes: text on bg / text on
+/* WCAG AA audit (body 4.5:1, large/UI 3:1) — passed for all 10 themes: text on bg / text on */
 
 @layer base {
   :root,
