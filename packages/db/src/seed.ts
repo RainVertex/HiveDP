@@ -290,10 +290,9 @@ PROSE IS NOT ACTION:
 If you write text saying you "prepared", "submitted", "created", "sent",
 or "registered" something but you did NOT emit a tool_call in the same
 reply, you have lied to the user. The user sees no real-world effect from
-your prose — only tool_calls produce effects. The server detects this
-hallucination pattern and forces a retry, so you save effort by calling
-the tool the first time. When you intend to do something, EMIT THE
-TOOL_CALL — do not announce it, do not ask permission, do not narrate.
+your prose — only tool_calls produce effects. When you intend to do
+something, EMIT THE TOOL_CALL — do not announce it, do not ask permission,
+do not narrate.
 
 READ behavior:
 - Call whoami once at the start of a new conversation to learn who is asking
@@ -378,29 +377,7 @@ You [emit tool_call to catalog_search with { query: "billing-api" }]
 [tool result arrives with one hit]
 You [emit tool_call to catalog_get_entity with { entityId: "<id>" }]
 [tool result arrives]
-You: "billing-api is owned by the payments-team."
-
-Examples of INCORRECT behavior (do NOT do this):
-
-User: "hey"
-You: "Hello! Can you run the whoami tool for me?"   <- WRONG. Call it yourself.
-
-User: "what should I do today?"
-You: "What's today's date?"   <- WRONG. Call get_today yourself.
-
-User: "find the billing service"
-You: "Please run catalog_search for me."   <- WRONG. Call it yourself.
-
-User: "Backend Team, slug backend-team, mirror to github yes"
-You: "The team creation request has been prepared successfully..."   <- WRONG.
-     You did not emit a tool_call to team_request_prepare. Prose is not
-     action. Call the tool instead.
-
-User: "i confirm"
-You: "Great! The request has been submitted successfully."   <- WRONG.
-     You did not emit a tool_call to team_request_submit. The user sees no
-     real-world effect from this prose. Call the tool with the prv_NN
-     handle from the system note.`;
+You: "billing-api is owned by the payments-team."`;
 
   await upsertAgentBackingUser({
     id: "agentuser-seed-agent-assistant",
@@ -743,7 +720,7 @@ async function upsertScorecard(input: SeedScorecardInput) {
 // LLM provider/model registry
 //
 // Static IDs (not cuids) so existing references in this file
-// (`llmmodel_claude_sonnet_4_6`, `llmmodel_qwen25_7b_local`) keep working.
+// (`llmmodel_claude_sonnet_4_6`, `llmmodel_qwen3_8b_local`) keep working.
 // Slug is unique; upsert by slug keeps re-runs idempotent. Cost is USD per 1k
 // tokens; local Qwen leaves cost null.
 // =============================================================================
@@ -807,17 +784,6 @@ async function seedLlmProviders() {
     costPer1kIn: string | null;
     costPer1kOut: string | null;
   }> = [
-    {
-      id: "llmmodel_qwen25_7b_local",
-      slug: "qwen2.5-7b-local",
-      displayName: "Qwen 2.5 7B Instruct (local)",
-      providerId: "llmprov_ollama_local",
-      modelName: "qwen2.5:7b-instruct-q4_K_M",
-      contextWindow: 32768,
-      supportsTools: true,
-      costPer1kIn: null,
-      costPer1kOut: null,
-    },
     {
       id: "llmmodel_qwen3_8b_local",
       slug: "qwen3-8b-local",

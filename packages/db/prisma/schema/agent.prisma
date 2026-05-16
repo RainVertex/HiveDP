@@ -23,7 +23,7 @@ model LlmProvider {
 }
 
 // A registered model an Agent can be pointed at. `modelName` is the wire
-// identifier sent to the upstream API (e.g. "qwen2.5:7b-instruct-q4_K_M",
+// identifier sent to the upstream API (e.g. "qwen3:8b",
 // "claude-sonnet-4-6"). costPer1k* is null for self-hosted models.
 model LlmModel {
   id             String      @id @default(cuid())

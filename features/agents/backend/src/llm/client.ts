@@ -72,7 +72,7 @@ function buildClient(provider: LlmProvider): OpenAI {
 }
 
 // Compute USD cost from token usage and the model's per-1k rates. Returns
-// null if either rate is unset (e.g. local Qwen on Ollama).
+// null if either rate is unset (e.g. local Ollama models).
 export function computeCostUsd(
   model: ResolvedModel,
   usage: { input: number; output: number },

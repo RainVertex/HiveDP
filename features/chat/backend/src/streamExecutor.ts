@@ -35,80 +35,6 @@ const PLATFORM_ASSISTANT_AGENT_ID = "seed-agent-assistant";
 
 const MAX_HISTORY_PAIRS = 20;
 
-// Runtime-injected addendum to agent.instructions. Lives here (not in the
-// seeded prompt in DB) so this fix ships without re-seeding existing
-// installs. The seed in packages/db/src/seed.ts has the same guidance for
-// new installs, but this guardrail is the source of truth at runtime.
-const ANTI_HALLUCINATION_GUARDRAIL = `IMPORTANT: prose is not action.
-
-If you write text saying you "prepared", "submitted", "created", "sent",
-"registered", or "made" something, but you did NOT emit a tool_call in the
-same reply, you have lied to the user. The user sees no real-world effect
-from your prose — only tool_calls produce effects. Your text is shown
-verbatim in the chat, but it does not invoke anything.
-
-When you intend to do something:
-- DO emit the tool_call. Do not announce that you will, do not ask
-  permission, do not say "let's now do X" — just call the tool.
-- DO NOT say "I've prepared the request" / "the request has been
-  submitted" / "your team has been created" unless the matching
-  *_prepare or *_submit tool was actually invoked. The server will
-  detect such hallucinations and force a retry.
-
-Slot-filling shortcut: as soon as the user has supplied all required
-parameters for a *_prepare tool (even in a single message), call the
-tool immediately. Do NOT ask "is this correct?" first — *_prepare is
-read-only validation that produces a structured preview card, not a
-destructive action. The user confirms via the card or by saying "yes",
-which is the cue for *_submit.
-
-Confirmation shortcut: when there is a pending preview (see the system
-note listing prv_NN handles, if any) and the user replies with "yes",
-"proceed", "confirm", "go ahead", "do it", "submit", "create it", or
-"Confirm submission", call the matching *_submit tool with that handle.
-Do not re-prepare and do not reply with prose claiming success.
-
-GitHub installation resolution: when team_request_prepare needs
-githubIntegrationId (mirrorToGithub=true), NEVER ask the user for a
-cuid — humans don't memorize them. The field accepts either the org
-login OR the cuid, so the org login the user gave you is fine to pass
-directly. Instead:
-1. Ask the user for the GitHub org/account name (e.g. "which GitHub
-   org should we mirror to?").
-2. Call integrations_list_github to confirm what's connected.
-3. If exactly one installation is enabled, proceed with it (confirm the
-   org login in your reply). Otherwise pass the user's org login as
-   githubIntegrationId — the resolver matches by accountLogin
-   (case-insensitive) automatically.
-4. If team_request_prepare returns mirror_target_exists=false because
-   nothing is connected, do NOT describe this as a wrong "id" or "ID".
-   Tell the user verbatim: no GitHub App is connected to the platform
-   yet, and they need to install one from Settings → Integrations
-   before retrying with mirror:yes. Offer to proceed with mirror:no
-   instead.
-5. If mirror_target_exists=false but other orgs ARE connected, list
-   the available account logins and ask the user to pick one.`;
-
-// Past-tense phrasings the model emits when it narrates a tool result
-// without having called the tool. Matched case-insensitively against the
-// final assistant text on text-only turns.
-const HALLUCINATED_ACTION_PATTERNS: RegExp[] = [
-  /\b(?:has|have)\s+been\s+(?:prepared|submitted|created|sent|registered|made|opened|filed)\b/i,
-  /\bsuccessfully\s+(?:prepared|submitted|created|sent|registered|made|opened|filed)\b/i,
-  /\b(?:i'?ve|i\s+have)\s+(?:prepared|submitted|created|sent|registered|made|opened|filed)\b/i,
-  /\b(?:request|team|preview)\s+(?:has\s+been|was)\s+(?:prepared|submitted|created|sent|registered)\b/i,
-  /\b(?:we'?ll|we\s+will|we'?re\s+going\s+to)\s+(?:now\s+)?(?:create|submit|prepare|send|register)\s+(?:the\s+)?(?:request|team)\b/i,
-];
-
-function looksLikeHallucinatedAction(text: string | undefined | null): boolean {
-  if (!text) return false;
-  return HALLUCINATED_ACTION_PATTERNS.some((p) => p.test(text));
-}
-
-const HALLUCINATION_NUDGE = `Your previous reply claimed an action (e.g. "prepared", "submitted", "created") was performed, but you did NOT emit any tool_call. That is a hallucination — the user sees no real-world effect from prose alone.
-
-Retry now: identify which *_prepare or *_submit tool matches the action you described, and emit the tool_call. If a pending preview handle (prv_NN) was provided in a system note above, use it for the matching *_submit. If you have not yet prepared and the user has supplied the required slots, call *_prepare. Reply with a tool_call in this turn — text-only is not acceptable here.`;
-
 export interface StreamAgentArgs {
   agentId: string;
   conversationId: string;
@@ -235,10 +161,6 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: agent.instructions },
-    // Runtime guardrail prepended on every turn — keeps the fix decoupled
-    // from the seeded agent instructions in the DB so it ships without a
-    // reseed. Mirror any updates here in seed.ts for consistency.
-    { role: "system", content: ANTI_HALLUCINATION_GUARDRAIL },
     ...history,
     ...(pendingPreviewNote ? [{ role: "system" as const, content: pendingPreviewNote }] : []),
     { role: "user", content: args.userMessageContent },
@@ -279,12 +201,6 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
         ReturnType<typeof selectAdapter>["stream"]
       >[0]));
 
-  // The hallucination guard rail may retry the model once per turn with
-  // tool_choice forced. Track that we've already used the retry so a
-  // pathological model can't trap us in a forced-tool loop.
-  let hallucinationRetryUsed = false;
-  let nextToolChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption | undefined;
-
   try {
     for (let step = 0; step < agent.maxToolCalls; step++) {
       if (args.signal?.aborted) throw new Error("aborted");
@@ -293,15 +209,11 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
         model,
         messages,
         tools: openaiTools.length > 0 ? openaiTools : undefined,
-        toolChoice: nextToolChoice,
         signal: args.signal,
         onTokenDelta: (text) => {
           if (text) args.onEvent({ event: "token", data: { text } });
         },
       });
-      // One-shot — clear the override so a forced retry doesn't stick
-      // around for subsequent steps in the same turn.
-      nextToolChoice = undefined;
 
       tokensInput += turn.usage.input;
       tokensOutput += turn.usage.output;
@@ -310,33 +222,7 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
         finalText = turn.message.content;
       }
 
-      // No tool calls — usually we're done. But if the model emitted prose
-      // that claims an action ("submitted", "created"...) without actually
-      // invoking the tool, retry once with tool_choice forced. This is the
-      // safety net for the small-model failure mode where Qwen narrates a
-      // tool result it never produced.
       if (turn.finishReason !== "tool_calls" || turn.toolCalls.length === 0) {
-        if (
-          !hallucinationRetryUsed &&
-          looksLikeHallucinatedAction(finalText) &&
-          step + 1 < agent.maxToolCalls &&
-          openaiTools.length > 0
-        ) {
-          hallucinationRetryUsed = true;
-          // Tell the UI to drop the bogus bubble; the retry will re-stream
-          // tokens from a clean slate.
-          args.onEvent({
-            event: "text_reset",
-            data: { reason: "hallucinated_action_retry" },
-          });
-          // Keep the bogus reply in the message array so the model has
-          // context for "what it just said" when we ask for a retry.
-          messages.push({ role: "assistant", content: finalText });
-          messages.push({ role: "system", content: HALLUCINATION_NUDGE });
-          finalText = "";
-          nextToolChoice = "required";
-          continue;
-        }
         break;
       }
 

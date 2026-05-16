@@ -3,19 +3,14 @@ import type { AdapterRequest, AdapterResult, ProviderAdapter } from "./providerA
 
 // Per-model sampling defaults. Different families have very different
 // "well-behaved" temperatures and there is no universal good value:
-//   - Qwen 2.5 7B narrates fake tool results at default temp (~0.8); 0.2 forces
-//     it to follow function-calling cues. The system prompt and hallucination
-//     retry loop in streamExecutor were both built around this.
-//   - Qwen3 thinking-mode is the opposite: Qwen team explicitly warns that low
-//     temps cause reasoning loops and repetition. Their guidance is temp=0.6,
-//     top_p=0.95 for thinking mode.
-//   - gpt-oss reasoning models prefer ~1.0 per OpenAI's own guidance.
-//   - Hosted frontier models (Claude, GPT-4o) tolerate 0.2 fine but it's not
-//     ideal; treat that as a fallback, not a target.
+//   - Qwen3 thinking-mode: Qwen team's guidance is temp=0.6, top_p=0.95. Lower
+//     temps trigger reasoning loops and repetition.
+//   - gpt-oss reasoning models: ~1.0 per OpenAI's guidance.
+// Add a branch here when registering a new family — don't rely on the fallback.
 function samplingDefaults(modelSlug: string): { temperature: number; topP?: number } {
   if (modelSlug.startsWith("qwen3-")) return { temperature: 0.6, topP: 0.95 };
   if (modelSlug.startsWith("gpt-oss-")) return { temperature: 1.0 };
-  // Qwen 2.5 and unknown models keep the legacy babysitting value.
+  // Conservative default for models without explicit guidance.
   return { temperature: 0.2 };
 }
 
@@ -59,14 +54,14 @@ class OpenAICompatAdapter implements ProviderAdapter {
         tools: req.tools,
         // tool_choice "auto" is the default but spelling it out forces some
         // OpenAI-compat servers (Ollama in particular) to actually expose the
-        // tool surface to the model. Without it, smaller models like Qwen
-        // 2.5 7B sometimes treat tools as descriptive prose and ask the user
-        // to invoke them instead of emitting a tool_call.
+        // tool surface to the model. Without it, smaller local models
+        // sometimes treat tools as descriptive prose and ask the user to
+        // invoke them instead of emitting a tool_call.
         tool_choice: req.tools && req.tools.length > 0 ? "auto" : undefined,
         temperature: sampling.temperature,
         ...(sampling.topP !== undefined ? { top_p: sampling.topP } : {}),
-        // Allow callers to force tool_choice (the hallucination guard rail
-        // does this with "required" after detecting a text-only action claim).
+        // Callers can force tool_choice (e.g. "required") to override the
+        // default auto for a specific turn.
         ...(req.toolChoice ? { tool_choice: req.toolChoice } : {}),
         stream: true,
         stream_options: { include_usage: true },

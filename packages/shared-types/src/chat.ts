@@ -91,14 +91,8 @@ export interface ChatDoneEvent {
   containsWrites: boolean;
 }
 
-/** Emitted when the server discards the streamed assistant text from the current turn and is */
-export interface ChatTextResetEvent {
-  reason?: string;
-}
-
 export type ChatSseEvent =
   | { event: "token"; data: ChatTokenEvent }
-  | { event: "text_reset"; data: ChatTextResetEvent }
   | { event: "tool_call_start"; data: ChatToolCallStartEvent }
   | { event: "tool_call_end"; data: ChatToolCallEndEvent }
   | { event: "preview"; data: ChatPreviewEvent }

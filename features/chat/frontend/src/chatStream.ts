@@ -161,13 +161,6 @@ function handleFrame(
       setState((s) => ({ ...s, text: s.text + t }));
       break;
     }
-    case "text_reset": {
-      // Server is discarding the streamed text and re-running the turn (e.g.
-      // hallucination guard rail). Clear the live bubble so the next round
-      // of tokens replaces, rather than appends to, the bogus reply.
-      setState((s) => ({ ...s, text: "" }));
-      break;
-    }
     case "tool_call_start": {
       const e = data as ChatToolCallStartEvent;
       setState((s) => ({
