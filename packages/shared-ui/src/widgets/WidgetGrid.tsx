@@ -1,3 +1,6 @@
+// Ambient `declare module "*.css"` must be visible when consumers' tsc descends
+// into this source file. An `import` of the .d.ts doesn't propagate ambients.
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../globals.d.ts" />
 import { useMemo, useState } from "react";
 import {

@@ -206,7 +206,7 @@ async function fetchCatalogInfo(
   ref: string,
 ): Promise<FetchResult> {
   for (const path of CATALOG_INFO_FILE_NAMES) {
-    let raw: string | null = null;
+    let raw: string;
     try {
       const res = await octo.rest.repos.getContent({ owner, repo, path, ref });
       const data = res.data as { type?: string; encoding?: string; content?: string };
@@ -217,7 +217,6 @@ async function fetchCatalogInfo(
       if (status === 404) continue;
       return { kind: "error", reason: (err as Error).message };
     }
-    if (raw == null) continue;
     const parsed = parseCatalogInfo(path, raw);
     if (parsed.kind === "ok") {
       return { kind: "ok", input: parsed.input, yamlSpec: parsed.yamlSpec };

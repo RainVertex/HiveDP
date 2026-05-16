@@ -2,7 +2,7 @@ import { Prisma, prisma } from "@internal/db";
 import matter from "gray-matter";
 import type { DocResolvedSource } from "@internal/shared-types";
 import { parseGithubUrl, readSpecDocs, resolveDocSource } from "./resolver";
-import { RepoFetchClient, type RepoFile } from "./repo-fetch";
+import { RepoFetchClient } from "./repo-fetch";
 
 interface PageDraft {
   slug: string;

@@ -84,8 +84,6 @@ export function ScaffolderPage() {
                 )}
                 <div className="mt-3 flex items-center gap-2 text-[10px] text-app-text-muted">
                   <span>{t.audience.join(" + ")}</span>
-                  <span>·</span>
-                  <span>{t.visibility}</span>
                 </div>
               </Link>
             </li>

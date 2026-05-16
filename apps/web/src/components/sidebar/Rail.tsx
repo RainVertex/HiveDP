@@ -62,8 +62,7 @@ const FOOTER: Array<{ to: string; label: string; icon: () => ReactNode }> = [
 /** Two visual modes: - **Collapsed (default)**: 56px wide, icons only. */
 export function Rail() {
   const me = useCurrentUser();
-  const { pinned, togglePinned, peeking, expanded, onRailMouseEnter, onRailMouseLeave } =
-    useSidebar();
+  const { pinned, togglePinned, peeking, onRailMouseEnter, onRailMouseLeave } = useSidebar();
   const isAdmin = me.role === "admin";
   const summary = useRequestsSummary();
   const requestsBadge =

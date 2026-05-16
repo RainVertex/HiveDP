@@ -235,12 +235,12 @@ Rules:
 // around. If you change the prompt or tool list, update both places.
 //
 // Env overrides:
-//   CHAT_LLM_MODEL_ID         — default llmmodel_qwen25_7b_local
+//   CHAT_LLM_MODEL_ID         — default llmmodel_qwen3_8b_local
 //   CHAT_WRITE_TOOLS_ENABLED  — "false" omits write tools (read-only assistant)
 // =============================================================================
 
 async function seedPlatformAssistant() {
-  const modelId = process.env.CHAT_LLM_MODEL_ID ?? "llmmodel_qwen25_7b_local";
+  const modelId = process.env.CHAT_LLM_MODEL_ID ?? "llmmodel_qwen3_8b_local";
   const writesEnabled = process.env.CHAT_WRITE_TOOLS_ENABLED !== "false";
 
   const readToolIds = [
@@ -813,6 +813,17 @@ async function seedLlmProviders() {
       displayName: "Qwen 2.5 7B Instruct (local)",
       providerId: "llmprov_ollama_local",
       modelName: "qwen2.5:7b-instruct-q4_K_M",
+      contextWindow: 32768,
+      supportsTools: true,
+      costPer1kIn: null,
+      costPer1kOut: null,
+    },
+    {
+      id: "llmmodel_qwen3_8b_local",
+      slug: "qwen3-8b-local",
+      displayName: "Qwen3 8B (local, thinking)",
+      providerId: "llmprov_ollama_local",
+      modelName: "qwen3:8b",
       contextWindow: 32768,
       supportsTools: true,
       costPer1kIn: null,

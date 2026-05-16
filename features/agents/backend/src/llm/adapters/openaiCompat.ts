@@ -1,6 +1,24 @@
 import OpenAI from "openai";
 import type { AdapterRequest, AdapterResult, ProviderAdapter } from "./providerAdapter";
 
+// Per-model sampling defaults. Different families have very different
+// "well-behaved" temperatures and there is no universal good value:
+//   - Qwen 2.5 7B narrates fake tool results at default temp (~0.8); 0.2 forces
+//     it to follow function-calling cues. The system prompt and hallucination
+//     retry loop in streamExecutor were both built around this.
+//   - Qwen3 thinking-mode is the opposite: Qwen team explicitly warns that low
+//     temps cause reasoning loops and repetition. Their guidance is temp=0.6,
+//     top_p=0.95 for thinking mode.
+//   - gpt-oss reasoning models prefer ~1.0 per OpenAI's own guidance.
+//   - Hosted frontier models (Claude, GPT-4o) tolerate 0.2 fine but it's not
+//     ideal; treat that as a fallback, not a target.
+function samplingDefaults(modelSlug: string): { temperature: number; topP?: number } {
+  if (modelSlug.startsWith("qwen3-")) return { temperature: 0.6, topP: 0.95 };
+  if (modelSlug.startsWith("gpt-oss-")) return { temperature: 1.0 };
+  // Qwen 2.5 and unknown models keep the legacy babysitting value.
+  return { temperature: 0.2 };
+}
+
 // OpenAI-compatible adapter. Covers OpenAI proper, Ollama (local),
 // vLLM, llama.cpp's OpenAI-compat server, and Anthropic's OpenAI-compat
 // shim — anything that speaks the chat.completions wire format. Provider
@@ -32,6 +50,8 @@ class OpenAICompatAdapter implements ProviderAdapter {
     }
     const client = new OpenAI({ baseURL: provider.baseUrl, apiKey: apiKey ?? "ollama" });
 
+    const sampling = samplingDefaults(req.model.slug);
+
     const stream = await client.chat.completions.create(
       {
         model: req.model.modelName,
@@ -43,12 +63,8 @@ class OpenAICompatAdapter implements ProviderAdapter {
         // 2.5 7B sometimes treat tools as descriptive prose and ask the user
         // to invoke them instead of emitting a tool_call.
         tool_choice: req.tools && req.tools.length > 0 ? "auto" : undefined,
-        // Lower temperature dramatically improves tool-call reliability for
-        // Qwen 2.5 7B. At default temp (~0.8) it tends to chat its way past
-        // the system prompt's "call tools yourself" instruction; at 0.2 it
-        // follows function-calling cues consistently. Doesn't hurt larger
-        // hosted models either.
-        temperature: 0.2,
+        temperature: sampling.temperature,
+        ...(sampling.topP !== undefined ? { top_p: sampling.topP } : {}),
         // Allow callers to force tool_choice (the hallucination guard rail
         // does this with "required" after detecting a text-only action claim).
         ...(req.toolChoice ? { tool_choice: req.toolChoice } : {}),

@@ -330,12 +330,10 @@ teamsRouter.post("/:slug/transfer-ownership", async (req, res, next) => {
       const targetSet = new Set(targetOwnerships.map((o) => o.entityId));
       const toMove = fromOwnerships.filter((o) => !targetSet.has(o.entityId));
 
-      let entityCount = 0;
       if (toMove.length > 0) {
         await tx.catalogEntityOwner.createMany({
           data: toMove.map((o) => ({ entityId: o.entityId, teamId: toTeam.id })),
         });
-        entityCount = toMove.length;
       }
       await tx.catalogEntityOwner.deleteMany({ where: { teamId: fromTeam.id } });
 

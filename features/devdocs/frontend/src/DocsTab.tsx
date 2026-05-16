@@ -17,7 +17,7 @@ export function DocsTab() {
   const search = useDocsSearch(entityId);
 
   const slugParam = searchParams.get("p");
-  const pageSummaries = docs.data?.pages ?? [];
+  const pageSummaries = useMemo(() => docs.data?.pages ?? [], [docs.data?.pages]);
   const activeSlug = useMemo(() => {
     if (slugParam && pageSummaries.some((p) => p.slug === slugParam)) return slugParam;
     const index = pageSummaries.find((p) => p.slug === "index");

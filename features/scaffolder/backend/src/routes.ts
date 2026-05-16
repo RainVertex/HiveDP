@@ -7,12 +7,10 @@ import {
   resolveTarget,
   templateContentHash,
   toJsonSchema,
-  type CompiledTemplate,
   type Plan,
   type SandboxTarget,
   type StepEvent,
 } from "@internal/scaffolder-core";
-import type { Actor } from "@internal/scaffolder-core";
 import { applyPlan, ApprovalsMissingError, PlanExpiredError } from "./services/apply";
 import { StalePlanError, TargetLockBusyError } from "./services/locks";
 import { taskEventBus } from "./services/events";
