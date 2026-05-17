@@ -10,6 +10,9 @@ interface Props {
   onRequestDelete: (id: string) => void;
   onConfirmDelete: (id: string) => void;
   onCancelDelete: () => void;
+  /** Fired after picking a conversation or starting a new one — used by the
+   *  mobile drawer to close itself once the user makes a selection. */
+  onSelect?: () => void;
 }
 
 export function ConversationList({
@@ -20,6 +23,7 @@ export function ConversationList({
   onRequestDelete,
   onConfirmDelete,
   onCancelDelete,
+  onSelect,
 }: Props) {
   return (
     <aside className="flex h-full w-full flex-col bg-app-surface">
@@ -27,9 +31,12 @@ export function ConversationList({
         <h2 className="text-sm font-semibold text-app-text">Conversations</h2>
         <button
           type="button"
-          onClick={onNewChat}
+          onClick={() => {
+            onNewChat();
+            onSelect?.();
+          }}
           title="New chat"
-          className="flex h-8 w-8 items-center justify-center rounded-app-md bg-app-primary text-app-primary-foreground hover:bg-app-primary-hover"
+          className="flex h-9 w-9 items-center justify-center rounded-app-md bg-app-primary text-app-primary-foreground hover:bg-app-primary-hover sm:h-8 sm:w-8"
         >
           <PlusIcon />
         </button>
@@ -44,8 +51,9 @@ export function ConversationList({
           <li key={c.id} className="group relative">
             <NavLink
               to={`/chat/${c.id}`}
+              onClick={() => onSelect?.()}
               className={({ isActive }) =>
-                `flex w-full items-start justify-between gap-2 rounded-app-md px-2 py-2 text-sm transition-colors ${
+                `flex w-full items-start justify-between gap-2 rounded-app-md py-2.5 pl-2 pr-12 text-sm transition-colors sm:py-2 ${
                   isActive || c.id === activeId
                     ? "bg-app-primary-soft text-app-primary-soft-foreground"
                     : "text-app-text hover:bg-app-surface-hover"
@@ -55,7 +63,7 @@ export function ConversationList({
               <span className="truncate">{c.title}</span>
             </NavLink>
             {pendingDeleteId === c.id ? (
-              <div className="absolute right-2 top-2 flex gap-1">
+              <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 gap-1">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -63,7 +71,7 @@ export function ConversationList({
                     onConfirmDelete(c.id);
                   }}
                   title="Confirm delete"
-                  className="rounded p-1 text-app-text-muted hover:bg-app-surface-hover hover:text-app-danger"
+                  className="rounded p-1.5 text-app-text-muted hover:bg-app-surface-hover hover:text-app-danger"
                 >
                   <CheckIcon />
                 </button>
@@ -74,7 +82,7 @@ export function ConversationList({
                     onCancelDelete();
                   }}
                   title="Cancel delete"
-                  className="rounded p-1 text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                  className="rounded p-1.5 text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
                 >
                   <CrossIcon />
                 </button>
@@ -87,7 +95,7 @@ export function ConversationList({
                   onRequestDelete(c.id);
                 }}
                 title="Delete conversation"
-                className="absolute right-2 top-2 hidden rounded p-1 text-app-text-muted hover:bg-app-surface-hover hover:text-app-danger group-hover:block"
+                className="absolute right-1.5 top-1/2 block -translate-y-1/2 rounded p-1.5 text-app-text-muted hover:bg-app-surface-hover hover:text-app-danger sm:hidden sm:group-hover:block"
               >
                 <TrashIcon />
               </button>

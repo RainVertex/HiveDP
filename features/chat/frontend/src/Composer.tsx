@@ -30,7 +30,7 @@ export function Composer({ onSend, onStop, streaming, stopDisabled, placeholder 
   }
 
   return (
-    <div className="border-t border-app-border bg-app-surface p-3">
+    <div className="border-t border-app-border bg-app-surface p-2 sm:p-3">
       <div className="flex items-end gap-2">
         <textarea
           ref={ref}
@@ -46,7 +46,9 @@ export function Composer({ onSend, onStop, streaming, stopDisabled, placeholder 
           rows={1}
           disabled={streaming}
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          className="flex-1 resize-none rounded-app-md border border-app-border bg-app-bg-sunken px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:outline-none focus:ring-2 focus:ring-app-primary disabled:opacity-60 [&::-webkit-scrollbar]:hidden"
+          // text-base on mobile prevents iOS Safari's zoom-on-focus; we drop
+          // back to text-sm at sm+ so the desktop visual is unchanged.
+          className="flex-1 resize-none rounded-app-md border border-app-border bg-app-bg-sunken px-3 py-2 text-base text-app-text placeholder:text-app-text-subtle focus:outline-none focus:ring-2 focus:ring-app-primary disabled:opacity-60 sm:text-sm [&::-webkit-scrollbar]:hidden"
         />
         {streaming ? (
           <button
@@ -58,7 +60,7 @@ export function Composer({ onSend, onStop, streaming, stopDisabled, placeholder 
                 ? "submission in progress — wait for it to complete or roll back"
                 : "Stop"
             }
-            className="h-9 rounded-app-md border border-app-border bg-app-surface px-4 text-sm text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-10 shrink-0 rounded-app-md border border-app-border bg-app-surface px-3 text-sm text-app-text hover:bg-app-surface-hover disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:px-4"
           >
             Stop
           </button>
@@ -67,7 +69,7 @@ export function Composer({ onSend, onStop, streaming, stopDisabled, placeholder 
             type="button"
             onClick={submit}
             disabled={!text.trim()}
-            className="h-9 rounded-app-md bg-app-primary px-4 text-sm font-medium text-app-primary-foreground hover:bg-app-primary-hover disabled:opacity-50"
+            className="h-10 shrink-0 rounded-app-md bg-app-primary px-3 text-sm font-medium text-app-primary-foreground hover:bg-app-primary-hover disabled:opacity-50 sm:h-9 sm:px-4"
           >
             Send
           </button>

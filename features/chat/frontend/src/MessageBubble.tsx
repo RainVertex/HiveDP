@@ -59,7 +59,7 @@ export function MessageBubble({ message, liveCalls = [], userName, userAvatarUrl
         )}
       </div>
       <div
-        className={`max-w-[80%] rounded-app-lg px-3 py-2 text-sm ${
+        className={`max-w-[85%] rounded-app-lg px-3 py-2 text-sm sm:max-w-[80%] ${
           isUser
             ? "bg-app-primary-soft text-app-primary-soft-foreground"
             : "bg-app-surface text-app-text border border-app-border"

@@ -96,14 +96,15 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
     // -m-4 cancels WidgetFrame's inner padding so MessageList/Composer sit
     // flush — Composer has its own border-t to separate from messages.
     <div className="-m-4 flex h-[calc(100%+2rem)] flex-col">
-      <div className="flex items-center justify-between border-b border-app-border bg-app-surface px-3 py-1.5">
+      <div className="flex items-center justify-between gap-2 border-b border-app-border bg-app-surface px-3 py-1.5">
         <span className="truncate text-xs text-app-text-muted">{active?.title ?? "New chat"}</span>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             onClick={handleNewChat}
             title="New chat"
-            className="rounded-app-sm px-2 py-0.5 text-xs text-app-text-muted hover:bg-app-surface-hover"
+            aria-label="New chat"
+            className="flex h-8 min-w-8 items-center justify-center rounded-app-sm px-2 text-sm text-app-text-muted hover:bg-app-surface-hover sm:h-6 sm:min-w-0 sm:py-0.5 sm:text-xs"
           >
             +
           </button>
@@ -111,7 +112,8 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
             type="button"
             onClick={() => navigate(conversationId ? `/chat/${conversationId}` : "/chat")}
             title="Open in full view"
-            className="rounded-app-sm px-2 py-0.5 text-xs text-app-text-muted hover:bg-app-surface-hover"
+            aria-label="Open in full view"
+            className="flex h-8 min-w-8 items-center justify-center rounded-app-sm px-2 text-sm text-app-text-muted hover:bg-app-surface-hover sm:h-6 sm:min-w-0 sm:py-0.5 sm:text-xs"
           >
             ↗
           </button>

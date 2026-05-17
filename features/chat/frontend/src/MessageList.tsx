@@ -28,7 +28,7 @@ export function MessageList({
   }, [messages, stream.text, stream.reasoning, stream.toolCalls.length]);
 
   return (
-    <div className="flex-1 space-y-3 overflow-y-auto p-4">
+    <div className="flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
       {messages.length === 0 && stream.status === "idle" && (
         <div className="mx-auto max-w-md rounded-app-lg border border-app-border bg-app-surface p-4 text-center text-sm text-app-text-muted">
           <p className="mb-1 font-medium text-app-text">Welcome to the Assistant</p>

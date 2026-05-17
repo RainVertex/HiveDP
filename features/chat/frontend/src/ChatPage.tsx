@@ -11,6 +11,26 @@ import { ConversationList } from "./ConversationList";
 import { MessageList } from "./MessageList";
 import { Composer } from "./Composer";
 import { useChatStream } from "./chatStream";
+import { MenuIcon } from "./icons";
+
+// Below `md` (Tailwind's 768px) we ditch the resizable two-column layout and
+// fall back to a single pane + slide-in drawer. The resizable panels crush the
+// message area on phones, so the breakpoint flip is a hard switch in JS rather
+// than CSS — we only want one MessageList mounted at a time (the autoscroll
+// ref + scrollIntoView would fight itself with two copies).
+function useIsMobile(): boolean {
+  const query = "(max-width: 767px)";
+  const [matches, setMatches] = useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia(query).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return matches;
+}
 
 interface ChatPageProps {
   /** Apps-web resolves auth and passes the current user in so feature code stays decoupled. */
@@ -32,6 +52,8 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
   const api = useApi();
   const navigate = useNavigate();
   const { conversationId } = useParams<{ conversationId: string }>();
+  const isMobile = useIsMobile();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Persist the panel split across reloads. v4 of react-resizable-panels
   // replaced the legacy `autoSaveId` prop with this hook + manual layout
@@ -192,6 +214,85 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
     [api, conversationId, navigate, send],
   );
 
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  const mainPane = (
+    <main className="flex h-full flex-1 flex-col bg-app-bg">
+      <header className="flex items-center gap-2 border-b border-app-border bg-app-surface px-3 py-2.5 sm:px-4 sm:py-3">
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open conversations"
+            className="-ml-1 flex h-9 w-9 items-center justify-center rounded-app-md text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+          >
+            <MenuIcon />
+          </button>
+        )}
+        <h1 className="truncate text-sm font-semibold text-app-text">
+          {active?.title ?? "Assistant"}
+        </h1>
+      </header>
+      {loading ? (
+        <div className="flex flex-1 items-center justify-center text-sm text-app-text-muted">
+          Loading…
+        </div>
+      ) : (
+        <MessageList
+          messages={active?.messages ?? []}
+          pendingUserMessage={
+            pendingUserMessage && pendingUserMessage.conversationId === conversationId
+              ? pendingUserMessage.message
+              : null
+          }
+          stream={stream}
+          userName={userName}
+          userAvatarUrl={userAvatarUrl}
+        />
+      )}
+      <Composer
+        onSend={handleSend}
+        onStop={abort}
+        streaming={stream.status === "streaming"}
+        stopDisabled={stream.submitInFlight}
+      />
+    </main>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="relative flex h-[calc(100vh-3.5rem)] flex-col">
+        {mainPane}
+        {/* Slide-in drawer for the conversation list. Backdrop dismisses on tap;
+         *  ConversationList's onSelect closes us when a conv is chosen. */}
+        <div
+          className={`fixed inset-0 z-40 transition-opacity ${
+            drawerOpen ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+          aria-hidden={!drawerOpen}
+        >
+          <div className="absolute inset-0 bg-black/40" onClick={closeDrawer} role="presentation" />
+          <aside
+            className={`absolute left-0 top-0 flex h-full w-72 max-w-[80vw] flex-col border-r border-app-border bg-app-surface shadow-xl transition-transform duration-200 ${
+              drawerOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+            <ConversationList
+              conversations={conversations}
+              activeId={conversationId ?? null}
+              pendingDeleteId={pendingDeleteId}
+              onNewChat={handleNewChat}
+              onRequestDelete={handleRequestDelete}
+              onConfirmDelete={handleConfirmDelete}
+              onCancelDelete={handleCancelDelete}
+              onSelect={closeDrawer}
+            />
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Group
       orientation="horizontal"
@@ -219,34 +320,7 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
       </Panel>
       <Separator className="w-px bg-app-border transition-colors hover:bg-app-primary data-[active=true]:bg-app-primary" />
       <Panel id="main" className="flex flex-col">
-        <main className="flex h-full flex-1 flex-col bg-app-bg">
-          <header className="border-b border-app-border bg-app-surface px-4 py-3">
-            <h1 className="text-sm font-semibold text-app-text">{active?.title ?? "Assistant"}</h1>
-          </header>
-          {loading ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-app-text-muted">
-              Loading…
-            </div>
-          ) : (
-            <MessageList
-              messages={active?.messages ?? []}
-              pendingUserMessage={
-                pendingUserMessage && pendingUserMessage.conversationId === conversationId
-                  ? pendingUserMessage.message
-                  : null
-              }
-              stream={stream}
-              userName={userName}
-              userAvatarUrl={userAvatarUrl}
-            />
-          )}
-          <Composer
-            onSend={handleSend}
-            onStop={abort}
-            streaming={stream.status === "streaming"}
-            stopDisabled={stream.submitInFlight}
-          />
-        </main>
+        {mainPane}
       </Panel>
     </Group>
   );
