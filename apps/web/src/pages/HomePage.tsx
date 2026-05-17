@@ -15,7 +15,7 @@ export function HomePage() {
   return (
     <PageLayout
       title={`Welcome back, ${firstName}`}
-      description="Your modular engineering platform at a glance."
+      description="Your Vexana dashboard at a glance."
       actions={<WidgetEditToolbar layout={layout} availableWidgets={WIDGET_LIST} />}
     >
       <WidgetGrid

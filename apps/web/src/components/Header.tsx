@@ -10,7 +10,7 @@ export function Header() {
   return (
     <header className="h-14 flex items-center justify-between px-4 border-b border-app-border bg-app-surface">
       <Link to="/" className="font-semibold text-app-text hover:text-app-primary transition-colors">
-        Modular Engineering Platform
+        Vexana
       </Link>
 
       <div className="flex items-center gap-3">

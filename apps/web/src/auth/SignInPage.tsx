@@ -18,7 +18,7 @@ export function SignInPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-app-bg px-4">
       <div className="w-full max-w-md rounded-lg border border-app-border bg-app-surface p-8 shadow-sm">
-        <h1 className="text-xl font-semibold text-app-text mb-1">Modular Engineering Platform</h1>
+        <h1 className="text-xl font-semibold text-app-text mb-1">Vexana</h1>
         <p className="text-sm text-app-text-muted mb-6">
           Internal tooling for our engineering org. Sign in with GitHub to continue.
         </p>
