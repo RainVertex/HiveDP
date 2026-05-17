@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Group, Panel, Separator, useDefaultLayout } from "react-resizable-panels";
 import { useApi } from "@internal/api-client/react";
@@ -49,6 +49,23 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
   const [active, setActive] = useState<ChatConversationDetailDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  // Optimistic user message kept OUTSIDE `active` so that any transient
+  // setActive(null) — from a 404/race in the conv-load effect, or React
+  // rendering the navigate before setActive applies — can't make it
+  // disappear. Keyed by conversationId so a fast send-then-switch doesn't
+  // leak the previous turn's pending bubble onto another conversation.
+  const [pendingUserMessage, setPendingUserMessage] = useState<{
+    conversationId: string;
+    message: ChatMessageDto;
+  } | null>(null);
+
+  // When handleSend creates a conversation on the fly, it sets this ref to the
+  // new conv's id BEFORE calling navigate(). The conv-load effect checks this
+  // ref and skips its fetch for the matching id. Without this, React may render
+  // the URL change (conversationId updated) before the optimistic setActive has
+  // applied, so the effect would see active?.id === null !== conversationId and
+  // fire a getConversation that overwrites the optimistic state mid-stream.
+  const skipNextLoadRef = useRef<string | null>(null);
 
   const { state: stream, send, abort, reset } = useChatStream(conversationId ?? null);
 
@@ -61,25 +78,40 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
   // when we already have this conversation loaded locally — handleSend
   // optimistically seeds active for a freshly-created conversation, and
   // re-fetching would clobber the user's just-sent message.
+  //
+  // CRITICAL: also skip when a stream is in flight. The first send of a new
+  // conversation does setActive(...) + navigate(...) + send(...) in quick
+  // succession. React may render the URL change in a transient state where
+  // `active` hasn't applied yet — that interleaved render would otherwise
+  // see active?.id !== conversationId, fire setLoading(true) (hiding the
+  // streaming bubble), then on resolve overwrite the optimistic state with a
+  // server snapshot that doesn't yet contain the in-flight assistant message.
+  // The previous reset() call here was even worse: it wiped useChatStream's
+  // state mid-stream, so subsequent SSE tokens landed on status === "idle"
+  // and never re-rendered the live bubble.
   useEffect(() => {
     if (!conversationId) {
       setActive(null);
       return;
     }
     if (active?.id === conversationId) return;
+    if (stream.status === "streaming") return;
+    if (skipNextLoadRef.current === conversationId) {
+      skipNextLoadRef.current = null;
+      return;
+    }
     setLoading(true);
     api.chat
       .getConversation(conversationId)
       .then((c) => {
         setActive(c);
-        reset();
       })
       .catch((err) => {
         console.error(err);
         setActive(null);
       })
       .finally(() => setLoading(false));
-  }, [api, conversationId, reset, active?.id]);
+  }, [api, conversationId, active?.id, stream.status]);
 
   // When a stream finishes, refresh the conversation so the new assistant
   // message + final tool calls land in persisted history, then reset the
@@ -92,6 +124,9 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
       .then(([detail, list]) => {
         setActive(detail);
         setConversations(list);
+        // The persisted user message is now in `detail.messages`, so drop the
+        // optimistic copy to avoid double-rendering the same content.
+        setPendingUserMessage(null);
         reset();
       })
       .catch(console.error);
@@ -125,16 +160,22 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
       if (!convId) {
         // Auto-create a conversation if one isn't selected. Seed `active`
         // ourselves so the load-on-navigate effect skips its refetch and
-        // our optimistic user message survives the route change.
+        // our optimistic user message survives the route change. The ref is
+        // the load-bearing piece: React may render the URL change before
+        // setActive applies, and only the ref reliably tells the effect "we
+        // just made this conv, don't fetch it".
         const conv = await api.chat.createConversation();
+        skipNextLoadRef.current = conv.id;
         setConversations((prev) => [conv, ...prev]);
         setActive({ ...conv, messages: [] });
         navigate(`/chat/${conv.id}`, { replace: true });
         convId = conv.id;
       }
-      // Show the user's message immediately. The post-done refresh replaces
-      // this optimistic row with the persisted one (different id) once the
-      // stream finishes.
+      // Show the user's message immediately. Kept in its own state (not
+      // merged into `active.messages`) so a transient setActive(null) from
+      // the conv-load effect or a 404 can't make it disappear mid-stream.
+      // Cleared in the post-stream refresh below once the persisted row from
+      // the server takes over.
       const optimistic: ChatMessageDto = {
         id: `optimistic-${Date.now()}`,
         role: "user",
@@ -145,9 +186,7 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
         reasoningDurationMs: null,
         createdAt: new Date().toISOString(),
       };
-      setActive((prev) =>
-        prev && prev.id === convId ? { ...prev, messages: [...prev.messages, optimistic] } : prev,
-      );
+      setPendingUserMessage({ conversationId: convId, message: optimistic });
       await send(text, convId);
     },
     [api, conversationId, navigate, send],
@@ -201,6 +240,11 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
           ) : (
             <MessageList
               messages={active?.messages ?? []}
+              pendingUserMessage={
+                pendingUserMessage && pendingUserMessage.conversationId === conversationId
+                  ? pendingUserMessage.message
+                  : null
+              }
               stream={stream}
               onConfirmPreview={handleConfirm}
               onCancelPreview={handleCancel}

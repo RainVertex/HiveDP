@@ -64,8 +64,12 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
-      <Route path="/chat" element={<ChatRoute />} />
-      <Route path="/chat/:conversationId" element={<ChatRoute />} />
+      {/* Single Route with an optional segment so navigating from /chat to
+          /chat/:id (which handleSend does on the first message of a new
+          conversation) is a re-render, not an unmount/remount. A remount here
+          would wipe useChatStream's state mid-SSE and the live bubble would
+          never render. */}
+      <Route path="/chat/:conversationId?" element={<ChatRoute />} />
       <Route path="/p/:pageId" element={<DashboardPage />} />
       <Route path="/agents" element={<AgentsPage />} />
       <Route path="/agents/new" element={<AgentNewWizard />} />

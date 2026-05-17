@@ -5,6 +5,8 @@ import type { ChatStreamState } from "./chatStream";
 
 interface Props {
   messages: ChatMessageDto[];
+  /** Optimistic user message rendered while the current turn is streaming. */
+  pendingUserMessage?: ChatMessageDto | null;
   stream: ChatStreamState;
   onConfirmPreview: (preview: ChatPreviewEvent) => void;
   onCancelPreview: (preview: ChatPreviewEvent) => void;
@@ -15,6 +17,7 @@ interface Props {
 
 export function MessageList({
   messages,
+  pendingUserMessage,
   stream,
   onConfirmPreview,
   onCancelPreview,
@@ -42,6 +45,14 @@ export function MessageList({
       {messages.map((m) => (
         <MessageBubble key={m.id} message={m} userName={userName} userAvatarUrl={userAvatarUrl} />
       ))}
+      {pendingUserMessage && (
+        <MessageBubble
+          key={pendingUserMessage.id}
+          message={pendingUserMessage}
+          userName={userName}
+          userAvatarUrl={userAvatarUrl}
+        />
+      )}
       {(stream.status === "streaming" ||
         stream.status === "done" ||
         (stream.status !== "idle" &&
