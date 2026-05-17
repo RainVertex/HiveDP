@@ -6,5 +6,7 @@ import { useCurrentUser } from "../../auth";
 // with no props, so the panel can't read auth context on its own.
 export function ChatAssistantWidget() {
   const me = useCurrentUser();
-  return <ChatAssistantPanel userId={me.id} />;
+  return (
+    <ChatAssistantPanel userId={me.id} userName={me.displayName} userAvatarUrl={me.avatarUrl} />
+  );
 }

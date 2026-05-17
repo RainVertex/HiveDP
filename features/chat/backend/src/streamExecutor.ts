@@ -14,6 +14,7 @@ import {
 } from "@feature/agents-backend";
 import type { ChatSseEvent, ChatToolCallSummary, ChatPolicyCheck } from "@internal/shared-types";
 import { platformAssistantToolIds } from "./tools";
+import { ThinkTagSplitter } from "./thinkTagSplitter";
 
 const PLATFORM_ASSISTANT_AGENT_ID = "seed-agent-assistant";
 
@@ -53,6 +54,10 @@ export interface StreamAgentResult {
   agentRunId: string;
   containsWrites: boolean;
   finalText: string;
+  /** Concatenated reasoning text from all `<think>` blocks across the turn. */
+  reasoning: string | null;
+  /** Total ms spent inside `<think>` blocks during the turn. */
+  reasoningDurationMs: number | null;
 }
 
 /** Server-emitted preview side-channel from a *_prepare tool's handler back up to */
@@ -201,6 +206,11 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
         ReturnType<typeof selectAdapter>["stream"]
       >[0]));
 
+  // One splitter per turn (entire streamAgent invocation): a reasoning-capable
+  // model may emit multiple `<think>` blocks across tool-call iterations, and
+  // we want to persist the concatenated reasoning + total duration once.
+  const splitter = new ThinkTagSplitter();
+
   try {
     for (let step = 0; step < agent.maxToolCalls; step++) {
       if (args.signal?.aborted) throw new Error("aborted");
@@ -211,7 +221,20 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
         tools: openaiTools.length > 0 ? openaiTools : undefined,
         signal: args.signal,
         onTokenDelta: (text) => {
-          if (text) args.onEvent({ event: "token", data: { text } });
+          if (!text) return;
+          const chunk = splitter.push(text);
+          if (chunk.reasoning) {
+            args.onEvent({ event: "reasoning_token", data: { text: chunk.reasoning } });
+          }
+          if (chunk.content) {
+            args.onEvent({ event: "token", data: { text: chunk.content } });
+          }
+          if (chunk.reasoningEnded) {
+            args.onEvent({
+              event: "reasoning_done",
+              data: { durationMs: splitter.totalReasoningMs },
+            });
+          }
         },
       });
 
@@ -219,7 +242,10 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
       tokensOutput += turn.usage.output;
 
       if (turn.message.content && typeof turn.message.content === "string") {
-        finalText = turn.message.content;
+        // The adapter returns the *raw* model content (still containing any
+        // `<think>` tags). Re-derive the user-visible final text from the
+        // splitter so persisted history never contains stray reasoning markup.
+        finalText = splitter.content;
       }
 
       if (turn.finishReason !== "tool_calls" || turn.toolCalls.length === 0) {
@@ -262,6 +288,30 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
       });
     }
 
+    // Flush any reasoning/content held back in the lookahead buffer (e.g. a
+    // model that stopped mid-tag), then snapshot the totals for persistence.
+    const tail = splitter.finalize();
+    if (tail.reasoning) {
+      args.onEvent({ event: "reasoning_token", data: { text: tail.reasoning } });
+    }
+    if (tail.content) {
+      args.onEvent({ event: "token", data: { text: tail.content } });
+    }
+    if (tail.reasoningEnded) {
+      args.onEvent({
+        event: "reasoning_done",
+        data: { durationMs: splitter.totalReasoningMs },
+      });
+    }
+    // Prefer the splitter's accumulated content over whatever the last turn
+    // happened to set (covers max-tool-calls and other edge paths where the
+    // final `finalText` came from a fallback string rather than the stream).
+    if (splitter.content) {
+      finalText = splitter.content;
+    }
+    const reasoning = splitter.reasoning || null;
+    const reasoningDurationMs = reasoning ? splitter.totalReasoningMs : null;
+
     const costUsd = computeCostUsd(model, { input: tokensInput, output: tokensOutput });
     await prisma.agentRun.update({
       where: { id: run.id },
@@ -276,7 +326,7 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
       },
     });
 
-    return { agentRunId: run.id, containsWrites, finalText };
+    return { agentRunId: run.id, containsWrites, finalText, reasoning, reasoningDurationMs };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const costUsd = computeCostUsd(model, { input: tokensInput, output: tokensOutput });
@@ -294,10 +344,16 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
       },
     });
     args.onEvent({ event: "error", data: { message } });
+    // Best-effort: still surface any reasoning collected before the failure so
+    // the persisted message reflects what actually happened mid-stream.
+    const partialReasoning = splitter.reasoning || null;
+    const partialDurationMs = partialReasoning ? splitter.totalReasoningMs : null;
     return {
       agentRunId: run.id,
       containsWrites,
       finalText: finalText || `[error] ${message}`,
+      reasoning: partialReasoning,
+      reasoningDurationMs: partialDurationMs,
     };
   }
 }

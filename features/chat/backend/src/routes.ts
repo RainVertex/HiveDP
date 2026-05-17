@@ -68,6 +68,8 @@ function toMessageDto(row: {
   content: string;
   toolCalls: unknown;
   agentRunId: string | null;
+  reasoning: string | null;
+  reasoningDurationMs: number | null;
   createdAt: Date;
 }): ChatMessageDto {
   return {
@@ -76,6 +78,8 @@ function toMessageDto(row: {
     content: row.content,
     toolCalls: (row.toolCalls as ChatToolCallSummary[] | null) ?? null,
     agentRunId: row.agentRunId,
+    reasoning: row.reasoning,
+    reasoningDurationMs: row.reasoningDurationMs,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -151,6 +155,8 @@ chatRouter.get("/conversations/:id", async (req, res) => {
       content: true,
       toolCalls: true,
       agentRunId: true,
+      reasoning: true,
+      reasoningDurationMs: true,
       createdAt: true,
     },
   });
@@ -267,7 +273,8 @@ chatRouter.post("/conversations/:id/messages", async (req, res) => {
 
     // Persist the assistant message — captures finalText, the run id, and
     // the tool calls so reload-of-conversation renders the full transcript
-    // including chips.
+    // including chips. Reasoning (if any) is saved alongside so the collapsed
+    // "Reasoned - Ns" affordance can re-expand its text after reload.
     await prisma.chatMessage.create({
       data: {
         conversationId,
@@ -275,6 +282,8 @@ chatRouter.post("/conversations/:id/messages", async (req, res) => {
         content: result.finalText,
         agentRunId: result.agentRunId,
         toolCalls: undefined, // tool calls already streamed; reconstruct from AgentRun if needed for v2
+        reasoning: result.reasoning,
+        reasoningDurationMs: result.reasoningDurationMs,
       },
     });
 

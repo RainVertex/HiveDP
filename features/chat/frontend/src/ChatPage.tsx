@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { Group, Panel, Separator, useDefaultLayout } from "react-resizable-panels";
 import { useApi } from "@internal/api-client/react";
 import type {
   ChatConversationDetailDto,
@@ -12,6 +13,12 @@ import { MessageList } from "./MessageList";
 import { Composer } from "./Composer";
 import { useChatStream } from "./chatStream";
 
+interface ChatPageProps {
+  /** Apps-web resolves auth and passes the current user in so feature code stays decoupled. */
+  userName?: string;
+  userAvatarUrl?: string | null;
+}
+
 // Full-page chat surface. Three columns visually but two functionally:
 // left rail with conversation list, main pane with messages + composer.
 //
@@ -22,10 +29,21 @@ import { useChatStream } from "./chatStream";
 // "Confirm submission" as the next user message, keeping the confirmation
 // flow inside the transcript and the audit trail.
 
-export function ChatPage() {
+export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
   const api = useApi();
   const navigate = useNavigate();
   const { conversationId } = useParams<{ conversationId: string }>();
+
+  // Persist the panel split across reloads. v4 of react-resizable-panels
+  // replaced the legacy `autoSaveId` prop with this hook + manual layout
+  // wiring. The `v2` suffix is intentional: an earlier integration passed
+  // pixel-numeric sizes by mistake, and bumping the id discards those
+  // broken stored values.
+  const persistedLayout = useDefaultLayout({
+    id: "chat-page-layout-v2",
+    panelIds: ["conversations", "main"],
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+  });
 
   const [conversations, setConversations] = useState<ChatConversationSummaryDto[]>([]);
   const [active, setActive] = useState<ChatConversationDetailDto | null>(null);
@@ -123,6 +141,8 @@ export function ChatPage() {
         content: text,
         toolCalls: null,
         agentRunId: null,
+        reasoning: null,
+        reasoningDurationMs: null,
         createdAt: new Date().toISOString(),
       };
       setActive((prev) =>
@@ -147,38 +167,55 @@ export function ChatPage() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
-      <ConversationList
-        conversations={conversations}
-        activeId={conversationId ?? null}
-        onNewChat={handleNewChat}
-        onDelete={handleDelete}
-      />
-      <main className="flex flex-1 flex-col bg-app-bg">
-        <header className="border-b border-app-border bg-app-surface px-4 py-3">
-          <h1 className="text-sm font-semibold text-app-text">
-            {active?.title ?? "Platform Assistant"}
-          </h1>
-        </header>
-        {loading ? (
-          <div className="flex flex-1 items-center justify-center text-sm text-app-text-muted">
-            Loading…
-          </div>
-        ) : (
-          <MessageList
-            messages={active?.messages ?? []}
-            stream={stream}
-            onConfirmPreview={handleConfirm}
-            onCancelPreview={handleCancel}
-          />
-        )}
-        <Composer
-          onSend={handleSend}
-          onStop={abort}
-          streaming={stream.status === "streaming"}
-          stopDisabled={stream.submitInFlight}
+    <Group
+      orientation="horizontal"
+      id="chat-page-layout-v2"
+      defaultLayout={persistedLayout.defaultLayout}
+      onLayoutChanged={persistedLayout.onLayoutChanged}
+      className="h-[calc(100vh-3.5rem)]"
+    >
+      <Panel
+        id="conversations"
+        defaultSize="28"
+        minSize="20"
+        maxSize="45"
+        className="flex flex-col"
+      >
+        <ConversationList
+          conversations={conversations}
+          activeId={conversationId ?? null}
+          onNewChat={handleNewChat}
+          onDelete={handleDelete}
         />
-      </main>
-    </div>
+      </Panel>
+      <Separator className="w-px bg-app-border transition-colors hover:bg-app-primary data-[active=true]:bg-app-primary" />
+      <Panel id="main" className="flex flex-col">
+        <main className="flex h-full flex-1 flex-col bg-app-bg">
+          <header className="border-b border-app-border bg-app-surface px-4 py-3">
+            <h1 className="text-sm font-semibold text-app-text">{active?.title ?? "Assistant"}</h1>
+          </header>
+          {loading ? (
+            <div className="flex flex-1 items-center justify-center text-sm text-app-text-muted">
+              Loading…
+            </div>
+          ) : (
+            <MessageList
+              messages={active?.messages ?? []}
+              stream={stream}
+              onConfirmPreview={handleConfirm}
+              onCancelPreview={handleCancel}
+              userName={userName}
+              userAvatarUrl={userAvatarUrl}
+            />
+          )}
+          <Composer
+            onSend={handleSend}
+            onStop={abort}
+            streaming={stream.status === "streaming"}
+            stopDisabled={stream.submitInFlight}
+          />
+        </main>
+      </Panel>
+    </Group>
   );
 }

@@ -11,12 +11,15 @@ const KEY_CONV = (uid: string) => `mep:chat-widget:conversation_id:${uid}`;
 interface Props {
   /** Auth identity of the current user; used to scope the per-user localStorage key so logging */
   userId: string;
+  /** Display name + avatar drive the right-side bubble avatar on user messages. */
+  userName?: string;
+  userAvatarUrl?: string | null;
 }
 
 // In-page chat surface (the homepage widget body). Same SSE consumer as the
 // full ChatPage, but scoped to a single persisted conversation id stored in
 // localStorage so the widget remembers your last thread across reloads.
-export function ChatAssistantPanel({ userId }: Props) {
+export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
   const api = useApi();
   const navigate = useNavigate();
   const storageKey = KEY_CONV(userId);
@@ -129,6 +132,8 @@ export function ChatAssistantPanel({ userId }: Props) {
           stream={stream}
           onConfirmPreview={handleConfirm}
           onCancelPreview={handleCancel}
+          userName={userName}
+          userAvatarUrl={userAvatarUrl}
         />
         <Composer
           onSend={handleSend}

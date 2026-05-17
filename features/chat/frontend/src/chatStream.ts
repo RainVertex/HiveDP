@@ -28,6 +28,12 @@ export interface ChatStreamState {
   status: ChatStreamStatus;
   /** Streaming assistant text. */
   text: string;
+  /** Concatenated `<think>` content streamed for this turn (empty if the model isn't reasoning). */
+  reasoning: string;
+  /** Client-side timestamp captured on the first reasoning token, used to tick the live counter. */
+  reasoningStartedAt: number | null;
+  /** Server-reported total ms once reasoning has fully ended; null while still reasoning. */
+  reasoningDurationMs: number | null;
   toolCalls: ChatToolCallView[];
   /** Structured preview events emitted by *_prepare tools. */
   previews: ChatPreviewEvent[];
@@ -40,6 +46,9 @@ export interface ChatStreamState {
 const initial: ChatStreamState = {
   status: "idle",
   text: "",
+  reasoning: "",
+  reasoningStartedAt: null,
+  reasoningDurationMs: null,
   toolCalls: [],
   previews: [],
   submitInFlight: false,
@@ -159,6 +168,20 @@ function handleFrame(
     case "token": {
       const t = (data as { text?: string }).text ?? "";
       setState((s) => ({ ...s, text: s.text + t }));
+      break;
+    }
+    case "reasoning_token": {
+      const t = (data as { text?: string }).text ?? "";
+      setState((s) => ({
+        ...s,
+        reasoning: s.reasoning + t,
+        reasoningStartedAt: s.reasoningStartedAt ?? Date.now(),
+      }));
+      break;
+    }
+    case "reasoning_done": {
+      const ms = (data as { durationMs?: number }).durationMs ?? 0;
+      setState((s) => ({ ...s, reasoningDurationMs: ms }));
       break;
     }
     case "tool_call_start": {

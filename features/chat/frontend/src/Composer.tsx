@@ -45,7 +45,8 @@ export function Composer({ onSend, onStop, streaming, stopDisabled, placeholder 
           placeholder={placeholder ?? "Ask about your work, teams, requests…"}
           rows={1}
           disabled={streaming}
-          className="flex-1 resize-none rounded-app-md border border-app-border bg-app-bg-sunken px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:outline-none focus:ring-2 focus:ring-app-primary disabled:opacity-60"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          className="flex-1 resize-none rounded-app-md border border-app-border bg-app-bg-sunken px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:outline-none focus:ring-2 focus:ring-app-primary disabled:opacity-60 [&::-webkit-scrollbar]:hidden"
         />
         {streaming ? (
           <button

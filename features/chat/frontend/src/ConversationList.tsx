@@ -11,7 +11,7 @@ interface Props {
 
 export function ConversationList({ conversations, activeId, onNewChat, onDelete }: Props) {
   return (
-    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-app-border bg-app-surface">
+    <aside className="flex h-full w-full flex-col bg-app-surface">
       <div className="flex items-center justify-between p-3">
         <h2 className="text-sm font-semibold text-app-text">Conversations</h2>
         <button

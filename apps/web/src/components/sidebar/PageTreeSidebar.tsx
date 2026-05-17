@@ -237,7 +237,7 @@ function SectionTree({ section }: { section: PageSection }) {
   };
 
   return (
-    <aside className="w-64 shrink-0 border-r border-app-border bg-app-surface flex flex-col">
+    <aside className="w-full h-full border-r border-app-border bg-app-surface flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
         <h2 className="text-sm font-semibold text-app-text">{SECTION_TITLES[section]}</h2>
         <div className="flex items-center gap-1">

@@ -22,6 +22,10 @@ export interface ChatMessageDto {
   content: string;
   toolCalls: ChatToolCallSummary[] | null;
   agentRunId: ID | null;
+  /** Concatenated `<think>` content emitted by reasoning-capable models (e.g. */
+  reasoning: string | null;
+  /** Total wall-clock ms the model spent inside `<think>` blocks for this message. */
+  reasoningDurationMs: number | null;
   createdAt: ISODateString;
 }
 
@@ -46,6 +50,17 @@ export interface ChatConversationDetailDto extends ChatConversationSummaryDto {
 
 export interface ChatTokenEvent {
   text: string;
+}
+
+/** Chunk of `<think>` text streamed from a reasoning-capable model. */
+export interface ChatReasoningTokenEvent {
+  text: string;
+}
+
+/** Emitted once the model exits reasoning mode (e.g. on `</think>`). */
+export interface ChatReasoningDoneEvent {
+  /** Total ms accumulated across all reasoning blocks in this turn so far. */
+  durationMs: number;
 }
 
 export interface ChatToolCallStartEvent {
@@ -93,6 +108,8 @@ export interface ChatDoneEvent {
 
 export type ChatSseEvent =
   | { event: "token"; data: ChatTokenEvent }
+  | { event: "reasoning_token"; data: ChatReasoningTokenEvent }
+  | { event: "reasoning_done"; data: ChatReasoningDoneEvent }
   | { event: "tool_call_start"; data: ChatToolCallStartEvent }
   | { event: "tool_call_end"; data: ChatToolCallEndEvent }
   | { event: "preview"; data: ChatPreviewEvent }

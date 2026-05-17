@@ -14,7 +14,7 @@ import {
   AgentNewWizard,
   AgentsPage,
 } from "@feature/agents-frontend";
-import { ChatPage } from "@feature/chat-frontend";
+import { ChatRoute } from "./widgets/chat/ChatRoute";
 import {
   CatalogDriftInboxPage,
   CatalogEntityPage,
@@ -64,8 +64,8 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
-      <Route path="/chat" element={<ChatPage />} />
-      <Route path="/chat/:conversationId" element={<ChatPage />} />
+      <Route path="/chat" element={<ChatRoute />} />
+      <Route path="/chat/:conversationId" element={<ChatRoute />} />
       <Route path="/p/:pageId" element={<DashboardPage />} />
       <Route path="/agents" element={<AgentsPage />} />
       <Route path="/agents/new" element={<AgentNewWizard />} />
