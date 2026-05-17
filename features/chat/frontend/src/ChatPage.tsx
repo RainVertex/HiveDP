@@ -137,21 +137,22 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
     navigate("/chat");
   }, [navigate, reset]);
 
-  const handleDelete = useCallback(
+  const handleRequestDelete = useCallback((id: string) => {
+    setPendingDeleteId(id);
+  }, []);
+
+  const handleCancelDelete = useCallback(() => {
+    setPendingDeleteId(null);
+  }, []);
+
+  const handleConfirmDelete = useCallback(
     async (id: string) => {
-      // Per memory rule, never use window.confirm — use a simple inline
-      // confirmation chip instead. For v1 we use a two-step click pattern.
-      if (pendingDeleteId !== id) {
-        setPendingDeleteId(id);
-        setTimeout(() => setPendingDeleteId(null), 3000);
-        return;
-      }
       await api.chat.deleteConversation(id);
       setConversations((prev) => prev.filter((c) => c.id !== id));
       if (conversationId === id) navigate("/chat");
       setPendingDeleteId(null);
     },
-    [api, conversationId, navigate, pendingDeleteId],
+    [api, conversationId, navigate],
   );
 
   const handleSend = useCallback(
@@ -223,8 +224,11 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
         <ConversationList
           conversations={conversations}
           activeId={conversationId ?? null}
+          pendingDeleteId={pendingDeleteId}
           onNewChat={handleNewChat}
-          onDelete={handleDelete}
+          onRequestDelete={handleRequestDelete}
+          onConfirmDelete={handleConfirmDelete}
+          onCancelDelete={handleCancelDelete}
         />
       </Panel>
       <Separator className="w-px bg-app-border transition-colors hover:bg-app-primary data-[active=true]:bg-app-primary" />

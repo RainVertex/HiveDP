@@ -1,15 +1,26 @@
 import { NavLink } from "react-router-dom";
 import type { ChatConversationSummaryDto } from "@internal/shared-types";
-import { TrashIcon, PlusIcon } from "./icons";
+import { TrashIcon, PlusIcon, CheckIcon, CrossIcon } from "./icons";
 
 interface Props {
   conversations: ChatConversationSummaryDto[];
   activeId: string | null;
+  pendingDeleteId: string | null;
   onNewChat: () => void;
-  onDelete: (id: string) => void;
+  onRequestDelete: (id: string) => void;
+  onConfirmDelete: (id: string) => void;
+  onCancelDelete: () => void;
 }
 
-export function ConversationList({ conversations, activeId, onNewChat, onDelete }: Props) {
+export function ConversationList({
+  conversations,
+  activeId,
+  pendingDeleteId,
+  onNewChat,
+  onRequestDelete,
+  onConfirmDelete,
+  onCancelDelete,
+}: Props) {
   return (
     <aside className="flex h-full w-full flex-col bg-app-surface">
       <div className="flex items-center justify-between p-3">
@@ -43,17 +54,44 @@ export function ConversationList({ conversations, activeId, onNewChat, onDelete 
             >
               <span className="truncate">{c.title}</span>
             </NavLink>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                onDelete(c.id);
-              }}
-              title="Delete conversation"
-              className="absolute right-2 top-2 hidden rounded p-1 text-app-text-muted hover:bg-app-surface-hover hover:text-app-danger group-hover:block"
-            >
-              <TrashIcon />
-            </button>
+            {pendingDeleteId === c.id ? (
+              <div className="absolute right-2 top-2 flex gap-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onConfirmDelete(c.id);
+                  }}
+                  title="Confirm delete"
+                  className="rounded p-1 text-app-text-muted hover:bg-app-surface-hover hover:text-app-danger"
+                >
+                  <CheckIcon />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onCancelDelete();
+                  }}
+                  title="Cancel delete"
+                  className="rounded p-1 text-app-text-muted hover:bg-app-surface-hover hover:text-app-text"
+                >
+                  <CrossIcon />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onRequestDelete(c.id);
+                }}
+                title="Delete conversation"
+                className="absolute right-2 top-2 hidden rounded p-1 text-app-text-muted hover:bg-app-surface-hover hover:text-app-danger group-hover:block"
+              >
+                <TrashIcon />
+              </button>
+            )}
           </li>
         ))}
       </ul>
