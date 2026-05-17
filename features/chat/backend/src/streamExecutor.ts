@@ -6,8 +6,7 @@ import {
   resolveProviderApiKey,
   resolveTools,
   selectAdapter,
-  type ChatRequest,
-  type ChatResult,
+  type AdapterRequest,
   type ResolvedModel,
   type RegisteredTool,
   type ToolContext,
@@ -45,9 +44,6 @@ export interface StreamAgentArgs {
   callerTeamIds: string[];
   signal?: AbortSignal;
   onEvent: (e: ChatSseEvent) => void;
-  // Override for tests. Defaults to selectAdapter(agent.modelProvider).stream
-  // — see the assignment in streamAgent.
-  chatStream?: (args: StreamChatArgs) => Promise<ChatResult>;
 }
 
 export interface StreamAgentResult {
@@ -199,12 +195,8 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
   // modelProvider field. Agents created before Pass 2 default to
   // 'openai_compat' and behave identically to the previous streamChat path;
   // Anthropic and Gemini agents now run on their native SDKs.
-  const chatStream =
-    args.chatStream ??
-    ((req: StreamChatArgs) =>
-      selectAdapter(agent.modelProvider).stream({ ...req, apiKey } as Parameters<
-        ReturnType<typeof selectAdapter>["stream"]
-      >[0]));
+  const chatStream = (req: AdapterRequest) =>
+    selectAdapter(agent.modelProvider).stream({ ...req, apiKey });
 
   // One splitter per turn (entire streamAgent invocation): a reasoning-capable
   // model may emit multiple `<think>` blocks across tool-call iterations, and
@@ -815,19 +807,6 @@ function looksLikeConfirmation(text: string | undefined | null): boolean {
   return CONFIRMATION_KEYWORDS.some(
     (k) => padded.includes(` ${k} `) || padded.includes(`${k} `) || padded.includes(` ${k}`),
   );
-}
-
-// ---------------------------------------------------------------------------
-// Streaming chat — type alias kept for the chatStream injection hook used by
-// streamAgent (and tests). The actual streaming implementation moved to
-// features/agents/backend/src/llm/adapters/ in Pass 2; selectAdapter() picks
-// the right one (openai_compat / anthropic / gemini) per Agent.modelProvider.
-// ---------------------------------------------------------------------------
-
-interface StreamChatArgs extends ChatRequest {
-  onTokenDelta?: (text: string) => void;
-  /** Override the default tool_choice. */
-  toolChoice?: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption;
 }
 
 // ---------------------------------------------------------------------------

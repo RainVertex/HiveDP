@@ -767,15 +767,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<void>(`/api/chat/conversations/${encodeURIComponent(id)}`, {
           method: "DELETE",
         }),
-      abort: (id: string) =>
-        request<void>(`/api/chat/conversations/${encodeURIComponent(id)}/abort`, {
-          method: "POST",
-        }),
-      // Streaming send is hand-rolled with fetch() in the chatStream hook —
-      // SSE doesn't fit through this typed-JSON request helper. The URL is
-      // exposed here so callers don't have to hardcode it.
-      sendMessageUrl: (id: string) =>
-        `${baseUrl}/api/chat/conversations/${encodeURIComponent(id)}/messages`,
     },
 
     notifications: {

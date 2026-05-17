@@ -3,7 +3,6 @@ import type {
   ChatPreviewEvent,
   ChatToolCallStartEvent,
   ChatToolCallEndEvent,
-  ChatDoneEvent,
 } from "@internal/shared-types";
 
 // Hand-rolled SSE consumer for /api/chat/conversations/:id/messages. The
@@ -39,7 +38,6 @@ export interface ChatStreamState {
   previews: ChatPreviewEvent[];
   /** True while a *_submit tool call is mid-execution; UI uses this to disable the Stop button */
   submitInFlight: boolean;
-  done?: ChatDoneEvent;
   error?: string;
 }
 
@@ -215,8 +213,7 @@ function handleFrame(
       break;
     }
     case "done": {
-      const e = data as ChatDoneEvent;
-      setState((s) => ({ ...s, status: "done", done: e }));
+      setState((s) => ({ ...s, status: "done" }));
       break;
     }
   }

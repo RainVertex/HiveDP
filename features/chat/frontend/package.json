@@ -15,6 +15,7 @@
     "@internal/shared-types": "0.1.0",
     "@internal/shared-ui": "0.1.0",
     "react": "^19.2.6",
+    "react-resizable-panels": "^4.11.1",
     "react-router-dom": "^7.15.1"
   },
   "devDependencies": {

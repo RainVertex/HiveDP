@@ -227,7 +227,7 @@ chatRouter.post("/conversations/:id/messages", async (req, res) => {
 
   // Persist the user's message before streaming so the transcript stays
   // intact even if the network drops mid-stream.
-  const userMsg = await prisma.chatMessage.create({
+  await prisma.chatMessage.create({
     data: { conversationId, role: "user", content: parsed.content },
   });
 
@@ -316,8 +316,4 @@ chatRouter.post("/conversations/:id/messages", async (req, res) => {
     inFlight.delete(conversationId);
     res.end();
   }
-
-  // Reference userMsg so eslint doesn't flag the assignment as unused — the
-  // row exists for transcript persistence; we don't need to read it back.
-  void userMsg;
 });

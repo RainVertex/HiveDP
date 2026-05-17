@@ -12,10 +12,7 @@
   },
   "dependencies": {
     "@feature/agents-backend": "0.1.0",
-    "@feature/catalog-backend": "0.1.0",
-    "@feature/notifications-backend": "0.1.0",
     "@feature/teams-backend": "0.1.0",
-    "@feature/workspace-backend": "0.1.0",
     "@internal/db": "0.1.0",
     "@internal/shared-types": "0.1.0",
     "express": "^5.2.1",
