@@ -12,13 +12,15 @@ import { requireUserId } from "./core";
 // the prepare/submit split exists so the user can confirm before any DB
 // state changes.
 
-const slugRule = /^[a-z0-9][a-z0-9-]*$/;
+const slugRule = /^[a-z0-9][a-z0-9-]*-team$/;
 
 const inputSchema = z.object({
-  slug: z.string().min(2).max(64).regex(slugRule),
+  slug: z.string().min(2).max(64).regex(slugRule, {
+    message: "Slug must be kebab-case and end with -team (e.g. 'payments-team')",
+  }),
   name: z.string().min(1).max(120),
   description: z.string().max(1000).optional(),
-  mirrorToGithub: z.boolean(),
+  mirrorToGithub: z.boolean().default(false),
   githubIntegrationId: z.string().min(1).optional(),
 });
 
@@ -46,29 +48,28 @@ const prepare: RegisteredTool = {
     function: {
       name: TEAM_REQUEST_PREPARE_TOOL_ID,
       description:
-        "Prepare a team-creation request for the user to confirm. Validates inputs against hard-rule policies (slug must be kebab-case ending in -team; name 1-120 chars). Does NOT create anything yet — returns a preview handle that team_request_submit consumes after the user confirms.",
+        "Prepare a team-creation request. Returns a preview handle for team_request_submit; the user must confirm between prepare and submit.",
       parameters: {
         type: "object",
         properties: {
           slug: {
             type: "string",
-            description:
-              "Team slug. Must end with -team and be kebab-case (lowercase, digits, dashes), e.g. 'payments-team'.",
+            description: "Team slug, e.g. 'payments-team'.",
           },
           name: { type: "string", description: "Display name for the team." },
           description: { type: "string", description: "Optional description (max 1000 chars)." },
           mirrorToGithub: {
             type: "boolean",
             description:
-              "If true, approval will also create a team in the linked GitHub org. Requires githubIntegrationId.",
+              "Optional. If true, approval also creates a matching team in the linked GitHub org. Omit for org-only teams.",
           },
           githubIntegrationId: {
             type: "string",
             description:
-              "Required when mirrorToGithub is true. Identifies the GitHub App installation to mirror into. Accepts EITHER the org/account login the user gave you (e.g. 'acme-corp') OR the Integration.id cuid — both resolve correctly server-side, so prefer whichever the user already supplied. If the user didn't name an org and you're unsure what's connected, call integrations_list_github first; if nothing is connected, tell the user to connect a GitHub App in Settings before retrying. NEVER ask the user to type a cuid.",
+              "Required when mirrorToGithub is true. Accepts either the GitHub org/account login (e.g. 'acme-corp') or the Integration.id cuid — both resolve server-side. Call integrations_list_github first if unsure what's connected. NEVER ask the user to type a cuid.",
           },
         },
-        required: ["slug", "name", "mirrorToGithub"],
+        required: ["slug", "name"],
       },
     },
   },
@@ -86,24 +87,6 @@ const prepare: RegisteredTool = {
     const input = parsed.data;
 
     const policyChecks: ChatPolicyCheck[] = [];
-    // Hard rule: slug must end with -team. The team-name policy enforces this
-    // server-side at submit time; pre-check here so the LLM gets quick
-    // feedback before persisting a preview that would fail re-validation.
-    const suffix = "-team";
-    policyChecks.push({
-      name: "name_pattern_suffix",
-      passed: input.slug.endsWith(suffix),
-      message: input.slug.endsWith(suffix)
-        ? "Slug ends with -team"
-        : `Slug must end with '${suffix}' (e.g. 'payments-team')`,
-    });
-    policyChecks.push({
-      name: "name_pattern_kebab",
-      passed: slugRule.test(input.slug),
-      message: slugRule.test(input.slug)
-        ? "Slug is kebab-case"
-        : "Slug must be lowercase with dashes",
-    });
 
     // Resolve githubIntegrationId leniently: accept either the Integration row
     // id (a cuid) or the GitHub accountLogin (e.g. "m-engineering-platform").
