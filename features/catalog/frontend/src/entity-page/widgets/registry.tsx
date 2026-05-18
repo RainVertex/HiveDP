@@ -4,7 +4,6 @@ import { ScorecardsWidget } from "./ScorecardsWidget";
 import { RelationsGraphWidget } from "./RelationsGraphWidget";
 import { LinksWidget } from "./LinksWidget";
 import { DoraChartWidget } from "./DoraChartWidget";
-import { DriftHistoryWidget } from "./DriftHistoryWidget";
 import { PipelinesWidget } from "./PipelinesWidget";
 
 export type EntityWidgetId =
@@ -13,7 +12,6 @@ export type EntityWidgetId =
   | "relations-graph"
   | "links"
   | "dora-chart"
-  | "drift-history"
   | "pipelines";
 
 export type EntityWidgetDefinition = WidgetDefinition<EntityWidgetId>;
@@ -60,14 +58,6 @@ export const ENTITY_WIDGETS: WidgetRegistry<EntityWidgetId> = {
     defaultSize: { w: 8, h: 6 },
     minSize: { w: 4, h: 4 },
   },
-  "drift-history": {
-    id: "drift-history",
-    title: "Drift History",
-    description: "Recent catalog drift events for this entity.",
-    component: DriftHistoryWidget,
-    defaultSize: { w: 4, h: 5 },
-    minSize: { w: 3, h: 3 },
-  },
   pipelines: {
     id: "pipelines",
     title: "CI/CD",
@@ -86,7 +76,6 @@ export const DEFAULT_ENTITY_WIDGETS: EntityWidgetInstance[] = [
   { i: "links-1", widgetId: "links", x: 8, y: 6, w: 4, h: 5 },
   { i: "relations-graph-1", widgetId: "relations-graph", x: 0, y: 9, w: 8, h: 6 },
   { i: "pipelines-1", widgetId: "pipelines", x: 8, y: 11, w: 4, h: 6 },
-  { i: "drift-history-1", widgetId: "drift-history", x: 8, y: 17, w: 4, h: 5 },
   { i: "dora-chart-1", widgetId: "dora-chart", x: 0, y: 15, w: 8, h: 6 },
 ];
 

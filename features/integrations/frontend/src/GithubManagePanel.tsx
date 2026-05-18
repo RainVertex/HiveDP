@@ -1,10 +1,8 @@
-// Thin GitHub configure surface. The drift dashboard at
-// /admin/integrations/github/:integrationId/drift handles the deeper view
-// (per-team sync state, pending members, run history). This panel surfaces
-// the basic install identity, a resync trigger, and a link to the dashboard.
+// Thin GitHub configure surface. Surfaces basic install identity and a manual
+// Resync trigger. Per-team sync state and stale-team warnings are rendered
+// inline on the Integrations list page via IntegrationDriftBadge.
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useApi } from "@internal/api-client/react";
 import type { IntegrationDetail } from "@internal/shared-types";
 
@@ -51,25 +49,15 @@ export function GithubManagePanel({ integration, onChanged }: GithubManagePanelP
 
       <section className="space-y-2 rounded-md border border-app-border bg-app-surface p-3">
         <h3 className="text-sm font-semibold text-app-text">Sync</h3>
-        <p className="text-xs text-app-text-muted">
-          Run a manual reconciliation now, or open the drift dashboard for per-team detail.
-        </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={resync}
-            disabled={busy}
-            className="rounded border border-app-border px-2 py-1 text-xs text-app-text hover:bg-app-surface-hover disabled:opacity-50"
-          >
-            {busy ? "Syncing…" : "Resync now"}
-          </button>
-          <Link
-            to={`/admin/integrations/github/${integration.id}/drift`}
-            className="rounded border border-app-border px-2 py-1 text-xs text-app-text hover:bg-app-surface-hover"
-          >
-            Open drift dashboard
-          </Link>
-        </div>
+        <p className="text-xs text-app-text-muted">Run a manual reconciliation now.</p>
+        <button
+          type="button"
+          onClick={resync}
+          disabled={busy}
+          className="rounded border border-app-border px-2 py-1 text-xs text-app-text hover:bg-app-surface-hover disabled:opacity-50"
+        >
+          {busy ? "Syncing…" : "Resync now"}
+        </button>
       </section>
     </div>
   );

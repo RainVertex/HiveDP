@@ -12,5 +12,4 @@ export { RequestTeamForm } from "./RequestTeamForm";
 export { RequestTeamPage } from "./RequestTeamPage";
 export { RequestMaintainerPickerPage } from "./RequestMaintainerPickerPage";
 export { UserPicker } from "./UserPicker";
-export { GithubDriftDashboard } from "./GithubDriftDashboard";
 export { ProposedMembersList } from "./ProposedMembersList";

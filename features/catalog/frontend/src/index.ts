@@ -1,5 +1,4 @@
 export { CatalogPage } from "./CatalogPage";
-export { CatalogDriftInbox as CatalogDriftInboxPage } from "./CatalogDriftInbox";
 export { CatalogEntityPage } from "./entity-page/CatalogEntityPage";
 export { OverviewTab as EntityOverviewTab } from "./entity-page/tabs/OverviewTab";
 export { RelatedTab as EntityRelatedTab } from "./entity-page/tabs/RelatedTab";

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { PageLayout } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
 import type { ScaffolderBinding } from "@internal/shared-types";
+import { TemplateDriftBadge } from "./TemplateDriftBadge";
 
 export function BindingsPage() {
   const api = useApi();
@@ -30,11 +31,14 @@ export function BindingsPage() {
           {items.map((b) => (
             <li key={b.id} className="px-3 py-3 text-sm">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-mono text-app-text">{b.targetRef}</div>
-                  <div className="text-xs text-app-text-muted">
-                    {b.templateId} · v{b.templateVersion} · {b.targetKind} · target={b.target}
+                <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                  <div>
+                    <div className="font-mono text-app-text">{b.targetRef}</div>
+                    <div className="text-xs text-app-text-muted">
+                      {b.templateId} · v{b.templateVersion} · {b.targetKind} · target={b.target}
+                    </div>
                   </div>
+                  <TemplateDriftBadge bindingId={b.id} />
                 </div>
                 <div className="text-right text-xs text-app-text-muted">
                   <div>{new Date(b.appliedAt).toLocaleString()}</div>

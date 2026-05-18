@@ -5,8 +5,6 @@ import type {
   AgentRun,
   AgentToolDescriptor,
   AuditEventRow,
-  CatalogDriftRow,
-  CatalogDriftStatus,
   CatalogEntityKind,
   CatalogEntityOverview,
   CatalogEntityWithOwners,
@@ -19,7 +17,7 @@ import type {
   DocStaleReportRow,
   DocsTabResponse,
   DoraMetricsSnapshot,
-  GithubDriftDto,
+  GithubDriftSummaryDto,
   GithubInstallationSummary,
   GithubReconciliationRunDto,
   Integration,
@@ -47,6 +45,7 @@ import type {
   MyWorkDto,
   RunAgentResponse,
   ScaffolderBinding,
+  ScaffolderDriftSummaryDto,
   ScaffolderPlan,
   ScaffolderTask,
   ScaffolderTemplateSummary,
@@ -348,10 +347,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
         ),
       delete: (id: string) =>
         request<void>(`/api/catalog/${encodeURIComponent(id)}`, { method: "DELETE" }),
-      listDrifts: (status: CatalogDriftStatus = "open") =>
-        request<ListResponse<CatalogDriftRow>>(
-          `/api/catalog/drifts?status=${encodeURIComponent(status)}`,
-        ),
       applyDrift: (id: string) =>
         request<{ id: string; status: "applied"; entityId: string; action: string }>(
           `/api/catalog/drifts/${encodeURIComponent(id)}/apply`,
@@ -510,7 +505,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
           { method: "POST" },
         ),
       githubDrift: (id: string) =>
-        request<GithubDriftDto>(`/api/integrations/github/${encodeURIComponent(id)}/drift`),
+        request<GithubDriftSummaryDto>(`/api/integrations/github/${encodeURIComponent(id)}/drift`),
       /** Public GitHub installation summaries for the team-request "mirror to GitHub" org */
       githubInstallations: () =>
         request<ListResponse<GithubInstallationSummary>>(`/api/integrations/github/installations`),
@@ -1033,21 +1028,13 @@ export function createApiClient(options: ApiClientOptions = {}) {
           method: "POST",
           body: JSON.stringify({}),
         }),
-      listDrift: (status: "open" | "ignored" | "applied" | "superseded" = "open") =>
-        request<
-          ListResponse<{
-            id: string;
-            bindingId: string;
-            fromVersion: string;
-            toVersion: string;
-            diffSummary: unknown;
-            status: "open" | "ignored" | "applied" | "superseded";
-            prUrl: string | null;
-            detectedAt: string;
-            resolvedAt: string | null;
-            binding?: ScaffolderBinding;
-          }>
-        >(`/api/scaffolder/drift?status=${encodeURIComponent(status)}`),
+      driftSummary: (filter: { bindingId?: string; templateId?: string } = {}) => {
+        const qs = new URLSearchParams();
+        if (filter.bindingId) qs.set("bindingId", filter.bindingId);
+        if (filter.templateId) qs.set("templateId", filter.templateId);
+        const suffix = qs.toString() ? `?${qs.toString()}` : "";
+        return request<ScaffolderDriftSummaryDto>(`/api/scaffolder/drift/summary${suffix}`);
+      },
       updateDrift: (id: string, status: "ignored" | "applied" | "superseded") =>
         request<{ id: string; status: string }>(`/api/scaffolder/drift/${encodeURIComponent(id)}`, {
           method: "PATCH",

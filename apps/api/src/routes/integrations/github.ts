@@ -202,9 +202,9 @@ githubIntegrationRouter.post("/:integrationId/resync", async (req, res, next) =>
   }
 });
 
-// Drift dashboard payload. Lists imported teams + their last-sync timestamps,
-// flags ones that haven't been touched in 2x the cron interval (14 days),
-// and surfaces the most recent reconciliation run per source.
+// Drift summary for the inline integrations-page badge. Returns just enough
+// for "is there drift?" + a short stale-team list. Detection itself is
+// backend-driven (webhook + weekly cron); this endpoint is read-only.
 githubIntegrationRouter.get("/:integrationId/drift", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -234,55 +234,47 @@ githubIntegrationRouter.get("/:integrationId/drift", async (req, res, next) => {
     const STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
     const staleCutoff = new Date(Date.now() - STALE_AFTER_MS);
 
-    const [teams, lastRuns, pendingCount] = await Promise.all([
+    const [staleTeams, latestRun, pendingCount] = await Promise.all([
       prisma.team.findMany({
-        where: { source: "github", installationId, deletedAt: null },
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          externalSlug: true,
-          lastSyncedAt: true,
-          _count: { select: { memberships: true, pendingMemberships: true } },
+        where: {
+          source: "github",
+          installationId,
+          deletedAt: null,
+          OR: [{ lastSyncedAt: null }, { lastSyncedAt: { lt: staleCutoff } }],
         },
-        orderBy: { name: "asc" },
+        select: { id: true, name: true, lastSyncedAt: true },
+        orderBy: { lastSyncedAt: "asc" },
+        take: 20,
       }),
-      prisma.githubReconciliationRun.findMany({
+      prisma.githubReconciliationRun.findFirst({
         where: { installationId },
         orderBy: { startedAt: "desc" },
-        take: 30,
+        select: { startedAt: true },
       }),
       prisma.pendingTeamMembership.count({
         where: { team: { installationId, source: "github" } },
       }),
     ]);
 
-    const lastBySource: Record<string, (typeof lastRuns)[number] | null> = {
-      webhook: null,
-      manual: null,
-      cron: null,
-    };
-    for (const r of lastRuns) {
-      if (r.source in lastBySource && lastBySource[r.source] === null) {
-        lastBySource[r.source] = r;
-      }
-    }
+    const staleTeamCount = await prisma.team.count({
+      where: {
+        source: "github",
+        installationId,
+        deletedAt: null,
+        OR: [{ lastSyncedAt: null }, { lastSyncedAt: { lt: staleCutoff } }],
+      },
+    });
 
     res.json({
       installationId,
-      teams: teams.map((t) => ({
-        id: t.id,
-        slug: t.slug,
-        name: t.name,
-        externalSlug: t.externalSlug,
-        lastSyncedAt: t.lastSyncedAt?.toISOString() ?? null,
-        memberCount: t._count.memberships,
-        pendingMemberCount: t._count.pendingMemberships,
-        stale: !t.lastSyncedAt || t.lastSyncedAt < staleCutoff,
-      })),
-      lastRuns: lastRuns.slice(0, 10),
-      lastBySource,
+      staleTeamCount,
       pendingMemberCount: pendingCount,
+      lastReconciliationAt: latestRun?.startedAt.toISOString() ?? null,
+      staleTeams: staleTeams.map((t) => ({
+        id: t.id,
+        name: t.name,
+        lastSyncedAt: t.lastSyncedAt?.toISOString() ?? null,
+      })),
     });
   } catch (err) {
     next(err);

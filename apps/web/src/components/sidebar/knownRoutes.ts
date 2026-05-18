@@ -13,13 +13,11 @@ export interface KnownRoute {
 export const KNOWN_ROUTES: KnownRoute[] = [
   // Catalog
   { path: "/catalog", label: "Catalog", section: "catalog" },
-  { path: "/catalog/drift", label: "Drift inbox", section: "catalog" },
   { path: "/scorecards", label: "Scorecards", section: "catalog" },
 
   // Self-service (initiate-a-request entry points only)
   { path: "/scaffolder", label: "Templates", section: "selfservice" },
   { path: "/scaffolder/bindings", label: "Bindings", section: "selfservice" },
-  { path: "/scaffolder/drift", label: "Drift inbox", section: "selfservice" },
   { path: "/self-service/request-team", label: "Request a team", section: "selfservice" },
   {
     path: "/self-service/request-maintainer",

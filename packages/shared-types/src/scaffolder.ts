@@ -156,3 +156,22 @@ export interface ScaffolderDriftReport {
   detectedAt: ISODateString;
   resolvedAt: ISODateString | null;
 }
+
+// Inline-badge summary of open scaffolder drifts. Replaces the previous
+// /drift?status= list endpoint. Members see only their own bindings; admins
+// see everything.
+export interface ScaffolderDriftSummaryDto {
+  openCount: number;
+  byBinding: Array<{
+    bindingId: ID;
+    targetRef: string;
+    templateId: string;
+    drifts: Array<{
+      id: ID;
+      fromVersion: string;
+      toVersion: string;
+      detectedAt: ISODateString;
+      actions: string[];
+    }>;
+  }>;
+}

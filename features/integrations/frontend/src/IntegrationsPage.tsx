@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { PageLayout, ConfirmDialog } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
 import type { Integration, IntegrationKind } from "@internal/shared-types";
+import { IntegrationDriftBadge } from "./IntegrationDriftBadge";
 import { PROVIDERS, findProvider } from "./providerRegistry";
 
 export function IntegrationsPage() {
@@ -46,12 +47,15 @@ export function IntegrationsPage() {
               const provider = findProvider(integration.kind);
               return (
                 <li key={integration.id} className="flex items-center justify-between p-3">
-                  <div>
-                    <div className="font-medium text-app-text">{integration.name}</div>
-                    <div className="text-xs text-app-text-muted">
-                      {provider?.label ?? integration.kind} ·{" "}
-                      {integration.enabled ? "enabled" : "disabled"}
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <div className="font-medium text-app-text">{integration.name}</div>
+                      <div className="text-xs text-app-text-muted">
+                        {provider?.label ?? integration.kind} ·{" "}
+                        {integration.enabled ? "enabled" : "disabled"}
+                      </div>
                     </div>
+                    <IntegrationDriftBadge integrationId={integration.id} kind={integration.kind} />
                   </div>
                   <div className="flex items-center gap-2">
                     <Link

@@ -16,7 +16,6 @@ import {
 } from "@feature/agents-frontend";
 import { ChatRoute } from "./widgets/chat/ChatRoute";
 import {
-  CatalogDriftInboxPage,
   CatalogEntityPage,
   CatalogPage,
   EntityApisTab,
@@ -33,7 +32,6 @@ import { IntegrationManagePage, IntegrationsPage } from "@feature/integrations-f
 import { ObservabilityConfigPage, ObservabilityPage } from "@feature/observability-frontend";
 import {
   ScaffolderBindingsPage,
-  ScaffolderDriftInboxPage,
   ScaffolderPage,
   ScaffolderPlanPage,
   ScaffolderTaskPage,
@@ -43,7 +41,6 @@ import { SearchPage } from "@feature/search-frontend";
 import {
   AdminTeamPoliciesPage,
   AdminTeamRequestsPage,
-  GithubDriftDashboard,
   RequestMaintainerPickerPage,
   RequestTeamPage,
   TeamDetailPage,
@@ -76,7 +73,6 @@ export function AppRoutes() {
       <Route path="/agents/approvals" element={<AgentApprovalsPage />} />
       <Route path="/agents/:userId" element={<AgentDetailPage />} />
       <Route path="/catalog" element={<CatalogPage />} />
-      <Route path="/catalog/drift" element={<CatalogDriftInboxPage />} />
       <Route path="/catalog/:id" element={<CatalogEntityPage />}>
         <Route index element={<EntityOverviewTab />} />
         <Route path="related" element={<EntityRelatedTab />} />
@@ -95,7 +91,6 @@ export function AppRoutes() {
       <Route path="/observability/config" element={<ObservabilityConfigPage />} />
       <Route path="/scaffolder" element={<ScaffolderPage />} />
       <Route path="/scaffolder/bindings" element={<ScaffolderBindingsPage />} />
-      <Route path="/scaffolder/drift" element={<ScaffolderDriftInboxPage />} />
       <Route path="/scaffolder/plans/:planId" element={<ScaffolderPlanPage />} />
       <Route path="/scaffolder/tasks/:taskId" element={<ScaffolderTaskPage />} />
       <Route path="/scaffolder/:templateId" element={<ScaffolderTemplatePage />} />
@@ -130,10 +125,6 @@ export function AppRoutes() {
       <Route path="/admin/audit" element={<AuditPage />} />
       <Route path="/admin/jobs" element={<JobsPage />} />
       <Route path="/admin/mcp-tokens" element={<McpTokensPage />} />
-      <Route
-        path="/admin/integrations/github/:integrationId/drift"
-        element={<GithubDriftDashboard />}
-      />
       {import.meta.env.DEV && <Route path="/theme-audit" element={<ThemeAuditPage />} />}
     </Routes>
   );

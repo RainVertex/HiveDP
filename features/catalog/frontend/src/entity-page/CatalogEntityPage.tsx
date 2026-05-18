@@ -4,6 +4,7 @@ import { KindBadge, LifecycleBadge, OwnerCell } from "../catalog-table/cells";
 import { StarCell } from "../catalog-table/StarCell";
 import { EntityOverviewProvider } from "./EntityOverviewContext";
 import { useEntityOverview } from "./useEntityOverview";
+import { EntityDriftBadge } from "./EntityDriftBadge";
 
 const TABS: Array<{ to: string; label: string; end?: boolean }> = [
   { to: "", label: "Overview", end: true },
@@ -52,6 +53,7 @@ export function CatalogEntityPage() {
               <StarCell entityId={entity.id} entityName={entity.name} />
               <KindBadge value={entity.kind} />
               <LifecycleBadge value={entity.lifecycle} />
+              <EntityDriftBadge data={data} reload={reload} />
             </div>
             {entity.description && (
               <p className="mt-1 text-sm text-app-text-muted truncate" title={description}>

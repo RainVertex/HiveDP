@@ -837,13 +837,6 @@ async function seedDefaultPages() {
     // Catalog
     { id: "__page_catalog__", section: "catalog", title: "Catalog", url: "/catalog", order: 1024 },
     {
-      id: "__page_catalog_drift__",
-      section: "catalog",
-      title: "Drift inbox",
-      url: "/catalog/drift",
-      order: 2048,
-    },
-    {
       id: "__page_scorecards__",
       section: "catalog",
       title: "Scorecards",
@@ -865,13 +858,6 @@ async function seedDefaultPages() {
       title: "Bindings",
       url: "/scaffolder/bindings",
       order: 2048,
-    },
-    {
-      id: "__page_scaffolder_drift__",
-      section: "selfservice",
-      title: "Drift inbox",
-      url: "/scaffolder/drift",
-      order: 3072,
     },
     {
       id: "__page_self_service_request_team__",

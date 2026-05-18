@@ -52,7 +52,8 @@ export function GithubConnectDialog({ open, onClose }: GithubConnectDialogProps)
         </ul>
         <p className="mt-3 text-xs text-app-text-muted">
           Ongoing changes flow in via webhooks; a weekly cron does a differential reconciliation to
-          catch missed deliveries. You can also Resync manually from the drift dashboard.
+          catch missed deliveries. You can also Resync manually from the integration's Configure
+          panel.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <button

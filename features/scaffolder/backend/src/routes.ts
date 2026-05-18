@@ -733,10 +733,11 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
     }
   });
 
-  // GET /drift — open drift reports. Members see their own (via the binding's
-  // appliedByUserId); admins see everyone's. ?status=open|ignored|applied
-  // narrows; defaults to "open".
-  router.get("/drift", async (req, res, next) => {
+  // GET /drift/summary — open drift counts grouped by binding, for inline
+  // badges on TemplatePage / BindingsPage. Members see only their own bindings
+  // (via appliedByUserId); admins see everything. Optional ?bindingId=
+  // narrows the result to a single binding.
+  router.get("/drift/summary", async (req, res, next) => {
     try {
       const actor = await actorFromRequest(req);
       if (!actor) {
@@ -744,21 +745,71 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
         return;
       }
       const isAdmin = req.user?.role === "admin";
-      const status = (req.query.status as string | undefined) ?? "open";
-      if (!["open", "ignored", "applied", "superseded"].includes(status)) {
-        res.status(400).json({ error: "Invalid status filter" });
-        return;
-      }
+      const bindingIdFilter =
+        typeof req.query.bindingId === "string" && req.query.bindingId.length > 0
+          ? req.query.bindingId
+          : undefined;
+      const templateIdFilter =
+        typeof req.query.templateId === "string" && req.query.templateId.length > 0
+          ? req.query.templateId
+          : undefined;
+      const bindingWhere: Record<string, unknown> = {};
+      if (!isAdmin) bindingWhere.appliedByUserId = actor.userId;
+      if (templateIdFilter) bindingWhere.templateId = templateIdFilter;
       const drifts = await prisma.scaffoldDrift.findMany({
         where: {
-          status: status as "open" | "ignored" | "applied" | "superseded",
-          ...(isAdmin ? {} : { binding: { appliedByUserId: actor.userId } }),
+          status: "open",
+          ...(bindingIdFilter ? { bindingId: bindingIdFilter } : {}),
+          ...(Object.keys(bindingWhere).length > 0 ? { binding: bindingWhere } : {}),
         },
-        include: { binding: true },
+        include: {
+          binding: {
+            select: { id: true, targetRef: true, templateId: true },
+          },
+        },
         orderBy: { detectedAt: "desc" },
         take: 200,
       });
-      res.json({ items: drifts });
+      const grouped = new Map<
+        string,
+        {
+          bindingId: string;
+          targetRef: string;
+          templateId: string;
+          drifts: Array<{
+            id: string;
+            fromVersion: string;
+            toVersion: string;
+            detectedAt: string;
+            actions: string[];
+          }>;
+        }
+      >();
+      for (const d of drifts) {
+        const summary = (d.diffSummary as { actions?: unknown }) ?? {};
+        const actions = Array.isArray(summary.actions)
+          ? (summary.actions as unknown[]).filter((a): a is string => typeof a === "string")
+          : [];
+        const existing = grouped.get(d.bindingId);
+        const entry = {
+          id: d.id,
+          fromVersion: d.fromVersion,
+          toVersion: d.toVersion,
+          detectedAt: d.detectedAt.toISOString(),
+          actions,
+        };
+        if (existing) {
+          existing.drifts.push(entry);
+        } else {
+          grouped.set(d.bindingId, {
+            bindingId: d.bindingId,
+            targetRef: d.binding.targetRef,
+            templateId: d.binding.templateId,
+            drifts: [entry],
+          });
+        }
+      }
+      res.json({ openCount: drifts.length, byBinding: Array.from(grouped.values()) });
     } catch (err) {
       next(err);
     }

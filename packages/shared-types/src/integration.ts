@@ -72,36 +72,12 @@ export interface GithubReconciliationRunDto {
   finishedAt: string;
 }
 
-export interface GithubDriftTeamDto {
-  id: ID;
-  slug: string;
-  name: string;
-  externalSlug: string | null;
-  lastSyncedAt: ISODateString | null;
-  memberCount: number;
-  pendingMemberCount: number;
-  stale: boolean;
-}
-
-export interface GithubDriftDto {
+// Lightweight summary used by the inline drift badge on the integrations page.
+// Replaces the previous verbose dashboard payload.
+export interface GithubDriftSummaryDto {
   installationId: number;
-  teams: GithubDriftTeamDto[];
-  // Up to 10 most recent runs across all sources, newest first.
-  lastRuns: Array<{
-    id: ID;
-    source: string;
-    installationId: number;
-    startedAt: ISODateString;
-    finishedAt: ISODateString | null;
-    teamsCreated: number;
-    teamsUpdated: number;
-    teamsDeleted: number;
-    membersAdded: number;
-    membersRemoved: number;
-    pendingQueued: number;
-    pendingResolved: number;
-    errors: unknown;
-  }>;
-  lastBySource: Record<"webhook" | "cron" | "manual", GithubDriftDto["lastRuns"][number] | null>;
+  staleTeamCount: number;
   pendingMemberCount: number;
+  lastReconciliationAt: ISODateString | null;
+  staleTeams: Array<{ id: ID; name: string; lastSyncedAt: ISODateString | null }>;
 }

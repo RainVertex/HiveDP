@@ -7,6 +7,7 @@ import type { RJSFSchema } from "@rjsf/utils";
 import { PageLayout } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
 import type { ScaffolderTemplateDetail } from "@internal/api-client";
+import { TemplateDriftBadge } from "./TemplateDriftBadge";
 
 export function TemplatePage() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -56,7 +57,11 @@ export function TemplatePage() {
     );
 
   return (
-    <PageLayout title={template.name} description={template.description}>
+    <PageLayout
+      title={template.name}
+      description={template.description}
+      actions={<TemplateDriftBadge templateId={template.id} />}
+    >
       <div className="max-w-2xl">
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <Form

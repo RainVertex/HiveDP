@@ -218,25 +218,6 @@ catalogRouter.delete("/:id/star", async (req, res) => {
   res.status(204).end();
 });
 
-catalogRouter.get("/drifts", async (req, res) => {
-  const status = (req.query.status as string) ?? "open";
-  if (!["open", "ignored", "applied", "superseded"].includes(status)) {
-    return res.status(400).json({ error: "invalid status" });
-  }
-  const items = await prisma.catalogDrift.findMany({
-    where: { status: status as "open" | "ignored" | "applied" | "superseded" },
-    include: { entity: { include: ENTITY_INCLUDE } },
-    orderBy: { detectedAt: "desc" },
-    take: 200,
-  });
-  res.json({
-    items: items.map((d) => ({
-      ...d,
-      entity: shapeEntity(d.entity as EntityWithOwners),
-    })),
-  });
-});
-
 catalogRouter.post("/drifts/:id/apply", async (req, res) => {
   const drift = await prisma.catalogDrift.findUnique({
     where: { id: req.params.id },
@@ -296,12 +277,13 @@ catalogRouter.get("/:id/overview", async (req, res) => {
   const ownerTeamIds = (entity as EntityWithOwners).owners.map((o) => o.team.id);
   const canViewRestricted = req.user ? await isOwningTeamMember(req.user, ownerTeamIds) : false;
 
-  const [drifts, dora, health, scorecards] = await Promise.all([
+  const [drifts, openDriftCount, dora, health, scorecards] = await Promise.all([
     prisma.catalogDrift.findMany({
       where: { entityId: entity.id },
       orderBy: { detectedAt: "desc" },
       take: 20,
     }),
+    prisma.catalogDrift.count({ where: { entityId: entity.id, status: "open" } }),
     prisma.doraMetricsSnapshot.findMany({
       where: { entityId: entity.id },
       orderBy: { periodEnd: "desc" },
@@ -318,6 +300,7 @@ catalogRouter.get("/:id/overview", async (req, res) => {
   res.json({
     entity: shapeEntity(entity as EntityWithOwners, canViewRestricted),
     drifts,
+    openDriftCount,
     dora,
     health,
     scorecards,
