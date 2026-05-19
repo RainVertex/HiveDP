@@ -17,6 +17,7 @@ import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { prisma } from "@internal/db";
 import {
+  disableStrandedUsers,
   GitHubAppNotConfiguredError,
   loadGitHubAppConfig,
   octokitAsApp,
@@ -353,10 +354,16 @@ githubIntegrationRouter.delete("/:integrationId", async (req, res, next) => {
     // 2. Mark Integration disabled.
     await recordUninstallation(installationId);
 
-    // 3. Stale every entity tied to the installation.
+    // 3. Disable users whose only org coverage was this one and kill their
+    // sessions, so they don't keep accessing the platform with a stale
+    // session. Helper is idempotent and admin-safe.
+    const accountLogin = typeof cfg.accountLogin === "string" ? cfg.accountLogin : "";
+    const { disabledUserIds } = await disableStrandedUsers(accountLogin);
+
+    // 4. Stale every entity tied to the installation.
     const staledCount = await staleEntitiesForInstallation(installationId);
 
-    // 4. Drop the Integration row only if no entities point at it. Keeping
+    // 5. Drop the Integration row only if no entities point at it. Keeping
     // the row preserves audit lineage; once all entities are hard-deleted
     // (e.g. via a future cleanup), the next disconnect attempt removes the
     // row too.
@@ -369,8 +376,14 @@ githubIntegrationRouter.delete("/:integrationId", async (req, res, next) => {
 
     await recordAudit(
       req,
-      "integration.deleted",
-      { integrationId: integration.id, kind: "github" },
+      "integration.disconnected",
+      {
+        integrationId: integration.id,
+        kind: "github",
+        accountLogin,
+        disabledUserCount: disabledUserIds.length,
+        source: "admin_action",
+      },
       { kind: "integration", id: integration.id },
     );
 
@@ -381,6 +394,7 @@ githubIntegrationRouter.delete("/:integrationId", async (req, res, next) => {
         githubRevoked,
         staledCount,
         integrationRemoved,
+        disabledUserCount: disabledUserIds.length,
       },
       "github-app: disconnected",
     );
@@ -390,6 +404,7 @@ githubIntegrationRouter.delete("/:integrationId", async (req, res, next) => {
       githubRevoked,
       staledEntities: staledCount,
       integrationRemoved,
+      disabledUserCount: disabledUserIds.length,
     });
   } catch (err) {
     next(err);

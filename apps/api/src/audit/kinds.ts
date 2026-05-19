@@ -12,6 +12,13 @@ export interface AuditPayloads {
   "integration.created": { integrationId: string; kind: string };
   "integration.updated": { integrationId: string; kind: string };
   "integration.deleted": { integrationId: string; kind: string };
+  "integration.disconnected": {
+    integrationId: string;
+    kind: string;
+    accountLogin: string;
+    disabledUserCount: number;
+    source: "admin_action" | "github_webhook";
+  };
   "integration.resynced": { integrationId: string; kind: string; runId: string };
   "agent.suggestion.accepted": {
     suggestionId: string;

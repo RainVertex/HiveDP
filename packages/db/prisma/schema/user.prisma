@@ -64,8 +64,23 @@ model User {
   // requests this agent has emitted. Empty for human users.
   agentApprovalsRequested         AgentApprovalRequest[]  @relation("AgentApprovalAgent")
   agentApprovalDecisions          AgentApprovalRequest[]  @relation("AgentApprovalDecider")
+  orgMemberships                  UserOrgMembership[]
 
   @@index([userKind])
+}
+
+// Persistent record of which GitHub org logins the user was an active member
+// of at last sign-in. Written by the auth callback for non-admin users; used
+// by the integration disconnect flow to identify users that must be disabled
+// when their only org is removed.
+model UserOrgMembership {
+  userId         String
+  accountLogin   String
+  lastVerifiedAt DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, accountLogin])
+  @@index([accountLogin])
 }
 
 model UserTask {

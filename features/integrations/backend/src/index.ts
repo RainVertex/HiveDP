@@ -69,6 +69,7 @@ export {
   revokeAppInstallation,
   disconnectGitHubInstallation,
 } from "./github-app/install";
+export { disableStrandedUsers } from "./github-app/uninstall-effects";
 export type {
   InstallationMetadata,
   RecordInstallationResult,
@@ -374,17 +375,38 @@ integrationsRouter.delete("/:id", async (req, res, next) => {
     }
 
     // GitHub disconnect cascades: stale-mark every CatalogEntity tied to the
-    // installation, revoke the App on GitHub so webhooks stop firing, then
-    // remove the Integration row. Re-installing the same org rehydrates the
-    // entities via githubRepoId, so this is reversible without data loss.
+    // installation, revoke the App on GitHub so webhooks stop firing, disable
+    // any users whose only covering org was this one (helper inside
+    // disconnectGitHubInstallation), then remove the Integration row.
+    // Re-installing the same org rehydrates the entities via githubRepoId,
+    // so this is reversible without data loss. Disabled users have to be
+    // re-enabled manually by an admin once their org is back.
     if (integ.kind === "github") {
       const result = await disconnectGitHubInstallation(integ.id);
+      await prisma.auditEvent.create({
+        data: {
+          actorUserId: req.user.id,
+          actorIp: req.ip ?? null,
+          requestId: req.id != null ? String(req.id) : null,
+          kind: "integration.disconnected",
+          targetKind: "integration",
+          targetId: integ.id,
+          payload: {
+            integrationId: integ.id,
+            kind: "github",
+            accountLogin: result.accountLogin,
+            disabledUserCount: result.disabledUserIds.length,
+            source: "admin_action",
+          },
+        },
+      });
       res.json({
         disconnected: true,
         installationId: result.installationId,
         entitiesStaled: result.entitiesStaled,
         revoked: result.revoked,
         revokeReason: result.revokeReason,
+        disabledUserCount: result.disabledUserIds.length,
       });
       return;
     }

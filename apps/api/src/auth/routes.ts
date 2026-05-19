@@ -28,6 +28,7 @@ import {
   revokeSession,
   setSessionCookie,
 } from "./session";
+import { syncUserOrgMemberships } from "./orgMembership";
 import { requireAuth } from "../middleware/requireAuth";
 import { recordSystemAudit } from "../audit/audit";
 
@@ -107,9 +108,10 @@ authRouter.get("/github/callback", authCallbackLimiter, async (req, res, next) =
     // kind=github Integration's org.
     const skipOrgCheck = shouldBootstrapAdmin || existingUser?.role === "admin";
 
+    let activeLogins: string[] = [];
     if (!skipOrgCheck) {
-      const inOrg = await verifyAnyOrgMembership(token);
-      if (!inOrg) {
+      activeLogins = await verifyAnyOrgMembership(token);
+      if (activeLogins.length === 0) {
         recordOrgDenial(ip);
         res.redirect(`${env.webOrigin}/?error=not_in_org`);
         return;
@@ -146,6 +148,19 @@ authRouter.get("/github/callback", authCallbackLimiter, async (req, res, next) =
     if (user.status !== "active") {
       res.redirect(`${env.webOrigin}/?error=account_disabled`);
       return;
+    }
+
+    // Persist which orgs GitHub just confirmed for this user. The integration
+    // disconnect flow reads this to identify users who must be disabled when
+    // their last covering org is removed. Admins skip the org check so they
+    // have no rows here, which is intentional, admins are not auto-disabled
+    // on disconnect.
+    if (!skipOrgCheck) {
+      try {
+        await syncUserOrgMemberships(user.id, activeLogins);
+      } catch (err) {
+        logger.error({ err, userId: user.id }, "Failed to sync UserOrgMembership after sign-in");
+      }
     }
 
     // Drain any GitHub-team pending memberships waiting for this user. Safe

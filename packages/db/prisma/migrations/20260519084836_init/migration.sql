@@ -80,10 +80,7 @@ CREATE TYPE "TeamPolicyKind" AS ENUM ('name_pattern');
 CREATE TYPE "TeamSource" AS ENUM ('manual', 'github');
 
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('admin', 'member', 'guest');
-
--- CreateEnum
-CREATE TYPE "GrantTarget" AS ENUM ('team', 'catalog_entity', 'template');
+CREATE TYPE "UserRole" AS ENUM ('admin', 'member');
 
 -- CreateEnum
 CREATE TYPE "UserTaskStatus" AS ENUM ('pending', 'completed', 'dismissed');
@@ -978,18 +975,12 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
-CREATE TABLE "GuestGrant" (
-    "id" TEXT NOT NULL,
-    "granteeId" TEXT NOT NULL,
-    "resourceType" "GrantTarget" NOT NULL,
-    "resourceId" TEXT NOT NULL,
-    "permissions" TEXT[],
-    "grantedById" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "revokedAt" TIMESTAMP(3),
+CREATE TABLE "UserOrgMembership" (
+    "userId" TEXT NOT NULL,
+    "accountLogin" TEXT NOT NULL,
+    "lastVerifiedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "GuestGrant_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "UserOrgMembership_pkey" PRIMARY KEY ("userId","accountLogin")
 );
 
 -- CreateTable
@@ -1533,10 +1524,7 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE INDEX "User_userKind_idx" ON "User"("userKind");
 
 -- CreateIndex
-CREATE INDEX "GuestGrant_granteeId_resourceType_resourceId_idx" ON "GuestGrant"("granteeId", "resourceType", "resourceId");
-
--- CreateIndex
-CREATE INDEX "GuestGrant_grantedById_idx" ON "GuestGrant"("grantedById");
+CREATE INDEX "UserOrgMembership_accountLogin_idx" ON "UserOrgMembership"("accountLogin");
 
 -- CreateIndex
 CREATE INDEX "UserTask_userId_status_idx" ON "UserTask"("userId", "status");
@@ -1836,10 +1824,7 @@ ALTER TABLE "MaintainerRequest" ADD CONSTRAINT "MaintainerRequest_requestedByUse
 ALTER TABLE "MaintainerRequest" ADD CONSTRAINT "MaintainerRequest_reviewedByUserId_fkey" FOREIGN KEY ("reviewedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "GuestGrant" ADD CONSTRAINT "GuestGrant_granteeId_fkey" FOREIGN KEY ("granteeId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "GuestGrant" ADD CONSTRAINT "GuestGrant_grantedById_fkey" FOREIGN KEY ("grantedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "UserOrgMembership" ADD CONSTRAINT "UserOrgMembership_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "UserTask" ADD CONSTRAINT "UserTask_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

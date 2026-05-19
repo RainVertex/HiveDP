@@ -5,6 +5,7 @@
 
 import { prisma } from "@internal/db";
 import { octokitAsApp } from "./octokit";
+import { disableStrandedUsers } from "./uninstall-effects";
 
 export interface InstallationMetadata {
   installationId: number;
@@ -122,12 +123,15 @@ export async function revokeAppInstallation(
 
 export interface DisconnectResult {
   installationId: number | null;
+  accountLogin: string;
   entitiesStaled: number;
   revoked: boolean;
   revokeReason?: string;
+  disabledUserIds: string[];
 }
 
-/** End-to-end disconnect: cascade-stale entities, revoke the App on GitHub, delete the */
+/** End-to-end disconnect: cascade-stale entities, revoke the App on GitHub, */
+/** disable users whose only org was this one, then delete the Integration row. */
 export async function disconnectGitHubInstallation(
   integrationId: string,
 ): Promise<DisconnectResult> {
@@ -148,6 +152,7 @@ export async function disconnectGitHubInstallation(
       : {};
   const installationIdRaw = Number(cfg.installationId);
   const installationId = Number.isFinite(installationIdRaw) ? installationIdRaw : null;
+  const accountLogin = typeof cfg.accountLogin === "string" ? cfg.accountLogin : "";
 
   let entitiesStaled = 0;
   let revoked = false;
@@ -163,8 +168,10 @@ export async function disconnectGitHubInstallation(
     revokeReason = "no installationId in config";
   }
 
+  const { disabledUserIds } = await disableStrandedUsers(accountLogin);
+
   await prisma.integration.delete({ where: { id: integ.id } });
-  return { installationId, entitiesStaled, revoked, revokeReason };
+  return { installationId, accountLogin, entitiesStaled, revoked, revokeReason, disabledUserIds };
 }
 
 async function findExistingByInstallationId(installationId: number) {

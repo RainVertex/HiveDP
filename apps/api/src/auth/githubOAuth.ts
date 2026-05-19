@@ -105,7 +105,7 @@ async function fetchActiveMembership(token: string, org: string): Promise<boolea
   return body.state === "active";
 }
 
-export async function verifyAnyOrgMembership(token: string): Promise<boolean> {
+export async function verifyAnyOrgMembership(token: string): Promise<string[]> {
   const integrations = await prisma.integration.findMany({
     where: { kind: "github", enabled: true },
     select: { config: true },
@@ -117,28 +117,31 @@ export async function verifyAnyOrgMembership(token: string): Promise<boolean> {
     })
     .filter((s): s is string => s !== null && s.length > 0);
 
-  if (orgLogins.length === 0) return false;
+  if (orgLogins.length === 0) return [];
 
   const results = await Promise.allSettled(
-    orgLogins.map((org) => fetchActiveMembership(token, org)),
+    orgLogins.map(async (org) => ({ org, active: await fetchActiveMembership(token, org) })),
   );
 
-  let anyActive = false;
+  const activeLogins: string[] = [];
   let anyFulfilled = false;
   for (const r of results) {
     if (r.status === "fulfilled") {
       anyFulfilled = true;
-      if (r.value) anyActive = true;
+      if (r.value.active) activeLogins.push(r.value.org);
     } else {
       logger.warn({ err: r.reason }, "GitHub org membership check error");
     }
   }
 
-  if (anyActive) return true;
+  if (activeLogins.length > 0) return activeLogins;
   if (!anyFulfilled) {
+    // Treat a total API failure the same as "not a member" so the user lands
+    // on the same friendly sign-in screen instead of a stack trace. The
+    // logger.warn calls above carry the real cause for ops.
     logger.error("All GitHub org membership checks failed; denying sign-in");
   }
-  return false;
+  return [];
 }
 
 const ORG_DENIAL_WINDOW_MS = 15 * 60 * 1000;

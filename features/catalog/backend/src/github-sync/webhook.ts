@@ -13,7 +13,9 @@
 // HMAC verification needs the exact byte stream GitHub signed.
 
 import express, { Router, type Request, type Response } from "express";
+import { prisma } from "@internal/db";
 import {
+  disableStrandedUsers,
   GitHubAppNotConfiguredError,
   loadGitHubAppConfig,
   octokitForInstallation,
@@ -155,8 +157,33 @@ async function handleInstallation(action: string, payload: Record<string, unknow
   }
 
   if (action === "deleted") {
-    await recordUninstallation(installationId);
+    const result = await recordUninstallation(installationId);
     await staleEntitiesForInstallation(installationId);
+
+    // Disable any users whose only org coverage was this one and kill their
+    // sessions, mirroring the admin-side disconnect flow.
+    const accountLogin = readAccountLogin(payload);
+    const { disabledUserIds } = await disableStrandedUsers(accountLogin);
+
+    if (result.integrationId) {
+      await prisma.auditEvent.create({
+        data: {
+          actorUserId: null,
+          actorIp: null,
+          requestId: null,
+          kind: "integration.disconnected",
+          targetKind: "integration",
+          targetId: result.integrationId,
+          payload: {
+            integrationId: result.integrationId,
+            kind: "github",
+            accountLogin,
+            disabledUserCount: disabledUserIds.length,
+            source: "github_webhook",
+          },
+        },
+      });
+    }
     return;
   }
 
@@ -332,6 +359,15 @@ function readInstallationId(payload: Record<string, unknown>): number | null {
   if (!inst || typeof inst !== "object") return null;
   const id = inst.id;
   return typeof id === "number" ? id : null;
+}
+
+function readAccountLogin(payload: Record<string, unknown>): string {
+  const inst = payload.installation as Record<string, unknown> | undefined;
+  if (!inst || typeof inst !== "object") return "";
+  const account = inst.account as Record<string, unknown> | undefined;
+  if (!account || typeof account !== "object") return "";
+  const login = account.login;
+  return typeof login === "string" ? login : "";
 }
 
 function readRepoList(value: unknown): Array<{ id: number; full_name: string }> {
