@@ -38,7 +38,7 @@ export function ColumnsPopover({ visibleColumns, onToggle }: Props) {
         Manage properties ▾
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-app-border bg-app-surface p-2 shadow-lg">
+        <div className="absolute left-0 z-20 mt-1 w-56 rounded-md border border-app-border bg-app-surface p-2 shadow-lg">
           <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-app-text-muted">
             Columns
           </div>

@@ -71,7 +71,7 @@ export function FilterByPopover({
           <span aria-hidden>▾</span>
         </button>
         {open && (
-          <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-app-border bg-app-surface p-2 shadow-lg">
+          <div className="absolute left-0 z-20 mt-1 w-56 rounded-md border border-app-border bg-app-surface p-2 shadow-lg">
             <div className="mb-1 px-1 text-[10px] uppercase tracking-wide text-app-text-muted">
               Hide
             </div>
@@ -118,7 +118,6 @@ export function FilterByPopover({
             <p className="mt-2 px-2 text-[10px] leading-snug text-app-text-muted">
               Stale = not seen recently or installation disconnected. Orphaned = stale and the
               GitHub installation is gone (re-installing the same org revives via githubRepoId).
-              Default sadece dahil olduğunuz organizasyonlardaki entity'leri gösterir.
             </p>
           </div>
         )}
