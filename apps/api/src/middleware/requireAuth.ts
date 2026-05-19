@@ -42,17 +42,3 @@ export function requireRole(...roles: UserRole[]): RequestHandler {
     next();
   };
 }
-
-/** Blocks guest users from accessing a route entirely. */
-export const requireMember: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
-  const user = req.user;
-  if (!user) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
-  if (user.role === "guest") {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
-  next();
-};

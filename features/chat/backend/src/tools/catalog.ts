@@ -2,62 +2,6 @@ import { prisma } from "@internal/db";
 import type { RegisteredTool } from "@feature/agents-backend";
 import { requireUserId } from "./core";
 
-// Catalog read tools. ACL gating mirrors the catalog backend: admins see
-// everything, members see all entities, guests see only entities they have
-// a non-expired GuestGrant for. This is the same predicate the UI's
-// /api/catalog endpoint enforces.
-
-async function userCanSeeEntity(args: {
-  userId: string;
-  isAdmin: boolean;
-  entityId: string;
-}): Promise<boolean> {
-  if (args.isAdmin) return true;
-  const user = await prisma.user.findUnique({
-    where: { id: args.userId },
-    select: { role: true },
-  });
-  if (!user) return false;
-  if (user.role !== "guest") return true;
-  const grant = await prisma.guestGrant.findFirst({
-    where: {
-      granteeId: args.userId,
-      resourceType: "catalog_entity",
-      resourceId: args.entityId,
-      revokedAt: null,
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-    },
-    select: { id: true },
-  });
-  return grant != null;
-}
-
-async function filterEntitiesByGrant<T extends { id: string }>(args: {
-  userId: string;
-  isAdmin: boolean;
-  entities: T[];
-}): Promise<T[]> {
-  if (args.isAdmin || args.entities.length === 0) return args.entities;
-  const user = await prisma.user.findUnique({
-    where: { id: args.userId },
-    select: { role: true },
-  });
-  if (!user) return [];
-  if (user.role !== "guest") return args.entities;
-  const grants = await prisma.guestGrant.findMany({
-    where: {
-      granteeId: args.userId,
-      resourceType: "catalog_entity",
-      resourceId: { in: args.entities.map((e) => e.id) },
-      revokedAt: null,
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-    },
-    select: { resourceId: true },
-  });
-  const allowed = new Set(grants.map((g) => g.resourceId));
-  return args.entities.filter((e) => allowed.has(e.id));
-}
-
 const search: RegisteredTool = {
   id: "catalog_search",
   openaiDef: {
@@ -81,7 +25,7 @@ const search: RegisteredTool = {
     },
   },
   handler: async (args, ctx) => {
-    const userId = requireUserId(ctx);
+    requireUserId(ctx);
     const { query, kind } = args as { query: string; kind?: string };
     const where: Record<string, unknown> = {
       OR: [
@@ -96,8 +40,7 @@ const search: RegisteredTool = {
       orderBy: { name: "asc" },
       select: { id: true, name: true, kind: true, lifecycle: true, description: true },
     });
-    const filtered = await filterEntitiesByGrant({ userId, isAdmin: ctx.isAdmin, entities: rows });
-    return { hits: filtered };
+    return { hits: rows };
   },
 };
 
@@ -116,10 +59,8 @@ const getEntity: RegisteredTool = {
     },
   },
   handler: async (args, ctx) => {
-    const userId = requireUserId(ctx);
+    requireUserId(ctx);
     const { entityId } = args as { entityId: string };
-    const ok = await userCanSeeEntity({ userId, isAdmin: ctx.isAdmin, entityId });
-    if (!ok) return { error: "Not authorized to view this entity" };
     const e = await prisma.catalogEntity.findUnique({
       where: { id: entityId },
       include: {
@@ -157,7 +98,7 @@ const ownedByTeam: RegisteredTool = {
     },
   },
   handler: async (args, ctx) => {
-    const userId = requireUserId(ctx);
+    requireUserId(ctx);
     const { teamSlug } = args as { teamSlug: string };
     const team = await prisma.team.findFirst({ where: { slug: teamSlug, deletedAt: null } });
     if (!team) return { error: "Team not found" };
@@ -167,8 +108,7 @@ const ownedByTeam: RegisteredTool = {
       orderBy: { name: "asc" },
       take: 50,
     });
-    const filtered = await filterEntitiesByGrant({ userId, isAdmin: ctx.isAdmin, entities: rows });
-    return { team: { id: team.id, slug: team.slug, name: team.name }, entities: filtered };
+    return { team: { id: team.id, slug: team.slug, name: team.name }, entities: rows };
   },
 };
 

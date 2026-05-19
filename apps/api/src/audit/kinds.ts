@@ -174,13 +174,6 @@ export interface AuditPayloads {
   "department.deleted": { departmentId: string };
   "department.member.added": { departmentId: string; userId: string };
   "department.member.removed": { departmentId: string; userId: string };
-  "guest_grant.created": {
-    grantId: string;
-    granteeId: string;
-    resourceType: string;
-    resourceId: string;
-  };
-  "guest_grant.revoked": { grantId: string; granteeId: string };
   "template_access_request.submitted": {
     requestId: string;
     templateId: string;

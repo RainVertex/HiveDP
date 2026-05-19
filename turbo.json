@@ -6,8 +6,7 @@
     "DATABASE_URL",
     "SESSION_SECRET",
     "GITHUB_CLIENT_ID",
-    "GITHUB_CLIENT_SECRET",
-    "GITHUB_ORG"
+    "GITHUB_CLIENT_SECRET"
   ],
   "ui": "stream",
   "tasks": {

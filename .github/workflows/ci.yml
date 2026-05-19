@@ -30,7 +30,6 @@ jobs:
       SESSION_SECRET: ci-secret-ci-secret-ci-secret-ci-secret
       GITHUB_CLIENT_ID: ci-client-id
       GITHUB_CLIENT_SECRET: ci-client-secret
-      GITHUB_ORG: ci-org
 
     steps:
       - uses: actions/checkout@v5

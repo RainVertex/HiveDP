@@ -220,7 +220,7 @@ const createAgentSchema = z.object({
   modelProvider: z.enum(["openai_compat", "anthropic", "gemini"]).default("openai_compat"),
   toolApprovalPolicy: z.record(z.string(), z.unknown()).default({}),
   secretId: z.string().nullable().optional(),
-  role: z.enum(["admin", "member", "guest"]).default("member"),
+  role: z.enum(["admin", "member"]).default("member"),
   onBehalfOfRequired: z.boolean().default(true),
   tokenBudgetMonthly: z.number().int().min(1).nullable().optional(),
   costBudgetMonthly: z.number().min(0).nullable().optional(),

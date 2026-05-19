@@ -19,7 +19,7 @@ import {
   fetchGithubUser,
   isIpBlockedForOrgDenials,
   recordOrgDenial,
-  verifyOrgMembership,
+  verifyAnyOrgMembership,
 } from "./githubOAuth";
 import {
   clearSessionCookie,
@@ -88,17 +88,10 @@ authRouter.get("/github/callback", authCallbackLimiter, async (req, res, next) =
     const token = await exchangeCodeForToken(code);
     const gh = await fetchGithubUser(token);
 
-    const inOrg = await verifyOrgMembership(token, gh.login);
-    if (!inOrg) {
-      recordOrgDenial(ip);
-      res.redirect(`${env.webOrigin}/?error=not_in_org`);
-      return;
-    }
-    clearOrgDenial(ip);
-
-    const displayName = gh.name && gh.name.length > 0 ? gh.name : gh.login;
-    const avatarUrl = gh.avatarUrl;
-
+    const existingUser = await prisma.user.findUnique({
+      where: { githubId: gh.id },
+      select: { role: true },
+    });
     const existingAdmin = await prisma.user.findFirst({
       where: { role: "admin", id: { not: "__system__" } },
     });
@@ -106,6 +99,28 @@ authRouter.get("/github/callback", authCallbackLimiter, async (req, res, next) =
       !existingAdmin &&
       env.bootstrapAdminEmail.length > 0 &&
       gh.primaryEmail === env.bootstrapAdminEmail;
+
+    // Admins bypass the integration-org membership check so they can sign in
+    // to configure the first GitHub integration (bootstrap case) and so an
+    // existing admin can't get locked out if temporarily removed from every
+    // org. All other users must be an active member of at least one enabled
+    // kind=github Integration's org.
+    const skipOrgCheck = shouldBootstrapAdmin || existingUser?.role === "admin";
+
+    if (!skipOrgCheck) {
+      const inOrg = await verifyAnyOrgMembership(token);
+      if (!inOrg) {
+        recordOrgDenial(ip);
+        res.redirect(`${env.webOrigin}/?error=not_in_org`);
+        return;
+      }
+      clearOrgDenial(ip);
+    } else {
+      clearOrgDenial(ip);
+    }
+
+    const displayName = gh.name && gh.name.length > 0 ? gh.name : gh.login;
+    const avatarUrl = gh.avatarUrl;
 
     const user = await prisma.user.upsert({
       where: { githubId: gh.id },

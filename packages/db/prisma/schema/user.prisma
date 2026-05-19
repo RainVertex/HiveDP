@@ -1,13 +1,6 @@
 enum UserRole {
   admin
   member
-  guest
-}
-
-enum GrantTarget {
-  team
-  catalog_entity
-  template
 }
 
 enum UserTaskStatus {
@@ -57,8 +50,6 @@ model User {
   pages                           Page[]
   onboardingTasks                 UserTask[]
   departmentMemberships           DepartmentMembership[]
-  receivedGrants                  GuestGrant[]            @relation("ReceivedGrants")
-  issuedGrants                    GuestGrant[]            @relation("IssuedGrants")
   templateAccessRequestsSubmitted TemplateAccessRequest[] @relation("TemplateAccessRequestRequester")
   templateAccessRequestsReviewed  TemplateAccessRequest[] @relation("TemplateAccessRequestReviewer")
   maintainerRequestsSubmitted     MaintainerRequest[]     @relation("MaintainerRequestRequester")
@@ -75,24 +66,6 @@ model User {
   agentApprovalDecisions          AgentApprovalRequest[]  @relation("AgentApprovalDecider")
 
   @@index([userKind])
-}
-
-model GuestGrant {
-  id           String      @id @default(cuid())
-  granteeId    String
-  resourceType GrantTarget
-  resourceId   String
-  permissions  String[]
-  grantedById  String
-  expiresAt    DateTime?
-  createdAt    DateTime    @default(now())
-  revokedAt    DateTime?
-
-  grantee   User @relation("ReceivedGrants", fields: [granteeId], references: [id], onDelete: Cascade)
-  grantedBy User @relation("IssuedGrants", fields: [grantedById], references: [id], onDelete: Cascade)
-
-  @@index([granteeId, resourceType, resourceId])
-  @@index([grantedById])
 }
 
 model UserTask {

@@ -3,13 +3,12 @@ import type { UserRole } from "@internal/db";
 
 // Tiered creation rules for the agents wizard. Decision matrix:
 //
-//   admin caller       → can create anything
-//   team-lead caller   → can create team-owned agents (role ≤ member);
+//   admin caller       , can create anything
+//   team-lead caller   , can create team-owned agents (role = member);
 //                        cannot disable onBehalfOfRequired; cannot grant
 //                        admin role
-//   member caller      → can create personal agents only (role ≤ member);
+//   member caller      , can create personal agents only (role = member);
 //                        cannot disable onBehalfOfRequired
-//   guest caller       → can create guest-role personal agents only
 //
 // Admin-role agents and onBehalfOfRequired=false (autonomous) are admin-only
 // because both increase blast radius materially: an admin agent gets the
@@ -62,17 +61,11 @@ export async function checkAgentCreation(args: CreationGuardArgs): Promise<Creat
         reason: "Only a team lead can create team-owned agents for that team",
       };
     }
-    // Team-owned agents are capped at member.
-    if (desired.role !== "member" && desired.role !== "guest") {
+    if (desired.role !== "member") {
       return { ok: false, reason: "Team-owned agents are capped at role=member" };
     }
     return { ok: true };
   }
 
-  // Personal agents — cap at the caller's own role.
-  if (caller.role === "guest" && desired.role !== "guest") {
-    return { ok: false, reason: "Guest users can only create guest-role agents" };
-  }
-  // member callers can create member or guest agents (role ≤ self).
   return { ok: true };
 }

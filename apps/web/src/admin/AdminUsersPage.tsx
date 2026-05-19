@@ -112,7 +112,6 @@ export function AdminUsersPage() {
                     >
                       <option value="admin">admin</option>
                       <option value="member">member</option>
-                      <option value="guest">guest</option>
                     </select>
                   </td>
                   <td className="px-4 py-3">

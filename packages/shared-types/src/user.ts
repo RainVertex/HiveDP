@@ -1,6 +1,6 @@
 import type { ID, ISODateString, Timestamped } from "./common";
 
-export type UserRole = "admin" | "member" | "guest";
+export type UserRole = "admin" | "member";
 export type UserStatus = "active" | "disabled";
 
 export interface CurrentUser extends Timestamped {

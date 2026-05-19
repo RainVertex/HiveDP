@@ -1,6 +1,6 @@
 // REST surface for the Pipelines tab. Mounted under /api/catalog/:id/* by
-// catalogRouter so paths are entity-scoped and inherit the surrounding entity-
-// visibility checks (guests need a GuestGrant, same as for /audit).
+// catalogRouter so paths are entity-scoped. Reads require any authenticated
+// user; manual refresh requires admin or member.
 
 import { Router, type Request, type Response } from "express";
 import { prisma } from "@internal/db";
@@ -15,28 +15,11 @@ import { syncEntityPipelines } from "./sync";
 
 export const pipelinesRouter: Router = Router({ mergeParams: true });
 
-// ---------------------------------------------------------------------------
-// Auth helpers — mirror the pattern in ../index.ts. Reads require any
-// authenticated user with view access (guests need an explicit GuestGrant on
-// this entity). Manual refresh requires admin or member.
-// ---------------------------------------------------------------------------
-
-async function hasViewAccess(req: Request, entityId: string): Promise<boolean> {
-  if (!req.user) return false;
-  if (req.user.role !== "guest") return true;
-  const grant = await prisma.guestGrant.findFirst({
-    where: {
-      granteeId: req.user.id,
-      resourceType: "catalog_entity",
-      resourceId: entityId,
-      revokedAt: null,
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-    },
-  });
-  return grant !== null;
-}
-
 async function ensureEntity(req: Request, res: Response): Promise<string | null> {
+  if (!req.user) {
+    res.status(401).json({ error: "Not authenticated" });
+    return null;
+  }
   const id = String(req.params.id ?? "");
   if (!id) {
     res.status(400).json({ error: "Entity id required" });
@@ -48,10 +31,6 @@ async function ensureEntity(req: Request, res: Response): Promise<string | null>
   });
   if (!exists) {
     res.status(404).json({ error: "Catalog entity not found" });
-    return null;
-  }
-  if (!(await hasViewAccess(req, id))) {
-    res.status(403).json({ error: "Forbidden" });
     return null;
   }
   return id;

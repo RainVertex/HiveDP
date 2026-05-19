@@ -11,7 +11,6 @@ const schema = z.object({
 
   GITHUB_CLIENT_ID: z.string().min(1, "GITHUB_CLIENT_ID is required"),
   GITHUB_CLIENT_SECRET: z.string().min(1, "GITHUB_CLIENT_SECRET is required"),
-  GITHUB_ORG: z.string().min(1, "GITHUB_ORG is required"),
   AUTH_CALLBACK_URL: z.url().optional(),
 
   SESSION_SECRET: z.string().min(32, "SESSION_SECRET must be at least 32 characters"),
@@ -36,7 +35,6 @@ export interface AppEnv {
   github: {
     clientId: string;
     clientSecret: string;
-    org: string;
     authCallbackUrl: string;
   };
   bootstrapAdminEmail: string;
@@ -69,7 +67,6 @@ export function loadEnv(): AppEnv {
     github: {
       clientId: data.GITHUB_CLIENT_ID,
       clientSecret: data.GITHUB_CLIENT_SECRET,
-      org: data.GITHUB_ORG,
       authCallbackUrl: data.AUTH_CALLBACK_URL ?? `http://localhost:${port}/auth/github/callback`,
     },
     bootstrapAdminEmail: data.BOOTSTRAP_ADMIN_EMAIL,

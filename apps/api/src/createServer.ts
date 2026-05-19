@@ -12,7 +12,6 @@ import { adminUsersRouter } from "./routes/admin/users";
 import { adminAuditRouter } from "./routes/admin/audit";
 import { adminJobsRouter } from "./routes/admin/jobs";
 import { adminScaffolderMcpTokensRouter } from "./routes/admin/scaffolderMcpTokens";
-import { adminGrantsRouter } from "./routes/admin/grants";
 import { departmentsRouter } from "./routes/departments";
 import { scaffolderAccessRequestsRouter } from "./routes/scaffolderAccessRequests";
 import { adminScaffolderAccessRequestsRouter } from "./routes/admin/scaffolderAccessRequests";
@@ -109,7 +108,6 @@ export function createServer() {
   app.use("/api/admin/audit", adminAuditRouter);
   app.use("/api/admin/jobs", adminJobsRouter);
   app.use("/api/admin/scaffolder/mcp-tokens", adminScaffolderMcpTokensRouter);
-  app.use("/api/admin/grants", adminGrantsRouter);
   app.use("/api/admin/scaffolder/access-requests", adminScaffolderAccessRequestsRouter);
   app.use("/api/admin/scaffolder/templates", adminScaffolderTemplateAclsRouter);
   app.use("/api/departments", departmentsRouter);

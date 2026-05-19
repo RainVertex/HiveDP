@@ -1,4 +1,6 @@
+import { prisma } from "@internal/db";
 import { loadEnv } from "../config/env";
+import { logger } from "../logger/logger";
 
 export interface GithubUser {
   id: string;
@@ -83,10 +85,9 @@ export async function fetchGithubUser(token: string): Promise<GithubUser> {
   };
 }
 
-export async function verifyOrgMembership(token: string, _login: string): Promise<boolean> {
-  const env = loadEnv();
+async function fetchActiveMembership(token: string, org: string): Promise<boolean> {
   const res = await fetch(
-    `https://api.github.com/user/memberships/orgs/${encodeURIComponent(env.github.org)}`,
+    `https://api.github.com/user/memberships/orgs/${encodeURIComponent(org)}`,
     {
       headers: {
         authorization: `Bearer ${token}`,
@@ -98,10 +99,46 @@ export async function verifyOrgMembership(token: string, _login: string): Promis
   if (res.status === 404) return false;
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`GitHub org membership check failed: ${res.status} ${text}`);
+    throw new Error(`GitHub org membership check failed for ${org}: ${res.status} ${text}`);
   }
-  const body = (await res.json()) as { state?: string; role?: string };
+  const body = (await res.json()) as { state?: string };
   return body.state === "active";
+}
+
+export async function verifyAnyOrgMembership(token: string): Promise<boolean> {
+  const integrations = await prisma.integration.findMany({
+    where: { kind: "github", enabled: true },
+    select: { config: true },
+  });
+  const orgLogins = integrations
+    .map((i) => {
+      const cfg = i.config as { accountLogin?: unknown } | null;
+      return cfg && typeof cfg.accountLogin === "string" ? cfg.accountLogin : null;
+    })
+    .filter((s): s is string => s !== null && s.length > 0);
+
+  if (orgLogins.length === 0) return false;
+
+  const results = await Promise.allSettled(
+    orgLogins.map((org) => fetchActiveMembership(token, org)),
+  );
+
+  let anyActive = false;
+  let anyFulfilled = false;
+  for (const r of results) {
+    if (r.status === "fulfilled") {
+      anyFulfilled = true;
+      if (r.value) anyActive = true;
+    } else {
+      logger.warn({ err: r.reason }, "GitHub org membership check error");
+    }
+  }
+
+  if (anyActive) return true;
+  if (!anyFulfilled) {
+    logger.error("All GitHub org membership checks failed; denying sign-in");
+  }
+  return false;
 }
 
 const ORG_DENIAL_WINDOW_MS = 15 * 60 * 1000;

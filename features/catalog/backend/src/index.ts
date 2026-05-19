@@ -22,20 +22,6 @@ async function isOwningTeamMember(user: User, ownerTeamIds: string[]): Promise<b
   return membership !== null;
 }
 
-async function hasGuestGrant(user: User, entityId: string): Promise<boolean> {
-  if (user.role !== "guest") return true;
-  const grant = await prisma.guestGrant.findFirst({
-    where: {
-      granteeId: user.id,
-      resourceType: "catalog_entity",
-      resourceId: entityId,
-      revokedAt: null,
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-    },
-  });
-  return grant !== null;
-}
-
 export * from "./service";
 export { parseCatalogInfo, VALID_KINDS, CATALOG_INFO_FILE_NAMES } from "./discovery/parse";
 export type { ParseResult } from "./discovery/parse";
@@ -155,10 +141,6 @@ async function loadLiveInstallationIds(): Promise<ReadonlySet<number>> {
 export const catalogRouter: Router = Router();
 
 catalogRouter.get("/", async (req, res) => {
-  if (req.user?.role === "guest") {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
   const [entities, liveInstallationIds] = await Promise.all([
     prisma.catalogEntity.findMany({ include: ENTITY_INCLUDE, orderBy: { name: "asc" } }),
     loadLiveInstallationIds(),
@@ -169,9 +151,6 @@ catalogRouter.get("/", async (req, res) => {
 });
 
 catalogRouter.post("/", async (req, res) => {
-  if (req.user?.role === "guest") {
-    return res.status(403).json({ error: "Forbidden" });
-  }
   const parsed = createInput.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.message });
@@ -270,10 +249,6 @@ catalogRouter.get("/:id/overview", async (req, res) => {
     include: ENTITY_INCLUDE,
   });
   if (!entity) return res.status(404).json({ error: "Catalog entity not found" });
-  if (req.user) {
-    const granted = await hasGuestGrant(req.user, entity.id);
-    if (!granted) return res.status(403).json({ error: "Forbidden" });
-  }
   const ownerTeamIds = (entity as EntityWithOwners).owners.map((o) => o.team.id);
   const canViewRestricted = req.user ? await isOwningTeamMember(req.user, ownerTeamIds) : false;
 
@@ -391,8 +366,6 @@ catalogRouter.get("/:id", async (req, res) => {
   });
   if (!entity) return res.status(404).json({ error: "Catalog entity not found" });
   if (req.user) {
-    const granted = await hasGuestGrant(req.user, entity.id);
-    if (!granted) return res.status(403).json({ error: "Forbidden" });
     const ownerTeamIds = (entity as EntityWithOwners).owners.map((o) => o.team.id);
     const canViewRestricted = await isOwningTeamMember(req.user, ownerTeamIds);
     return res.json(shapeEntity(entity as EntityWithOwners, canViewRestricted));
@@ -421,7 +394,6 @@ function deriveLinks(entity: { repoUrl: string | null; yamlSpec: unknown }): Cat
 }
 
 catalogRouter.patch("/:id", async (req, res) => {
-  if (req.user?.role === "guest") return res.status(403).json({ error: "Forbidden" });
   const parsed = patchInput.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
 
@@ -459,7 +431,6 @@ catalogRouter.patch("/:id", async (req, res) => {
 });
 
 catalogRouter.delete("/:id", async (req, res) => {
-  if (req.user?.role === "guest") return res.status(403).json({ error: "Forbidden" });
   const existing = await prisma.catalogEntity.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Catalog entity not found" });
   if (existing.staleSince) return res.status(409).json({ error: "Already marked stale" });

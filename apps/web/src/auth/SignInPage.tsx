@@ -1,8 +1,7 @@
 import { useAuth } from "./AuthContext";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  not_in_org:
-    "Your GitHub account is not a member of the required organization. Ask an admin to invite you.",
+  not_in_org: "Organizasyona dahil değilsiniz.",
   bad_oauth_state: "The sign-in link expired or was tampered with. Please try again.",
   account_disabled: "Your account has been disabled. Contact an admin.",
 };

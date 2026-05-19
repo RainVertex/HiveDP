@@ -53,7 +53,6 @@ function shape(r: {
 scaffolderAccessRequestsRouter.post("/", async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: "Not authenticated" });
-    if (req.user.role === "guest") return res.status(403).json({ error: "Forbidden" });
 
     const parsed = submitSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.message });

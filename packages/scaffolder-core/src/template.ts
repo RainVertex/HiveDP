@@ -15,7 +15,7 @@ export interface TemplateMetadata {
   tags?: readonly string[];
   icon?: string;
   audience: readonly Audience[];
-  requiredRole: "admin" | "member" | "guest";
+  requiredRole: "admin" | "member";
   planTtlSeconds?: number;
   defaultTarget?: DefaultTargetMap;
 }

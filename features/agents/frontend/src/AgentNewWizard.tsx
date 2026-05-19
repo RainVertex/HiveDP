@@ -39,7 +39,7 @@ interface WizardState {
   modelId: string;
   secretId: string | null;
   // Step 3 — Permissions
-  role: "admin" | "member" | "guest";
+  role: "admin" | "member";
   owningTeamId: string | null;
   onBehalfOfRequired: boolean;
   // Step 4 — Tools
@@ -72,7 +72,7 @@ export function AgentNewWizard() {
   // Caller's role drives which UI controls are enabled (role=admin and the
   // onBehalfOfRequired toggle are admin-only). Server-side creationGuard
   // is the authoritative check; this just shows the right affordance.
-  const [callerRole, setCallerRole] = useState<"admin" | "member" | "guest">("member");
+  const [callerRole, setCallerRole] = useState<"admin" | "member">("member");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -305,10 +305,9 @@ function StepPermissions({
           onChange={(e) => onChange({ role: e.target.value as WizardState["role"] })}
           className="w-full rounded-md border border-app-border bg-app-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-primary"
         >
-          <option value="guest">guest — no default access; needs explicit grants</option>
-          <option value="member">member — standard authenticated access</option>
+          <option value="member">member, standard authenticated access</option>
           <option value="admin" disabled={!isAdmin}>
-            admin — full platform access {!isAdmin && "(admins only)"}
+            admin, full platform access {!isAdmin && "(admins only)"}
           </option>
         </select>
         <p className="mt-1 text-xs text-app-text-muted">

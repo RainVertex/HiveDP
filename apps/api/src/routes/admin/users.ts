@@ -43,7 +43,7 @@ adminUsersRouter.get("/", async (_req, res, next) => {
 });
 
 const patchSchema = z.object({
-  role: z.enum(["admin", "member", "guest"]).optional(),
+  role: z.enum(["admin", "member"]).optional(),
   status: z.enum(["active", "disabled"]).optional(),
 });
 
@@ -65,7 +65,7 @@ adminUsersRouter.patch("/:id", async (req, res, next) => {
       res.status(404).json({ error: "User not found" });
       return;
     }
-    const data: { role?: "admin" | "member" | "guest"; status?: string } = {};
+    const data: { role?: "admin" | "member"; status?: string } = {};
     if (parsed.data.role) data.role = parsed.data.role;
     if (parsed.data.status) data.status = parsed.data.status;
 

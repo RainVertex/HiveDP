@@ -123,7 +123,7 @@ export interface CreateAgentInput {
   toolApprovalPolicy?: ToolApprovalPolicy;
   onBehalfOfRequired?: boolean;
   /** Role for the backing User row. */
-  role?: "admin" | "member" | "guest";
+  role?: "admin" | "member";
   secretId?: ID | null;
   tokenBudgetMonthly?: number | null;
   costBudgetMonthly?: number | null;

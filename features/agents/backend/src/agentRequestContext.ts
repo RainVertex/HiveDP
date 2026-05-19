@@ -14,7 +14,7 @@ import type { UserRole } from "@internal/db";
 //     govern. There is no invoker to intersect against.
 //
 // `effectiveRole = min(agent.role, invoker.role)` where the role lattice
-// is admin > member > guest. Team intersection is set-intersection on the
+// is admin > member. Team intersection is set-intersection on the
 // teamIds each side belongs to.
 
 export interface AgentRequestContext {
@@ -26,7 +26,7 @@ export interface AgentRequestContext {
   effectiveTeamIds: string[];
 }
 
-const ROLE_LEVEL: Record<UserRole, number> = { admin: 2, member: 1, guest: 0 };
+const ROLE_LEVEL: Record<UserRole, number> = { admin: 2, member: 1 };
 
 function minRole(a: UserRole, b: UserRole): UserRole {
   return ROLE_LEVEL[a] <= ROLE_LEVEL[b] ? a : b;
