@@ -49,8 +49,8 @@ const url = listener.url();
 console.log(`[tunnel] ✓ Public URL: ${url}`);
 console.log(`[tunnel]   Plane webhook payload URL pattern:`);
 console.log(`[tunnel]     ${url}/integrations/plane/webhook/<integration-id>`);
-console.log(`[tunnel]   GitHub webhook payload URL:`);
-console.log(`[tunnel]     ${url}/integrations/github/webhook`);
+console.log(`[tunnel]   GitHub App webhook payload URL:`);
+console.log(`[tunnel]     ${url}/integrations/github/app-webhook`);
 console.log("[tunnel] Tunnel will close on Ctrl+C.");
 
 const shutdown = async (signal) => {
