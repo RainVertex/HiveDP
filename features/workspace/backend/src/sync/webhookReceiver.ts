@@ -104,11 +104,34 @@ planeWebhookRouter.post(
   },
 );
 
+function planeUuid(v: unknown): string | null {
+  if (typeof v === "string") return v;
+  if (v && typeof v === "object" && typeof (v as { id?: unknown }).id === "string") {
+    return (v as { id: string }).id;
+  }
+  return null;
+}
+
+function planeUuidList(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.map(planeUuid).filter((id): id is string => id !== null);
+}
+
+function normalizeIssuePayload(raw: PlaneApiWorkItem): PlaneApiWorkItem {
+  return {
+    ...raw,
+    state: planeUuid(raw.state) as PlaneApiWorkItem["state"],
+    parent: planeUuid(raw.parent) as PlaneApiWorkItem["parent"],
+    cycle: planeUuid(raw.cycle) as PlaneApiWorkItem["cycle"],
+    module: planeUuid(raw.module) as PlaneApiWorkItem["module"],
+    assignees: planeUuidList(raw.assignees),
+    labels: planeUuidList(raw.labels),
+  };
+}
+
 async function dispatch(integrationId: string, payload: PlaneWebhookPayload): Promise<void> {
   const { event, action, data } = payload;
-  // Plane uses `event` like "project" / "issue" / "cycle" / "module" /
-  // "issue_comment", and `action` of create/update/delete.
-  if (action === "delete") {
+  if (action === "delete" || (action as string) === "deleted") {
     await handleDelete(integrationId, event, data);
     return;
   }
@@ -150,13 +173,14 @@ async function handleProjectUpsert(integrationId: string, raw: PlaneApiProject):
 }
 
 async function handleWorkItemUpsert(integrationId: string, raw: PlaneApiWorkItem): Promise<void> {
+  const normalized = normalizeIssuePayload(raw);
   const project = await prisma.planeProject.findFirst({
-    where: { integrationId, externalId: raw.project },
+    where: { integrationId, externalId: normalized.project },
     select: { id: true },
   });
   if (!project) return;
   await prisma.$transaction(async (tx) => {
-    await upsertWorkItem(tx, project.id, raw);
+    await upsertWorkItem(tx, project.id, normalized);
   });
 }
 
