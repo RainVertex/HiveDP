@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "prepare": "husky",
-    "dev": "concurrently \"yarn workspace @internal/app dev\" \"yarn workspace @internal/backend dev\" \"yarn dev:tunnel\"",
+    "dev": "concurrently \"turbo run dev\" \"yarn dev:tunnel\"",
     "dev:app": "yarn workspace @internal/app dev",
     "dev:backend": "yarn workspace @internal/backend dev",
     "dev:tunnel": "node scripts/start-tunnel.mjs",
