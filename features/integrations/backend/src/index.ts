@@ -184,6 +184,24 @@ integrationsRouter.post("/plane", async (req, res) => {
     return;
   }
 
+  const existing = await prisma.integration.findFirst({
+    where: {
+      kind: "plane",
+      AND: [
+        { config: { path: ["baseUrl"], equals: baseUrl } },
+        { config: { path: ["workspaceSlug"], equals: workspaceSlug } },
+      ],
+    },
+    select: { id: true, name: true },
+  });
+  if (existing) {
+    res.status(409).json({
+      error: `Already connected as "${existing.name}". Disconnect it first if you need to rotate credentials.`,
+      existingIntegrationId: existing.id,
+    });
+    return;
+  }
+
   // Validate by listing projects. We can't use GET /workspaces/<slug>/ because
   // Plane's personal API tokens don't authenticate that endpoint (it's
   // session-only). The projects endpoint accepts X-API-Key, so a successful
