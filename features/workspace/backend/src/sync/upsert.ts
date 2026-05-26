@@ -269,12 +269,29 @@ export async function upsertWorkItem(
   });
 }
 
+function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>\s*<p[^>]*>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
+
 export async function upsertComment(
   tx: Tx,
   workItemId: string,
   raw: PlaneApiComment,
 ): Promise<{ id: string }> {
-  const body = raw.comment_markdown ?? raw.comment_stripped ?? "";
+  const body =
+    raw.comment_markdown ??
+    raw.comment_stripped ??
+    (typeof raw.comment_html === "string" ? stripHtml(raw.comment_html) : "");
   const authorExternalId = raw.actor_detail?.id ?? raw.actor ?? null;
   return tx.planeComment.upsert({
     where: { workItemId_externalId: { workItemId, externalId: raw.id } },
