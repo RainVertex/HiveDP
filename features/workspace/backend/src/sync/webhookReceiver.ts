@@ -129,6 +129,18 @@ function normalizeIssuePayload(raw: PlaneApiWorkItem): PlaneApiWorkItem {
   };
 }
 
+function normalizeCommentPayload(raw: PlaneApiComment): PlaneApiComment {
+  const actorId = planeUuid(raw.actor) ?? raw.actor_detail?.id ?? null;
+  return {
+    ...raw,
+    issue: planeUuid(raw.issue) ?? raw.issue,
+    project: planeUuid(raw.project) ?? raw.project,
+    workspace: planeUuid(raw.workspace) ?? raw.workspace,
+    actor: actorId,
+    actor_detail: actorId ? { id: actorId } : null,
+  };
+}
+
 async function dispatch(integrationId: string, payload: PlaneWebhookPayload): Promise<void> {
   const { event, action, data } = payload;
   if (action === "delete" || (action as string) === "deleted") {
@@ -207,13 +219,14 @@ async function handleModuleUpsert(integrationId: string, raw: PlaneApiModule): P
 }
 
 async function handleCommentUpsert(integrationId: string, raw: PlaneApiComment): Promise<void> {
+  const normalized = normalizeCommentPayload(raw);
   const workItem = await prisma.planeWorkItem.findFirst({
-    where: { project: { integrationId }, externalId: raw.issue },
+    where: { project: { integrationId }, externalId: normalized.issue },
     select: { id: true },
   });
   if (!workItem) return;
   await prisma.$transaction(async (tx) => {
-    await upsertComment(tx, workItem.id, raw);
+    await upsertComment(tx, workItem.id, normalized);
   });
 }
 

@@ -84,8 +84,15 @@ export function WorkItemDetailPage() {
                       key={c.id}
                       className="rounded-md border border-app-border bg-app-surface p-3 text-sm"
                     >
-                      <div className="text-xs text-app-text-muted">
-                        {new Date(c.externalCreatedAt).toLocaleString()}
+                      <div className="flex items-baseline gap-2 text-xs text-app-text-muted">
+                        {c.author ? (
+                          <span className="font-medium text-app-text" title={c.author.email}>
+                            {c.author.displayName}
+                          </span>
+                        ) : (
+                          <span className="italic">Unknown author</span>
+                        )}
+                        <span>{new Date(c.externalCreatedAt).toLocaleString()}</span>
                       </div>
                       <pre className="mt-1 whitespace-pre-wrap text-app-text">{c.body}</pre>
                     </li>

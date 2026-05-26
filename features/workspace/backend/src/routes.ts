@@ -395,7 +395,7 @@ workspaceRoutes.get("/work-items/:id", async (req, res) => {
     where: { id: req.params.id },
     include: {
       state: true,
-      project: { select: { id: true, identifier: true, name: true } },
+      project: { select: { id: true, identifier: true, name: true, workspaceId: true } },
       parent: {
         include: { state: true, project: { select: { id: true, identifier: true, name: true } } },
       },
@@ -410,6 +410,7 @@ workspaceRoutes.get("/work-items/:id", async (req, res) => {
     res.status(404).json({ error: "Work item not found" });
     return;
   }
+  const authorMap = await hydrateCommentAuthors(item.project.workspaceId, item.comments);
   const detail: PlaneWorkItemDetailDto = {
     ...toWorkItemSummary(item),
     description: item.description,
@@ -418,17 +419,32 @@ workspaceRoutes.get("/work-items/:id", async (req, res) => {
     moduleId: item.moduleId,
     parent: item.parent ? toWorkItemSummary(item.parent) : null,
     subItems: item.subItems.map(toWorkItemSummary),
-    comments: item.comments.map(toCommentDto),
+    comments: item.comments.map((c) =>
+      toCommentDto(c, c.authorExternalId ? (authorMap.get(c.authorExternalId) ?? null) : null),
+    ),
   };
   res.json(detail);
 });
 
 workspaceRoutes.get("/work-items/:id/comments", async (req, res) => {
+  const workItem = await prisma.planeWorkItem.findUnique({
+    where: { id: req.params.id },
+    select: { project: { select: { workspaceId: true } } },
+  });
+  if (!workItem) {
+    res.status(404).json({ error: "Work item not found" });
+    return;
+  }
   const comments = await prisma.planeComment.findMany({
     where: { workItemId: req.params.id },
     orderBy: { externalCreatedAt: "asc" },
   });
-  res.json({ items: comments.map(toCommentDto) });
+  const authorMap = await hydrateCommentAuthors(workItem.project.workspaceId, comments);
+  res.json({
+    items: comments.map((c) =>
+      toCommentDto(c, c.authorExternalId ? (authorMap.get(c.authorExternalId) ?? null) : null),
+    ),
+  });
 });
 
 // -------- My-work aggregator -------------------------------------------------
@@ -615,22 +631,48 @@ function toWorkItemSummary(w: WorkItemRow): PlaneWorkItemSummaryDto {
   };
 }
 
-function toCommentDto(c: {
-  id: string;
-  workItemId: string;
-  externalId: string;
-  authorExternalId: string | null;
-  body: string;
-  externalCreatedAt: Date;
-  externalUpdatedAt: Date;
-}): PlaneCommentDto {
+type CommentAuthor = { displayName: string; email: string; avatarUrl: string | null };
+
+function toCommentDto(
+  c: {
+    id: string;
+    workItemId: string;
+    externalId: string;
+    authorExternalId: string | null;
+    body: string;
+    externalCreatedAt: Date;
+    externalUpdatedAt: Date;
+  },
+  author: CommentAuthor | null = null,
+): PlaneCommentDto {
   return {
     id: c.id,
     workItemId: c.workItemId,
     externalId: c.externalId,
     authorExternalId: c.authorExternalId,
+    author,
     body: c.body,
     externalCreatedAt: c.externalCreatedAt.toISOString(),
     externalUpdatedAt: c.externalUpdatedAt.toISOString(),
   };
+}
+
+async function hydrateCommentAuthors(
+  workspaceId: string,
+  comments: Array<{ authorExternalId: string | null }>,
+): Promise<Map<string, CommentAuthor>> {
+  const ids = Array.from(
+    new Set(comments.map((c) => c.authorExternalId).filter((id): id is string => Boolean(id))),
+  );
+  if (ids.length === 0) return new Map();
+  const members = await prisma.planeMember.findMany({
+    where: { workspaceId, externalId: { in: ids } },
+    select: { externalId: true, displayName: true, email: true, avatarUrl: true },
+  });
+  return new Map(
+    members.map((m) => [
+      m.externalId,
+      { displayName: m.displayName, email: m.email, avatarUrl: m.avatarUrl },
+    ]),
+  );
 }

@@ -111,6 +111,8 @@ export interface PlaneCommentDto {
   workItemId: ID;
   externalId: string;
   authorExternalId: string | null;
+  /** Hydrated from PlaneMember by authorExternalId; null when the author left or is unknown. */
+  author: { displayName: string; email: string; avatarUrl: string | null } | null;
   body: string;
   externalCreatedAt: ISODateString;
   externalUpdatedAt: ISODateString;
