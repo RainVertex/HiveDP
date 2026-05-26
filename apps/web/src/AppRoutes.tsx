@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { PlaneEmbedPage } from "./pages/PlaneEmbedPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ThemeAuditPage } from "./pages/ThemeAudit";
 import { AdminUsersPage } from "./admin/AdminUsersPage";
@@ -119,6 +120,7 @@ export function AppRoutes() {
       <Route path="/workspace/projects/:id" element={<ProjectDetailPage />} />
       <Route path="/workspace/work-items/:id" element={<WorkItemDetailPage />} />
       <Route path="/workspace/integrations/:id" element={<IntegrationDetailPage />} />
+      <Route path="/workspace/plane" element={<PlaneEmbedPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/admin/users" element={<AdminUsersPage />} />
       <Route path="/admin/secrets" element={<SecretsPage />} />
