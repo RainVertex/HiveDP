@@ -12,6 +12,7 @@ import {
   MAINTAINER_REQUEST_WRITE_TOOLS,
   MAINTAINER_REQUEST_WRITE_TOOL_IDS,
 } from "./maintainerRequestWrites";
+import { PLANE_WRITE_TOOLS, PLANE_WRITE_TOOL_IDS } from "./planeWrites";
 
 // Aggregator for chatbot tools. Imported by the API server entry point at
 // startup so resolveTools() can find every chat tool by id when the seeded
@@ -46,11 +47,13 @@ export const CHAT_READ_TOOL_IDS: string[] = [
 export const CHAT_WRITE_TOOLS: RegisteredTool[] = [
   ...TEAM_REQUEST_WRITE_TOOLS,
   ...MAINTAINER_REQUEST_WRITE_TOOLS,
+  ...PLANE_WRITE_TOOLS,
 ];
 
 export const CHAT_WRITE_TOOL_IDS: string[] = [
   ...TEAM_REQUEST_WRITE_TOOL_IDS,
   ...MAINTAINER_REQUEST_WRITE_TOOL_IDS,
+  ...PLANE_WRITE_TOOL_IDS,
 ];
 
 /** Compute the toolId list the seed should attach to the Platform Assistant agent. */

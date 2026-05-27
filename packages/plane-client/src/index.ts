@@ -53,6 +53,11 @@ export interface PlaneClient {
     opts?: { updatedAfter?: Date },
   ): Promise<PlaneApiWorkItem[]>;
   getWorkItem(slug: string, projectId: string, workItemId: string): Promise<PlaneApiWorkItem>;
+  createWorkItem(
+    slug: string,
+    projectId: string,
+    body: { name: string; description_html?: string; priority?: string },
+  ): Promise<PlaneApiWorkItem>;
   listComments(slug: string, projectId: string, workItemId: string): Promise<PlaneApiComment[]>;
   listWorkspaceMembers(slug: string): Promise<PlaneApiMember[]>;
 }
@@ -153,6 +158,22 @@ export function createPlaneClient(config: PlaneClientConfig): PlaneClient {
         `issues/${workItemId}/comments`,
         {},
       ),
+    createWorkItem: async (slug, projectId, body) => {
+      try {
+        return await request<PlaneApiWorkItem>(
+          `/api/v1/workspaces/${slug}/projects/${projectId}/work-items/`,
+          { method: "POST", body: JSON.stringify(body) },
+        );
+      } catch (err) {
+        if (err instanceof PlaneApiError && err.status === 404) {
+          return await request<PlaneApiWorkItem>(
+            `/api/v1/workspaces/${slug}/projects/${projectId}/issues/`,
+            { method: "POST", body: JSON.stringify(body) },
+          );
+        }
+        throw err;
+      }
+    },
     listWorkspaceMembers: (slug) => collect<PlaneApiMember>(`/api/v1/workspaces/${slug}/members/`),
   };
 

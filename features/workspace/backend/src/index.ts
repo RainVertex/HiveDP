@@ -11,4 +11,5 @@ export const workspaceRouter: Router = Router();
 workspaceRouter.use(workspaceRoutes);
 
 export { planeWebhookRouter } from "./sync/webhookReceiver";
-export { fullSync, incrementalSync } from "./sync/engine";
+export { fullSync, incrementalSync, clientForIntegration, workspaceSlugOf } from "./sync/engine";
+export { upsertWorkItem } from "./sync/upsert";
