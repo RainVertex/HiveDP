@@ -9,8 +9,6 @@ import { GithubConnectDialog } from "./GithubConnectDialog";
 import { GithubManagePanel } from "./GithubManagePanel";
 import { GrafanaConnectDialog } from "./GrafanaConnectDialog";
 import { GrafanaManagePanel } from "./GrafanaManagePanel";
-import { PlaneConnectDialog } from "./PlaneConnectDialog";
-import { PlaneManagePanel } from "./PlaneManagePanel";
 
 export interface ProviderDialogProps {
   open: boolean;
@@ -32,14 +30,6 @@ export interface ProviderEntry {
 }
 
 export const PROVIDERS: ProviderEntry[] = [
-  {
-    kind: "plane",
-    label: "Plane (OAuth App)",
-    description:
-      "Connect a Plane workspace via OAuth. Mirrors projects, work items, and comments; per-user tokens are provisioned automatically.",
-    ConnectDialog: PlaneConnectDialog,
-    ManagePanel: PlaneManagePanel,
-  },
   {
     kind: "github",
     label: "GitHub (App Installation)",

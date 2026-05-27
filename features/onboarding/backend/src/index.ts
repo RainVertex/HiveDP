@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import { Prisma, prisma } from "@internal/db";
 import type { UserTask } from "@internal/db";
 import type { UserTaskDto } from "@internal/shared-types";
-import { SEED_TASKS, type SeedTask } from "./seeds";
+import { SEED_TASKS } from "./seeds";
 
 export const onboardingRouter: Router = Router();
 
@@ -40,29 +40,11 @@ async function audit(
   }
 }
 
-async function effectiveSeedTasks(): Promise<SeedTask[]> {
-  const checks: Record<string, () => Promise<boolean>> = {
-    "plane-integration-exists": async () => {
-      const count = await prisma.integration.count({ where: { kind: "plane", enabled: true } });
-      return count > 0;
-    },
-  };
-  const results = new Map<string, boolean>();
-  for (const task of SEED_TASKS) {
-    if (!task.condition) continue;
-    if (!results.has(task.condition)) {
-      results.set(task.condition, await checks[task.condition]());
-    }
-  }
-  return SEED_TASKS.filter((t) => !t.condition || results.get(t.condition));
-}
-
 async function ensureSeeded(userId: string): Promise<void> {
-  const tasks = await effectiveSeedTasks();
   const existing = await prisma.userTask.count({ where: { userId } });
-  if (existing >= tasks.length) return;
+  if (existing >= SEED_TASKS.length) return;
   await prisma.userTask.createMany({
-    data: tasks.map((s) => ({
+    data: SEED_TASKS.map((s) => ({
       userId,
       kind: s.kind,
       payload: s.payload as Prisma.InputJsonValue,
@@ -73,7 +55,7 @@ async function ensureSeeded(userId: string): Promise<void> {
 
 async function applyAutoCompletions(req: Request, userId: string): Promise<void> {
   const pending = await prisma.userTask.findMany({
-    where: { userId, status: "pending", kind: { in: ["team-join", "connect-plane"] } },
+    where: { userId, status: "pending", kind: { in: ["team-join"] } },
   });
   if (pending.length === 0) return;
 
@@ -81,8 +63,6 @@ async function applyAutoCompletions(req: Request, userId: string): Promise<void>
     let shouldComplete = false;
     if (task.kind === "team-join") {
       shouldComplete = (await prisma.teamMembership.count({ where: { userId } })) > 0;
-    } else if (task.kind === "connect-plane") {
-      shouldComplete = (await prisma.planeOAuthToken.count({ where: { userId } })) > 0;
     }
     if (shouldComplete) {
       const updated = await prisma.userTask.update({

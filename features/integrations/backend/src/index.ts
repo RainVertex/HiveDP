@@ -1,12 +1,6 @@
-// Integrations REST surface. Generic listing + per-provider connect flows.
-// Plane is the first concrete provider; future GitHub/OpenProject/etc. flows
-// land alongside in their own files when added.
-
 import { Router } from "express";
-import { prisma, encryptSecret } from "@internal/db";
-import { createPlaneClient, PlaneApiError } from "@internal/plane-client";
+import { prisma } from "@internal/db";
 import type { IntegrationKind, IntegrationDetail } from "@internal/shared-types";
-import { fullSync } from "@feature/workspace-backend";
 import { disconnectGitHubInstallation } from "./github-app/install";
 import { grafanaConnectRouter } from "./grafana/connect";
 
@@ -40,13 +34,6 @@ function safeConfigForKind(kind: IntegrationKind, raw: unknown): IntegrationDeta
         hasWebhookSecret: hasNonEmpty(cfg.webhookSecret),
       };
     }
-    case "plane":
-      return {
-        baseUrl: str(cfg.baseUrl),
-        workspaceSlug: str(cfg.workspaceSlug),
-        hasOAuthCredentials: hasNonEmpty(cfg.oauthClientId) && hasNonEmpty(cfg.oauthClientSecret),
-        hasWebhookSecret: hasNonEmpty(cfg.webhookSecret),
-      };
     case "github":
       return {
         accountLogin: str(cfg.accountLogin),
@@ -152,148 +139,6 @@ integrationsRouter.get("/github/installations", async (req, res) => {
     })
     .filter((i) => i.accountLogin.length > 0);
   res.json({ items });
-});
-
-// ---------------------------------------------------------------------------
-// Plane connect flow
-// ---------------------------------------------------------------------------
-integrationsRouter.post("/plane", async (req, res) => {
-  if (!req.user || req.user.role !== "admin") {
-    res.status(403).json({ error: "Admin only" });
-    return;
-  }
-  const name = String(req.body?.name ?? "").trim();
-  const baseUrl = String(req.body?.baseUrl ?? "")
-    .trim()
-    .replace(/\/+$/, "");
-  const oauthClientId = String(req.body?.oauthClientId ?? "").trim();
-  const oauthClientSecret = String(req.body?.oauthClientSecret ?? "").trim();
-  const workspaceSlug = String(req.body?.workspaceSlug ?? "").trim();
-
-  if (!name || !baseUrl || !workspaceSlug || !oauthClientId || !oauthClientSecret) {
-    res.status(400).json({
-      error: "name, baseUrl, workspaceSlug, oauthClientId, and oauthClientSecret are all required",
-    });
-    return;
-  }
-  if (!/^https?:\/\//.test(baseUrl)) {
-    res.status(400).json({ error: "baseUrl must be an http(s) URL" });
-    return;
-  }
-
-  const existing = await prisma.integration.findFirst({
-    where: {
-      kind: "plane",
-      AND: [
-        { config: { path: ["baseUrl"], equals: baseUrl } },
-        { config: { path: ["workspaceSlug"], equals: workspaceSlug } },
-      ],
-    },
-    select: { id: true, name: true },
-  });
-  if (existing) {
-    res.status(409).json({
-      error: `Already connected as "${existing.name}". Disconnect it first if you need to rotate credentials.`,
-      existingIntegrationId: existing.id,
-    });
-    return;
-  }
-
-  const workspaceName = workspaceSlug;
-  try {
-    const probe = createPlaneClient({
-      baseUrl,
-      authMode: "oauth",
-      clientId: oauthClientId,
-      clientSecret: oauthClientSecret,
-    });
-    await probe.listProjects(workspaceSlug);
-  } catch (err) {
-    if (err instanceof PlaneApiError) {
-      res.status(400).json({
-        error: `Plane rejected the credentials (${err.status}). Check the OAuth credentials and workspace slug.`,
-      });
-      return;
-    }
-    res.status(502).json({
-      error: `Could not reach Plane: ${err instanceof Error ? err.message : String(err)}`,
-    });
-    return;
-  }
-
-  const configData: Record<string, string> = {
-    baseUrl,
-    workspaceSlug,
-    oauthClientId,
-    oauthClientSecret: encryptSecret(oauthClientSecret),
-  };
-
-  const integration = await prisma.integration.create({
-    data: {
-      name,
-      description: `Plane workspace ${workspaceSlug} at ${new URL(baseUrl).host}`,
-      kind: "plane",
-      enabled: true,
-      config: configData,
-    },
-  });
-
-  let syncError: string | null = null;
-  try {
-    await fullSync(integration.id);
-  } catch (err) {
-    syncError = err instanceof Error ? err.message : String(err);
-  }
-
-  res.json({
-    integration: {
-      id: integration.id,
-      name: integration.name,
-      description: integration.description,
-      kind: integration.kind,
-      enabled: integration.enabled,
-      config: {},
-      createdAt: integration.createdAt.toISOString(),
-      updatedAt: integration.updatedAt.toISOString(),
-    },
-    workspaceName,
-    webhookUrl: `/integrations/plane/webhook/${integration.id}`,
-    syncError,
-  });
-});
-
-integrationsRouter.patch("/:id/webhook-secret", async (req, res) => {
-  if (!req.user || req.user.role !== "admin") {
-    res.status(403).json({ error: "Admin only" });
-    return;
-  }
-  const webhookSecret = String(req.body?.webhookSecret ?? "").trim();
-  if (!webhookSecret) {
-    res.status(400).json({ error: "webhookSecret is required" });
-    return;
-  }
-  const existing = await prisma.integration.findUnique({
-    where: { id: req.params.id },
-    select: { id: true, kind: true, config: true },
-  });
-  if (!existing || existing.kind !== "plane") {
-    res.status(404).json({ error: "Plane integration not found" });
-    return;
-  }
-  const config =
-    existing.config && typeof existing.config === "object" && !Array.isArray(existing.config)
-      ? (existing.config as Record<string, unknown>)
-      : {};
-  await prisma.integration.update({
-    where: { id: existing.id },
-    data: {
-      config: {
-        ...config,
-        webhookSecret: encryptSecret(webhookSecret),
-      },
-    },
-  });
-  res.status(204).end();
 });
 
 integrationsRouter.get("/:id", async (req, res) => {

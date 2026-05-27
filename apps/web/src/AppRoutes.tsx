@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useCurrentUser } from "./auth";
 import { HomePage } from "./pages/HomePage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { PlaneEmbedPage } from "./pages/PlaneEmbedPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ThemeAuditPage } from "./pages/ThemeAudit";
 import { AdminUsersPage } from "./admin/AdminUsersPage";
@@ -52,13 +51,6 @@ import {
 import { MyApprovalsTeamPage, MyRequestsTeamPage } from "@feature/requests-frontend";
 import { NotificationsPage } from "@feature/notifications-frontend";
 import { WebhookSettingsPage } from "@feature/webhooks-frontend";
-import {
-  IntegrationDetailPage,
-  ProjectDetailPage,
-  ProjectsListPage,
-  WorkItemDetailPage,
-  WorkspacePage,
-} from "@feature/workspace-frontend";
 
 function AdminRoute({ children }: { children: ReactNode }) {
   const me = useCurrentUser();
@@ -139,19 +131,6 @@ export function AppRoutes() {
       <Route path="/settings/webhooks" element={<WebhookSettingsPage scope="user" />} />
       <Route path="/admin/team-requests" element={<AdminTeamRequestsPage />} />
       <Route path="/admin/team-policies" element={<AdminTeamPoliciesPage />} />
-      <Route path="/workspace" element={<WorkspacePage />} />
-      <Route path="/workspace/projects" element={<ProjectsListPage />} />
-      <Route path="/workspace/projects/:id" element={<ProjectDetailPage />} />
-      <Route path="/workspace/work-items/:id" element={<WorkItemDetailPage />} />
-      <Route
-        path="/workspace/integrations/:id"
-        element={
-          <AdminRoute>
-            <IntegrationDetailPage />
-          </AdminRoute>
-        }
-      />
-      <Route path="/workspace/plane" element={<PlaneEmbedPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/admin/users" element={<AdminUsersPage />} />
       <Route path="/admin/secrets" element={<SecretsPage />} />

@@ -3,7 +3,6 @@ enum IntegrationKind {
   jira
   slack
   grafana
-  plane
 }
 
 model Integration {
@@ -12,19 +11,10 @@ model Integration {
   description     String?
   kind            IntegrationKind
   enabled         Boolean          @default(true)
-  // Tool-specific JSON. For kind=plane: { baseUrl, apiToken (encrypted via
-  // packages/db/src/secrets), workspaceSlug, webhookSecret (encrypted) }.
   config          Json
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  planeWorkspaces  PlaneWorkspace[]
-  planeSyncCursor  PlaneSyncCursor?
-  planeOAuthTokens PlaneOAuthToken[]
-  // Team requests asking to mirror their team to this GitHub installation
-  // when approved. Approve flow looks up accountLogin from `config`.
   teamRequests    TeamRequest[]
-  // Grafana per-entity wiring + alert dedup state. Cascade-delete via FK so
-  // disconnecting a Grafana integration drops these alongside.
   observabilityConfigs EntityObservabilityConfig[]
   alertDeliveryStates  AlertDeliveryState[]
 

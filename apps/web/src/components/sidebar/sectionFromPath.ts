@@ -1,6 +1,6 @@
 import type { PageSection } from "@internal/shared-types";
 
-export type SidebarSection = PageSection | "home" | "account" | "integrations" | "chat" | "plane";
+export type SidebarSection = PageSection | "home" | "account" | "integrations" | "chat";
 
 /** Map a URL pathname to its rail section. */
 export function sectionFromPath(pathname: string): SidebarSection {
@@ -18,7 +18,7 @@ export function sectionFromPath(pathname: string): SidebarSection {
   if (path.startsWith("/scaffolder") || path.startsWith("/self-service")) return "selfservice";
   if (path.startsWith("/requests") || path.startsWith("/approvals")) return "requests";
   if (path.startsWith("/agents")) return "agents";
-  if (path.startsWith("/workspace") || path.startsWith("/search")) return "workspace";
+  if (path.startsWith("/search")) return "catalog";
   if (path.startsWith("/teams")) return "teams";
   if (path.startsWith("/observability") || path.startsWith("/dora-metrics")) return "observability";
   if (path.startsWith("/admin")) return "admin";

@@ -11,10 +11,8 @@
     }
   },
   "dependencies": {
-    "@feature/workspace-backend": "0.1.0",
     "@internal/db": "0.1.0",
     "@internal/grafana-client": "0.1.0",
-    "@internal/plane-client": "0.1.0",
     "@internal/shared-types": "0.1.0",
     "@octokit/auth-app": "^8.2.0",
     "express": "^5.2.1",

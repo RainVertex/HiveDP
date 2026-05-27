@@ -1,6 +1,5 @@
 import { registerTools, type RegisteredTool } from "@feature/agents-backend";
 import { CHAT_CORE_TOOLS, CHAT_CORE_TOOL_IDS } from "./core";
-import { WORKSPACE_READ_TOOLS, WORKSPACE_READ_TOOL_IDS } from "./workspace";
 import { TEAMS_READ_TOOLS, TEAMS_READ_TOOL_IDS } from "./teams";
 import { REQUESTS_READ_TOOLS, REQUESTS_READ_TOOL_IDS } from "./requests";
 import { CATALOG_READ_TOOLS, CATALOG_READ_TOOL_IDS } from "./catalog";
@@ -12,7 +11,6 @@ import {
   MAINTAINER_REQUEST_WRITE_TOOLS,
   MAINTAINER_REQUEST_WRITE_TOOL_IDS,
 } from "./maintainerRequestWrites";
-import { PLANE_WRITE_TOOLS, PLANE_WRITE_TOOL_IDS } from "./planeWrites";
 
 // Aggregator for chatbot tools. Imported by the API server entry point at
 // startup so resolveTools() can find every chat tool by id when the seeded
@@ -24,7 +22,6 @@ import { PLANE_WRITE_TOOLS, PLANE_WRITE_TOOL_IDS } from "./planeWrites";
 
 export const CHAT_READ_TOOLS: RegisteredTool[] = [
   ...CHAT_CORE_TOOLS,
-  ...WORKSPACE_READ_TOOLS,
   ...TEAMS_READ_TOOLS,
   ...REQUESTS_READ_TOOLS,
   ...CATALOG_READ_TOOLS,
@@ -35,7 +32,6 @@ export const CHAT_READ_TOOLS: RegisteredTool[] = [
 
 export const CHAT_READ_TOOL_IDS: string[] = [
   ...CHAT_CORE_TOOL_IDS,
-  ...WORKSPACE_READ_TOOL_IDS,
   ...TEAMS_READ_TOOL_IDS,
   ...REQUESTS_READ_TOOL_IDS,
   ...CATALOG_READ_TOOL_IDS,
@@ -47,13 +43,11 @@ export const CHAT_READ_TOOL_IDS: string[] = [
 export const CHAT_WRITE_TOOLS: RegisteredTool[] = [
   ...TEAM_REQUEST_WRITE_TOOLS,
   ...MAINTAINER_REQUEST_WRITE_TOOLS,
-  ...PLANE_WRITE_TOOLS,
 ];
 
 export const CHAT_WRITE_TOOL_IDS: string[] = [
   ...TEAM_REQUEST_WRITE_TOOL_IDS,
   ...MAINTAINER_REQUEST_WRITE_TOOL_IDS,
-  ...PLANE_WRITE_TOOL_IDS,
 ];
 
 /** Compute the toolId list the seed should attach to the Platform Assistant agent. */

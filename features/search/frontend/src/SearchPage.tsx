@@ -24,8 +24,8 @@ function hrefFor(hit: SearchHit): string | null {
       return `/teams`;
     case "agent":
       return `/agents`;
-    case "project":
-      return `/workspace`;
+    case "devdoc":
+      return `/devdocs`;
     default:
       return null;
   }

@@ -9,19 +9,9 @@ searchRouter.get("/", async (req, res) => {
   const query = String(req.query.q ?? "").trim();
   if (!query) return res.json({ query, hits: [] } satisfies SearchResults);
 
-  const [entities, projects, teams, agents, devdocs] = await Promise.all([
+  const [entities, teams, agents, devdocs] = await Promise.all([
     prisma.catalogEntity.findMany({
       where: { name: { contains: query, mode: "insensitive" } },
-      take: 10,
-    }),
-    // The "project" kind in SearchHit now refers to Plane projects mirrored
-    // into the workspace module. Native Project rows were dropped when the
-    // workspace became a Plane integration.
-    prisma.planeProject.findMany({
-      where: {
-        archivedAt: null,
-        name: { contains: query, mode: "insensitive" },
-      },
       take: 10,
     }),
     prisma.team.findMany({
@@ -41,13 +31,6 @@ searchRouter.get("/", async (req, res) => {
       kind: "catalog" as const,
       title: e.name,
       snippet: e.description ?? undefined,
-    })),
-    ...projects.map((p) => ({
-      id: p.id,
-      kind: "project" as const,
-      title: p.name,
-      snippet: p.description ?? undefined,
-      href: `/workspace/projects/${p.id}`,
     })),
     ...teams.map((t) => ({
       id: t.id,

@@ -9,7 +9,6 @@ interface TaskPresenter {
   ctaHref: string;
   ctaLabel: string;
   autoCompletes: boolean;
-  external?: boolean;
 }
 
 /** Map a task `kind` to its UI presentation. */
@@ -28,14 +27,6 @@ const PRESENTERS: Record<string, TaskPresenter> = {
     ctaHref: "/teams",
     ctaLabel: "Find a team",
     autoCompletes: true,
-  },
-  "connect-plane": {
-    title: "Connect your Plane account",
-    description: "Link your Plane account so work items are attributed to you.",
-    ctaHref: "/auth/plane",
-    ctaLabel: "Connect to Plane",
-    autoCompletes: true,
-    external: true,
   },
 };
 
@@ -144,21 +135,12 @@ export function OnboardingWidget() {
                 )}
                 {!done && (
                   <div className="mt-2 flex items-center gap-3">
-                    {p.external ? (
-                      <a
-                        href={p.ctaHref}
-                        className="text-sm font-medium text-app-primary hover:text-app-primary-hover"
-                      >
-                        {p.ctaLabel} →
-                      </a>
-                    ) : (
-                      <Link
-                        to={p.ctaHref}
-                        className="text-sm font-medium text-app-primary hover:text-app-primary-hover"
-                      >
-                        {p.ctaLabel} →
-                      </Link>
-                    )}
+                    <Link
+                      to={p.ctaHref}
+                      className="text-sm font-medium text-app-primary hover:text-app-primary-hover"
+                    >
+                      {p.ctaLabel} →
+                    </Link>
                     {!p.autoCompletes && (
                       <button
                         type="button"

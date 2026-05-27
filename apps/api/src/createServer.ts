@@ -48,7 +48,6 @@ import {
   teamsRouter,
 } from "@feature/teams-backend";
 import { webhooksRouter } from "@feature/webhooks-backend";
-import { planeWebhookRouter, workspaceRouter } from "@feature/workspace-backend";
 
 export function createServer() {
   const env = loadEnv();
@@ -76,10 +75,6 @@ export function createServer() {
   // App-wide secret is verified independently of any legacy per-repo webhook
   // configured under the path above).
   app.use("/integrations/github/app-webhook", githubAppWebhookRouter);
-
-  // Plane webhooks share the same constraint — mount before json parsing so
-  // the receiver can verify X-Plane-Signature against the raw bytes.
-  app.use("/integrations/plane/webhook", planeWebhookRouter);
 
   // Grafana Alertmanager webhook: needs the raw body for the Bearer-token
   // header check (the body is parsed AFTER auth) and replay protection,
@@ -146,7 +141,6 @@ export function createServer() {
   app.use("/api/teams/policies", teamPoliciesRouter);
   app.use("/api/teams", teamsRouter);
   app.use("/api/webhooks", webhooksRouter);
-  app.use("/api/workspace", workspaceRouter);
 
   app.use(errorHandler);
 

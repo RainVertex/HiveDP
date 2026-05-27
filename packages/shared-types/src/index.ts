@@ -9,7 +9,6 @@ export * from "./webhook";
 export * from "./observability";
 export * from "./scorecard";
 export * from "./catalog";
-export * from "./plane";
 export * from "./agent";
 export * from "./audit";
 export * from "./job";

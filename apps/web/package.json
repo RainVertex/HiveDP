@@ -19,7 +19,6 @@
     "@feature/search-frontend": "0.1.0",
     "@feature/teams-frontend": "0.1.0",
     "@feature/webhooks-frontend": "0.1.0",
-    "@feature/workspace-frontend": "0.1.0",
     "@internal/api-client": "0.1.0",
     "@internal/shared-types": "0.1.0",
     "@internal/shared-ui": "0.1.0",

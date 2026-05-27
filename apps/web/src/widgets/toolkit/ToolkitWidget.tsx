@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BoardIcon, BotIcon, ChartIcon, CubeIcon, PlugIcon, PulseIcon } from "./icons";
+import { BotIcon, ChartIcon, CubeIcon, PlugIcon, PulseIcon } from "./icons";
 
 interface Tool {
   to: string;
@@ -10,7 +10,6 @@ interface Tool {
 
 const tools: Tool[] = [
   { to: "/catalog", label: "Catalog", description: "Services & APIs", icon: <CubeIcon /> },
-  { to: "/workspace", label: "Workspace", description: "Projects & tasks", icon: <BoardIcon /> },
   { to: "/agents", label: "Agents", description: "Automation", icon: <BotIcon /> },
   {
     to: "/observability",

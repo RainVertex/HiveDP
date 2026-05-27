@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { PageLayout } from "@internal/shared-ui";
-import { PlaneOAuthCard } from "../plane-oauth";
 import { ProfileView } from "../profile";
 import { ThemeSwitcher } from "../theme";
 
@@ -17,7 +16,6 @@ export function SettingsPage() {
         >
           <ThemeSwitcher variant="grid" />
         </Card>
-        <PlaneOAuthCard />
       </div>
     </PageLayout>
   );

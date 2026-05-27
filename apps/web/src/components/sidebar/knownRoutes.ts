@@ -29,10 +29,9 @@ export const KNOWN_ROUTES: KnownRoute[] = [
   { path: "/requests/team", label: "My Requests", section: "requests" },
   { path: "/approvals/team", label: "My Approvals", section: "requests" },
 
-  // Workspace
-  { path: "/workspace", label: "Projects", section: "workspace" },
-  { path: "/agents", label: "Agents", section: "workspace" },
-  { path: "/search", label: "Search", section: "workspace" },
+  // Agents
+  { path: "/agents", label: "Agents", section: "agents" },
+  { path: "/search", label: "Search", section: "catalog" },
 
   // Teams
   { path: "/teams", label: "All teams", section: "teams" },

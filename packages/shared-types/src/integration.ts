@@ -1,6 +1,6 @@
 import type { ID, ISODateString, NamedEntity } from "./common";
 
-export type IntegrationKind = "github" | "jira" | "slack" | "grafana" | "plane";
+export type IntegrationKind = "github" | "jira" | "slack" | "grafana";
 
 export interface Integration extends NamedEntity {
   kind: IntegrationKind;
@@ -22,13 +22,6 @@ export interface GrafanaIntegrationConfigView {
   hasWebhookSecret: boolean;
 }
 
-export interface PlaneIntegrationConfigView {
-  baseUrl: string;
-  workspaceSlug: string;
-  hasOAuthCredentials: boolean;
-  hasWebhookSecret: boolean;
-}
-
 export interface GithubIntegrationConfigView {
   accountLogin: string;
   installationId: number;
@@ -40,7 +33,6 @@ interface IntegrationDetailBase extends NamedEntity {
 
 export type IntegrationDetail =
   | (IntegrationDetailBase & { kind: "grafana"; config: GrafanaIntegrationConfigView })
-  | (IntegrationDetailBase & { kind: "plane"; config: PlaneIntegrationConfigView })
   | (IntegrationDetailBase & { kind: "github"; config: GithubIntegrationConfigView })
   | (IntegrationDetailBase & { kind: "jira" | "slack"; config: Record<string, never> });
 

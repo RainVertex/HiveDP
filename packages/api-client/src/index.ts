@@ -31,19 +31,6 @@ import type {
   PageSection,
   PageType,
   PageWidgetInstance,
-  PlaneCommentDto,
-  PlaneCycleDto,
-  PlaneIntegrationStatusDto,
-  PlaneOAuthStatusDto,
-  PlaneLabelDto,
-  PlaneMemberDto,
-  PlaneModuleDto,
-  PlaneProjectDto,
-  PlaneStateDto,
-  PlaneUserMappingDto,
-  PlaneWorkItemDetailDto,
-  PlaneWorkItemSummaryDto,
-  MyWorkDto,
   RunAgentResponse,
   ScaffolderBinding,
   ScaffolderDriftSummaryDto,
@@ -430,17 +417,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
       list: () => request<ListResponse<Integration>>(`/api/integrations`),
       get: (id: string) =>
         request<IntegrationDetail>(`/api/integrations/${encodeURIComponent(id)}`),
-      connectPlane: (body: {
-        name: string;
-        baseUrl: string;
-        oauthClientId: string;
-        oauthClientSecret: string;
-        workspaceSlug: string;
-      }) =>
-        request<{ integration: Integration; status: PlaneIntegrationStatusDto }>(
-          `/api/integrations/plane`,
-          { method: "POST", body: JSON.stringify(body) },
-        ),
       probeGrafana: (body: { baseUrl: string; apiToken: string }) =>
         request<{
           datasources: {
@@ -937,84 +913,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<ListResponse<WebhookDeliveryDto>>(
           `/api/webhooks/${encodeURIComponent(id)}/deliveries`,
         ),
-    },
-
-    workspace: {
-      myWork: () => request<MyWorkDto>(`/api/workspace/my-work`),
-
-      listIntegrations: () =>
-        request<ListResponse<PlaneIntegrationStatusDto>>(`/api/workspace/integrations`),
-      getIntegration: (id: string) =>
-        request<PlaneIntegrationStatusDto>(`/api/workspace/integrations/${encodeURIComponent(id)}`),
-      sync: (id: string) =>
-        request<{ jobRunId: string }>(
-          `/api/workspace/integrations/${encodeURIComponent(id)}/sync`,
-          { method: "POST" },
-        ),
-      listMembers: (integrationId: string) =>
-        request<{
-          mappings: PlaneUserMappingDto[];
-          unmappedMembers: PlaneMemberDto[];
-        }>(`/api/workspace/integrations/${encodeURIComponent(integrationId)}/members`),
-      mapUser: (integrationId: string, body: { platformUserId: string; planeMemberId: string }) =>
-        request<PlaneUserMappingDto>(
-          `/api/workspace/integrations/${encodeURIComponent(integrationId)}/mappings`,
-          { method: "POST", body: JSON.stringify(body) },
-        ),
-      unmapUser: (integrationId: string, mappingId: string) =>
-        request<void>(
-          `/api/workspace/integrations/${encodeURIComponent(integrationId)}/mappings/${encodeURIComponent(mappingId)}`,
-          { method: "DELETE" },
-        ),
-
-      listProjects: (opts: { integrationId?: string; archived?: boolean } = {}) => {
-        const qs = new URLSearchParams();
-        if (opts.integrationId) qs.set("integrationId", opts.integrationId);
-        if (opts.archived !== undefined) qs.set("archived", opts.archived ? "true" : "false");
-        const q = qs.toString();
-        return request<ListResponse<PlaneProjectDto>>(`/api/workspace/projects${q ? `?${q}` : ""}`);
-      },
-      getProject: (id: string) =>
-        request<
-          PlaneProjectDto & {
-            states: PlaneStateDto[];
-            labels: PlaneLabelDto[];
-            cycles: PlaneCycleDto[];
-            modules: PlaneModuleDto[];
-          }
-        >(`/api/workspace/projects/${encodeURIComponent(id)}`),
-
-      listWorkItems: (
-        projectId: string,
-        opts: { stateGroup?: string; assigneeId?: string } = {},
-      ) => {
-        const qs = new URLSearchParams();
-        if (opts.stateGroup) qs.set("stateGroup", opts.stateGroup);
-        if (opts.assigneeId) qs.set("assigneeId", opts.assigneeId);
-        const q = qs.toString();
-        return request<ListResponse<PlaneWorkItemSummaryDto>>(
-          `/api/workspace/projects/${encodeURIComponent(projectId)}/work-items${q ? `?${q}` : ""}`,
-        );
-      },
-      getWorkItem: (id: string) =>
-        request<PlaneWorkItemDetailDto>(`/api/workspace/work-items/${encodeURIComponent(id)}`),
-      listComments: (workItemId: string) =>
-        request<ListResponse<PlaneCommentDto>>(
-          `/api/workspace/work-items/${encodeURIComponent(workItemId)}/comments`,
-        ),
-      postComment: (workItemId: string, body: { comment: string }) =>
-        request<PlaneCommentDto>(
-          `/api/workspace/work-items/${encodeURIComponent(workItemId)}/comments`,
-          { method: "POST", body: JSON.stringify(body) },
-        ),
-      updateWorkItem: (workItemId: string, body: { stateId?: string }) =>
-        request<{ ok: true }>(`/api/workspace/work-items/${encodeURIComponent(workItemId)}`, {
-          method: "PATCH",
-          body: JSON.stringify(body),
-        }),
-      getMyPlaneOAuth: () => request<PlaneOAuthStatusDto>(`/api/workspace/me/plane-oauth`),
-      disconnectPlaneOAuth: () =>
-        request<void>(`/api/workspace/me/plane-oauth`, { method: "DELETE" }),
     },
 
     scaffolder: {

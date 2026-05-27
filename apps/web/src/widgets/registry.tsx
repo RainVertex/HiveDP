@@ -9,8 +9,6 @@ import { TopVisitedWidget } from "./top-visited";
 import { ChatAssistantWidget } from "./chat";
 import { ServiceHealthWidget } from "./grafana/ServiceHealthWidget";
 import { GrafanaAlertsWidget } from "./grafana/GrafanaAlertsWidget";
-import { MyWorkWidget } from "./my-work";
-
 export type HomeWidgetDefinition = WidgetDefinition<WidgetId>;
 export type HomeWidgetInstance = WidgetInstance<WidgetId>;
 
@@ -84,14 +82,6 @@ export const WIDGETS: WidgetRegistry<WidgetId> = {
     title: "Grafana Alerts",
     description: "Recent firing and resolved alerts from Grafana Alertmanager.",
     component: GrafanaAlertsWidget,
-    defaultSize: { w: 6, h: 5 },
-    minSize: { w: 3, h: 3 },
-  },
-  "my-work": {
-    id: "my-work",
-    title: "My Work",
-    description: "Open Plane work items assigned to you.",
-    component: MyWorkWidget,
     defaultSize: { w: 6, h: 5 },
     minSize: { w: 3, h: 3 },
   },

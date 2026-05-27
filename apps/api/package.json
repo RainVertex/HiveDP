@@ -17,7 +17,6 @@
     "@feature/search-backend": "0.1.0",
     "@feature/teams-backend": "0.1.0",
     "@feature/webhooks-backend": "0.1.0",
-    "@feature/workspace-backend": "0.1.0",
     "@internal/db": "0.1.0",
     "@internal/shared-types": "0.1.0",
     "cookie-parser": "^1.4.7",
