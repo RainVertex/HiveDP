@@ -2,7 +2,8 @@ import { prisma } from "@internal/db";
 import { z } from "zod";
 import type { RegisteredTool, ToolContext } from "@feature/agents-backend";
 import { clientForIntegration, upsertWorkItem, workspaceSlugOf } from "@feature/workspace-backend";
-import { PlaneApiError } from "@internal/plane-client";
+import { createPlaneClient, PlaneApiError } from "@internal/plane-client";
+import { decryptSecret } from "@internal/db";
 import type { ChatPolicyCheck } from "@internal/shared-types";
 import { createPreview, markConsumed, resolveForSubmit } from "../preview";
 import { requireUserId } from "./core";
@@ -230,17 +231,19 @@ const submit: RegisteredTool = {
       return { error: "Plane integration is unavailable" };
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { displayName: true },
-    });
-    const displayName = user?.displayName ?? "Someone";
-    const attributionLine = `<p><em>Created by ${escapeHtml(displayName)} via chat assistant</em></p>`;
-    const bodyLine = params.description ? `<p>${escapeHtml(params.description)}</p>` : "";
-    const descriptionHtml = `${attributionLine}${bodyLine}`;
-
-    const client = clientForIntegration(integration.config);
     const slug = workspaceSlugOf(integration.config);
+    const cfg = (integration.config ?? {}) as Record<string, unknown>;
+    const baseUrl = typeof cfg.baseUrl === "string" ? cfg.baseUrl : "";
+
+    const oauthToken = await prisma.planeOAuthToken.findUnique({
+      where: { userId_integrationId: { userId, integrationId: project.integrationId } },
+      select: { encryptedAccessToken: true },
+    });
+    const client = oauthToken
+      ? createPlaneClient({ baseUrl, apiToken: decryptSecret(oauthToken.encryptedAccessToken) })
+      : clientForIntegration(integration.config);
+
+    const descriptionHtml = params.description ? `<p>${escapeHtml(params.description)}</p>` : "";
 
     let created;
     try {
