@@ -19,7 +19,8 @@ export function PlaneConnectDialog({ open, onClose, onConnected }: PlaneConnectD
   const api = useApi();
   const [name, setName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
-  const [apiToken, setApiToken] = useState("");
+  const [oauthClientId, setOauthClientId] = useState("");
+  const [oauthClientSecret, setOauthClientSecret] = useState("");
   const [workspaceSlug, setWorkspaceSlug] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +40,8 @@ export function PlaneConnectDialog({ open, onClose, onConnected }: PlaneConnectD
       const res = await api.integrations.connectPlane({
         name: name.trim() || `Plane (${workspaceSlug})`,
         baseUrl: baseUrl.trim(),
-        apiToken: apiToken.trim(),
+        oauthClientId: oauthClientId.trim(),
+        oauthClientSecret: oauthClientSecret.trim(),
         workspaceSlug: workspaceSlug.trim(),
       });
       // The integrations.connectPlane response shape includes webhook info on
@@ -77,8 +79,8 @@ export function PlaneConnectDialog({ open, onClose, onConnected }: PlaneConnectD
           <form onSubmit={handleSubmit} className="space-y-3">
             <h3 className="text-sm font-semibold text-app-text">Connect a Plane workspace</h3>
             <p className="text-xs text-app-text-muted">
-              Self-hosted Plane (https://plane.so). The platform will mirror projects, work items,
-              and comments into a local read cache.
+              Self-hosted Plane (https://plane.so). Create an OAuth app in Plane workspace settings
+              and enter the credentials below.
             </p>
             <Field
               label="Display name"
@@ -93,10 +95,16 @@ export function PlaneConnectDialog({ open, onClose, onConnected }: PlaneConnectD
               placeholder="https://plane.example.com"
             />
             <Field
-              label="API token"
-              value={apiToken}
-              onChange={setApiToken}
-              placeholder="plane_api_…"
+              label="OAuth Client ID"
+              value={oauthClientId}
+              onChange={setOauthClientId}
+              placeholder="plane_oauth_..."
+            />
+            <Field
+              label="OAuth Client Secret"
+              value={oauthClientSecret}
+              onChange={setOauthClientSecret}
+              placeholder="plane_secret_..."
               type="password"
             />
             <Field

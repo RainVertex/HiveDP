@@ -34,17 +34,17 @@ export interface ProviderEntry {
 export const PROVIDERS: ProviderEntry[] = [
   {
     kind: "plane",
-    label: "Plane",
+    label: "Plane (OAuth App)",
     description:
-      "Self-hosted project management. Mirrors projects, work items, and comments into the workspace module.",
+      "Connect a Plane workspace via OAuth. Mirrors projects, work items, and comments; per-user tokens are provisioned automatically.",
     ConnectDialog: PlaneConnectDialog,
     ManagePanel: PlaneManagePanel,
   },
   {
     kind: "github",
-    label: "GitHub",
+    label: "GitHub (App Installation)",
     description:
-      "Install the GitHub App on an org. Imports repos (catalog-info.yaml auto-discovery) plus teams + members, kept in sync via webhooks and weekly reconciliation.",
+      "Install the GitHub App on an organization. Imports repos, teams, and members, kept in sync via webhooks and weekly reconciliation.",
     ConnectDialog: GithubConnectDialog,
     ManagePanel: GithubManagePanel,
   },

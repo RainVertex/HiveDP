@@ -16,11 +16,6 @@ const schema = z.object({
   SESSION_SECRET: z.string().min(32, "SESSION_SECRET must be at least 32 characters"),
   SESSION_COOKIE_NAME: z.string().min(1).default("mep_sid"),
 
-  PLANE_OAUTH_CLIENT_ID: z.string().optional(),
-  PLANE_OAUTH_CLIENT_SECRET: z.string().optional(),
-  PLANE_BASE_URL: z.string().optional(),
-  PLANE_API_URL: z.string().optional(),
-
   BOOTSTRAP_ADMIN_EMAIL: z
     .union([z.email(), z.literal("")])
     .optional()
@@ -43,12 +38,6 @@ export interface AppEnv {
     authCallbackUrl: string;
   };
   bootstrapAdminEmail: string;
-  plane: {
-    oauthClientId: string;
-    oauthClientSecret: string;
-    baseUrl: string;
-    apiUrl: string;
-  } | null;
 }
 
 let cached: AppEnv | null = null;
@@ -81,15 +70,6 @@ export function loadEnv(): AppEnv {
       authCallbackUrl: data.AUTH_CALLBACK_URL ?? `http://localhost:${port}/auth/github/callback`,
     },
     bootstrapAdminEmail: data.BOOTSTRAP_ADMIN_EMAIL,
-    plane:
-      data.PLANE_OAUTH_CLIENT_ID && data.PLANE_OAUTH_CLIENT_SECRET && data.PLANE_BASE_URL
-        ? {
-            oauthClientId: data.PLANE_OAUTH_CLIENT_ID,
-            oauthClientSecret: data.PLANE_OAUTH_CLIENT_SECRET,
-            baseUrl: data.PLANE_BASE_URL,
-            apiUrl: data.PLANE_API_URL || data.PLANE_BASE_URL,
-          }
-        : null,
   };
 
   return cached;

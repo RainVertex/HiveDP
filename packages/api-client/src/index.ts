@@ -433,7 +433,8 @@ export function createApiClient(options: ApiClientOptions = {}) {
       connectPlane: (body: {
         name: string;
         baseUrl: string;
-        apiToken: string;
+        oauthClientId: string;
+        oauthClientSecret: string;
         workspaceSlug: string;
       }) =>
         request<{ integration: Integration; status: PlaneIntegrationStatusDto }>(

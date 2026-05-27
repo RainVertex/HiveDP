@@ -78,17 +78,53 @@ export function createPlaneClient(config: PlaneClientConfig): PlaneClient {
   const fetchImpl = config.fetch ?? fetch;
   const baseUrl = config.baseUrl.replace(/\/+$/, "");
   const pageSize = config.pageSize ?? 100;
-  const authHeader =
-    config.authMode === "bearer"
-      ? { Authorization: `Bearer ${config.apiToken}` }
-      : { "X-API-Key": config.apiToken };
+
+  let cachedToken: string | null = null;
+  let tokenExpiresAt = 0;
+  let pendingExchange: Promise<void> | null = null;
+
+  async function getAuthHeaders(): Promise<Record<string, string>> {
+    if (config.authMode !== "oauth") {
+      return { Authorization: `Bearer ${config.apiToken}` };
+    }
+    const now = Date.now();
+    if (cachedToken && tokenExpiresAt > now + 60_000) {
+      return { Authorization: `Bearer ${cachedToken}` };
+    }
+    if (!pendingExchange) {
+      pendingExchange = (async () => {
+        const body = new URLSearchParams({
+          grant_type: "client_credentials",
+          client_id: config.clientId!,
+          client_secret: config.clientSecret!,
+        });
+        const res = await fetchImpl(`${baseUrl}/auth/o/token/`, {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new PlaneApiError(res.status, "OAuth token exchange failed", text);
+        }
+        const data = (await res.json()) as { access_token: string; expires_in: number };
+        cachedToken = data.access_token;
+        tokenExpiresAt = Date.now() + data.expires_in * 1000;
+      })().finally(() => {
+        pendingExchange = null;
+      });
+    }
+    await pendingExchange;
+    return { Authorization: `Bearer ${cachedToken}` };
+  }
 
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const url = `${baseUrl}${path}`;
+    const authHeaders = await getAuthHeaders();
     const res = await fetchImpl(url, {
       ...init,
       headers: {
-        ...authHeader,
+        ...authHeaders,
         accept: "application/json",
         ...(init?.body ? { "content-type": "application/json" } : {}),
         ...(init?.headers ?? {}),

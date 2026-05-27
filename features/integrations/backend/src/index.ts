@@ -44,7 +44,7 @@ function safeConfigForKind(kind: IntegrationKind, raw: unknown): IntegrationDeta
       return {
         baseUrl: str(cfg.baseUrl),
         workspaceSlug: str(cfg.workspaceSlug),
-        hasApiToken: hasNonEmpty(cfg.apiToken),
+        hasOAuthCredentials: hasNonEmpty(cfg.oauthClientId) && hasNonEmpty(cfg.oauthClientSecret),
         hasWebhookSecret: hasNonEmpty(cfg.webhookSecret),
       };
     case "github":
@@ -166,12 +166,13 @@ integrationsRouter.post("/plane", async (req, res) => {
   const baseUrl = String(req.body?.baseUrl ?? "")
     .trim()
     .replace(/\/+$/, "");
-  const apiToken = String(req.body?.apiToken ?? "").trim();
+  const oauthClientId = String(req.body?.oauthClientId ?? "").trim();
+  const oauthClientSecret = String(req.body?.oauthClientSecret ?? "").trim();
   const workspaceSlug = String(req.body?.workspaceSlug ?? "").trim();
 
-  if (!name || !baseUrl || !apiToken || !workspaceSlug) {
+  if (!name || !baseUrl || !workspaceSlug || !oauthClientId || !oauthClientSecret) {
     res.status(400).json({
-      error: "name, baseUrl, apiToken, and workspaceSlug are all required",
+      error: "name, baseUrl, workspaceSlug, oauthClientId, and oauthClientSecret are all required",
     });
     return;
   }
@@ -200,12 +201,17 @@ integrationsRouter.post("/plane", async (req, res) => {
 
   const workspaceName = workspaceSlug;
   try {
-    const probe = createPlaneClient({ baseUrl, apiToken });
+    const probe = createPlaneClient({
+      baseUrl,
+      authMode: "oauth",
+      clientId: oauthClientId,
+      clientSecret: oauthClientSecret,
+    });
     await probe.listProjects(workspaceSlug);
   } catch (err) {
     if (err instanceof PlaneApiError) {
       res.status(400).json({
-        error: `Plane rejected the credentials (${err.status}). Check the API token and workspace slug.`,
+        error: `Plane rejected the credentials (${err.status}). Check the OAuth credentials and workspace slug.`,
       });
       return;
     }
@@ -215,17 +221,20 @@ integrationsRouter.post("/plane", async (req, res) => {
     return;
   }
 
+  const configData: Record<string, string> = {
+    baseUrl,
+    workspaceSlug,
+    oauthClientId,
+    oauthClientSecret: encryptSecret(oauthClientSecret),
+  };
+
   const integration = await prisma.integration.create({
     data: {
       name,
       description: `Plane workspace ${workspaceSlug} at ${new URL(baseUrl).host}`,
       kind: "plane",
       enabled: true,
-      config: {
-        baseUrl,
-        apiToken: encryptSecret(apiToken),
-        workspaceSlug,
-      },
+      config: configData,
     },
   });
 

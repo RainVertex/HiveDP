@@ -26,13 +26,15 @@ import {
   upsertWorkspace,
 } from "./upsert";
 import { autoMapMembers } from "./userMapping";
+import { provisionUserTokens } from "./userTokens";
 import { isPlaneBotMember } from "./planeBotFilter";
 
 interface PlaneIntegrationConfig {
   baseUrl: string;
-  apiToken: string; // encrypted on disk
   workspaceSlug: string;
-  webhookSecret?: string; // encrypted on disk
+  oauthClientId: string;
+  oauthClientSecret: string;
+  webhookSecret?: string;
 }
 
 function readConfig(config: Prisma.JsonValue): PlaneIntegrationConfig {
@@ -42,15 +44,19 @@ function readConfig(config: Prisma.JsonValue): PlaneIntegrationConfig {
   const c = config as Record<string, unknown>;
   if (
     typeof c.baseUrl !== "string" ||
-    typeof c.apiToken !== "string" ||
-    typeof c.workspaceSlug !== "string"
+    typeof c.workspaceSlug !== "string" ||
+    typeof c.oauthClientId !== "string" ||
+    typeof c.oauthClientSecret !== "string"
   ) {
-    throw new Error("Plane integration config is missing required fields");
+    throw new Error(
+      "Plane integration config is missing required fields (baseUrl, workspaceSlug, oauthClientId, oauthClientSecret)",
+    );
   }
   return {
     baseUrl: c.baseUrl,
-    apiToken: c.apiToken,
     workspaceSlug: c.workspaceSlug,
+    oauthClientId: c.oauthClientId,
+    oauthClientSecret: c.oauthClientSecret,
     webhookSecret: typeof c.webhookSecret === "string" ? c.webhookSecret : undefined,
   };
 }
@@ -59,7 +65,9 @@ export function clientForIntegration(config: Prisma.JsonValue): PlaneClient {
   const c = readConfig(config);
   return createPlaneClient({
     baseUrl: c.baseUrl,
-    apiToken: decryptSecret(c.apiToken),
+    authMode: "oauth",
+    clientId: c.oauthClientId,
+    clientSecret: decryptSecret(c.oauthClientSecret),
   });
 }
 
@@ -145,6 +153,11 @@ export async function fullSync(integrationId: string): Promise<FullSyncResult> {
     memberCount = upserted.length;
     autoMappedUserCount = await autoMapMembers(tx, upserted);
   });
+
+  const cfg = readConfig(integration.config);
+  if (cfg.oauthClientId && cfg.oauthClientSecret) {
+    await provisionUserTokens(integrationId, cfg);
+  }
 
   let workItemCount = 0;
 

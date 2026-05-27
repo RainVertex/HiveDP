@@ -245,21 +245,27 @@ const PLANE_RETURN_COOKIE = "mep_plane_oauth_return";
 
 authRouter.get("/plane", requireAuth, async (req, res) => {
   const env = loadEnv();
-  if (!env.plane) {
-    res.status(503).json({ error: "Plane OAuth not configured" });
+  let integrationId = typeof req.query.integrationId === "string" ? req.query.integrationId : "";
+  const integration = integrationId
+    ? await prisma.integration.findFirst({
+        where: { id: integrationId, kind: "plane", enabled: true },
+        select: { id: true, config: true },
+      })
+    : await prisma.integration.findFirst({
+        where: { kind: "plane", enabled: true },
+        select: { id: true, config: true },
+      });
+  if (!integration) {
+    res.redirect(`${env.webOrigin}/settings?error=no_plane_integration`);
     return;
   }
-  let integrationId = typeof req.query.integrationId === "string" ? req.query.integrationId : "";
-  if (!integrationId) {
-    const integration = await prisma.integration.findFirst({
-      where: { kind: "plane", enabled: true },
-      select: { id: true },
-    });
-    if (!integration) {
-      res.redirect(`${env.webOrigin}/settings?error=no_plane_integration`);
-      return;
-    }
-    integrationId = integration.id;
+  integrationId = integration.id;
+  const cfg = integration.config as Record<string, unknown> | null;
+  const clientId = typeof cfg?.oauthClientId === "string" ? cfg.oauthClientId : "";
+  const baseUrl = typeof cfg?.baseUrl === "string" ? cfg.baseUrl : "";
+  if (!clientId || !baseUrl) {
+    res.status(503).json({ error: "Plane OAuth not configured" });
+    return;
   }
 
   const returnUrl = typeof req.query.returnUrl === "string" ? req.query.returnUrl : "";
@@ -284,22 +290,18 @@ authRouter.get("/plane", requireAuth, async (req, res) => {
     signed: true,
   });
   const params = new URLSearchParams({
-    client_id: env.plane.oauthClientId,
+    client_id: clientId,
     response_type: "code",
     redirect_uri: `${env.webOrigin}/auth/plane/callback`,
     scope: "read write",
     state,
   });
-  res.redirect(`${env.plane.baseUrl}/o/authorize?${params.toString()}`);
+  res.redirect(`${baseUrl}/o/authorize?${params.toString()}`);
 });
 
 authRouter.get("/plane/callback", requireAuth, async (req, res, next) => {
   try {
     const env = loadEnv();
-    if (!env.plane) {
-      res.status(503).json({ error: "Plane OAuth not configured" });
-      return;
-    }
     const code = typeof req.query.code === "string" ? req.query.code : "";
     const state = typeof req.query.state === "string" ? req.query.state : "";
     const expectedState = req.signedCookies?.[PLANE_STATE_COOKIE] ?? "";
@@ -313,16 +315,31 @@ authRouter.get("/plane/callback", requireAuth, async (req, res, next) => {
     }
 
     const integrationId = state.includes(":") ? state.split(":").slice(1).join(":") : "";
+    const integration = await prisma.integration.findFirst({
+      where: { id: integrationId, kind: "plane" },
+      select: { config: true },
+    });
+    const cfg = (integration?.config ?? {}) as Record<string, unknown>;
+    const { decryptSecret, encryptSecret } = await import("@internal/db");
+    const clientId = typeof cfg.oauthClientId === "string" ? cfg.oauthClientId : "";
+    const clientSecret =
+      typeof cfg.oauthClientSecret === "string" ? decryptSecret(cfg.oauthClientSecret) : "";
+    const apiUrl = typeof cfg.baseUrl === "string" ? cfg.baseUrl : "";
 
-    const tokenRes = await fetch(`${env.plane.apiUrl}/auth/o/token/`, {
+    if (!clientId || !clientSecret || !apiUrl) {
+      res.redirect(`${env.webOrigin}/workspace?error=plane_oauth_not_configured`);
+      return;
+    }
+
+    const tokenRes = await fetch(`${apiUrl}/auth/o/token/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         grant_type: "authorization_code",
         code,
         redirect_uri: `${env.webOrigin}/auth/plane/callback`,
-        client_id: env.plane.oauthClientId,
-        client_secret: env.plane.oauthClientSecret,
+        client_id: clientId,
+        client_secret: clientSecret,
       }),
     });
     if (!tokenRes.ok) {
@@ -337,14 +354,13 @@ authRouter.get("/plane/callback", requireAuth, async (req, res, next) => {
       expires_in: number;
     };
 
-    const infoRes = await fetch(`${env.plane.apiUrl}/auth/o/app-installation/`, {
+    const infoRes = await fetch(`${apiUrl}/auth/o/app-installation/`, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     const info = infoRes.ok
       ? ((await infoRes.json()) as { user_id: string; user_email: string })
       : { user_id: "", user_email: "" };
 
-    const { encryptSecret } = await import("@internal/db");
     await prisma.planeOAuthToken.upsert({
       where: {
         userId_integrationId: { userId: req.user!.id, integrationId },

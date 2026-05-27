@@ -25,7 +25,7 @@ export interface GrafanaIntegrationConfigView {
 export interface PlaneIntegrationConfigView {
   baseUrl: string;
   workspaceSlug: string;
-  hasApiToken: boolean;
+  hasOAuthCredentials: boolean;
   hasWebhookSecret: boolean;
 }
 

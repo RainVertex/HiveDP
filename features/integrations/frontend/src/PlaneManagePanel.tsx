@@ -20,7 +20,7 @@ export function PlaneManagePanel({ integration }: PlaneManagePanelProps) {
         <h3 className="text-sm font-semibold text-app-text">Connection</h3>
         <Row label="Base URL" value={cfg.baseUrl} />
         <Row label="Workspace slug" value={cfg.workspaceSlug} />
-        <Row label="API token" value={cfg.hasApiToken ? "set" : "not set"} />
+        <Row label="Auth" value={cfg.hasOAuthCredentials ? "OAuth" : "not set"} />
         <Row label="Webhook secret" value={cfg.hasWebhookSecret ? "set" : "not set"} />
       </section>
 
