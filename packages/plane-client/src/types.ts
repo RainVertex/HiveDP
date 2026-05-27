@@ -133,6 +133,8 @@ export interface PlaneApiMember {
 export interface PlaneClientConfig {
   baseUrl: string;
   apiToken: string;
+  /** "apiKey" sends X-API-Key, "bearer" sends Authorization: Bearer. Default: "apiKey". */
+  authMode?: "apiKey" | "bearer";
   /** Optional fetch override — used by tests to inject a stub. */
   fetch?: typeof fetch;
   /** Cap per-page size when paginating (Plane defaults are reasonable). */

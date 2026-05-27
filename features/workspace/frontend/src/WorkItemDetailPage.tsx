@@ -1,21 +1,50 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
-import type { PlaneWorkItemDetailDto } from "@internal/shared-types";
+import type {
+  PlaneCommentDto,
+  PlaneStateDto,
+  PlaneWorkItemDetailDto,
+} from "@internal/shared-types";
 
 export function WorkItemDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
   const api = useApi();
   const [item, setItem] = useState<PlaneWorkItemDetailDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [states, setStates] = useState<PlaneStateDto[]>([]);
 
   useEffect(() => {
     api.workspace
       .getWorkItem(id)
-      .then(setItem)
+      .then((loaded) => {
+        setItem(loaded);
+        if (loaded.projectId) {
+          api.workspace
+            .getProject(loaded.projectId)
+            .then((p) => setStates(p.states ?? []))
+            .catch(() => {});
+        }
+      })
       .catch((err) => setError(err.message ?? "Failed to load work item"));
   }, [api, id]);
+
+  const handleCommentAdded = useCallback((c: PlaneCommentDto) => {
+    setItem((prev) => (prev ? { ...prev, comments: [...prev.comments, c] } : prev));
+  }, []);
+
+  const handleStateChanged = useCallback(
+    (stateId: string) => {
+      const next = states.find((s) => s.id === stateId);
+      if (!next) return;
+      setItem((prev) => (prev ? { ...prev, state: next } : prev));
+      api.workspace.updateWorkItem(id, { stateId }).catch(() => {
+        setItem((prev) => (prev ? { ...prev, state: item?.state ?? null } : prev));
+      });
+    },
+    [api, id, item?.state, states],
+  );
 
   return (
     <PageLayout
@@ -87,11 +116,7 @@ export function WorkItemDetailPage() {
               <h3 className="mb-2 text-xs uppercase tracking-wide text-app-text-muted">
                 Comments ({item.comments.length})
               </h3>
-              {item.comments.length === 0 ? (
-                <p className="text-sm text-app-text-muted">
-                  No comments yet. Open this item in Plane to add one.
-                </p>
-              ) : (
+              {item.comments.length > 0 && (
                 <ul className="space-y-2">
                   {item.comments.map((c) => (
                     <li
@@ -113,11 +138,30 @@ export function WorkItemDetailPage() {
                   ))}
                 </ul>
               )}
+              <CommentForm workItemId={id} onAdded={handleCommentAdded} />
             </section>
           </div>
 
           <aside className="space-y-3 text-sm">
-            <Detail label="State" value={item.state?.name ?? "—"} />
+            {states.length > 0 ? (
+              <div>
+                <div className="text-xs uppercase tracking-wide text-app-text-muted">State</div>
+                <select
+                  value={item.state?.id ?? ""}
+                  onChange={(e) => handleStateChanged(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-app-border bg-app-surface px-2 py-1 text-sm text-app-text"
+                >
+                  {!item.state && <option value="">—</option>}
+                  {states.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <Detail label="State" value={item.state?.name ?? "—"} />
+            )}
             <Detail label="Priority" value={item.priority} />
             <Detail
               label="Start"
@@ -136,6 +180,54 @@ export function WorkItemDetailPage() {
         </div>
       )}
     </PageLayout>
+  );
+}
+
+function CommentForm({
+  workItemId,
+  onAdded,
+}: {
+  workItemId: string;
+  onAdded: (c: PlaneCommentDto) => void;
+}) {
+  const api = useApi();
+  const [text, setText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = () => {
+    const trimmed = text.trim();
+    if (!trimmed || submitting) return;
+    setSubmitting(true);
+    setErr(null);
+    api.workspace
+      .postComment(workItemId, { comment: trimmed })
+      .then((c) => {
+        setText("");
+        onAdded(c);
+      })
+      .catch((e) => setErr(e.message ?? "Failed to post comment"))
+      .finally(() => setSubmitting(false));
+  };
+
+  return (
+    <div className="mt-3 space-y-2">
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Write a comment..."
+        rows={3}
+        className="w-full rounded-md border border-app-border bg-app-surface p-2 text-sm text-app-text placeholder:text-app-text-muted"
+      />
+      {err && <p className="text-xs text-app-danger">{err}</p>}
+      <button
+        onClick={submit}
+        disabled={!text.trim() || submitting}
+        className="rounded-md bg-app-primary px-3 py-1 text-sm font-medium text-app-primary-on disabled:opacity-50"
+      >
+        {submitting ? "Posting..." : "Post comment"}
+      </button>
+    </div>
   );
 }
 

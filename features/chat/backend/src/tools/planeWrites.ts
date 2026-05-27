@@ -240,7 +240,11 @@ const submit: RegisteredTool = {
       select: { encryptedAccessToken: true },
     });
     const client = oauthToken
-      ? createPlaneClient({ baseUrl, apiToken: decryptSecret(oauthToken.encryptedAccessToken) })
+      ? createPlaneClient({
+          baseUrl,
+          apiToken: decryptSecret(oauthToken.encryptedAccessToken),
+          authMode: "bearer",
+        })
       : clientForIntegration(integration.config);
 
     const descriptionHtml = params.description ? `<p>${escapeHtml(params.description)}</p>` : "";

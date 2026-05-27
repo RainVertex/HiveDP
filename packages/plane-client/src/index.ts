@@ -59,6 +59,18 @@ export interface PlaneClient {
     body: { name: string; description_html?: string; priority?: string },
   ): Promise<PlaneApiWorkItem>;
   listComments(slug: string, projectId: string, workItemId: string): Promise<PlaneApiComment[]>;
+  createComment(
+    slug: string,
+    projectId: string,
+    workItemId: string,
+    body: { comment_html: string },
+  ): Promise<PlaneApiComment>;
+  updateWorkItem(
+    slug: string,
+    projectId: string,
+    workItemId: string,
+    body: { state?: string; priority?: string; name?: string },
+  ): Promise<PlaneApiWorkItem>;
   listWorkspaceMembers(slug: string): Promise<PlaneApiMember[]>;
 }
 
@@ -66,13 +78,17 @@ export function createPlaneClient(config: PlaneClientConfig): PlaneClient {
   const fetchImpl = config.fetch ?? fetch;
   const baseUrl = config.baseUrl.replace(/\/+$/, "");
   const pageSize = config.pageSize ?? 100;
+  const authHeader =
+    config.authMode === "bearer"
+      ? { Authorization: `Bearer ${config.apiToken}` }
+      : { "X-API-Key": config.apiToken };
 
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const url = `${baseUrl}${path}`;
     const res = await fetchImpl(url, {
       ...init,
       headers: {
-        "X-API-Key": config.apiToken,
+        ...authHeader,
         accept: "application/json",
         ...(init?.body ? { "content-type": "application/json" } : {}),
         ...(init?.headers ?? {}),
@@ -158,6 +174,38 @@ export function createPlaneClient(config: PlaneClientConfig): PlaneClient {
         `issues/${workItemId}/comments`,
         {},
       ),
+    createComment: async (slug, projectId, workItemId, body) => {
+      try {
+        return await request<PlaneApiComment>(
+          `/api/v1/workspaces/${slug}/projects/${projectId}/work-items/${workItemId}/comments/`,
+          { method: "POST", body: JSON.stringify(body) },
+        );
+      } catch (err) {
+        if (err instanceof PlaneApiError && err.status === 404) {
+          return await request<PlaneApiComment>(
+            `/api/v1/workspaces/${slug}/projects/${projectId}/issues/${workItemId}/comments/`,
+            { method: "POST", body: JSON.stringify(body) },
+          );
+        }
+        throw err;
+      }
+    },
+    updateWorkItem: async (slug, projectId, workItemId, body) => {
+      try {
+        return await request<PlaneApiWorkItem>(
+          `/api/v1/workspaces/${slug}/projects/${projectId}/work-items/${workItemId}/`,
+          { method: "PATCH", body: JSON.stringify(body) },
+        );
+      } catch (err) {
+        if (err instanceof PlaneApiError && err.status === 404) {
+          return await request<PlaneApiWorkItem>(
+            `/api/v1/workspaces/${slug}/projects/${projectId}/issues/${workItemId}/`,
+            { method: "PATCH", body: JSON.stringify(body) },
+          );
+        }
+        throw err;
+      }
+    },
     createWorkItem: async (slug, projectId, body) => {
       try {
         return await request<PlaneApiWorkItem>(
