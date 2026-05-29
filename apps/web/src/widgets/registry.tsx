@@ -7,6 +7,7 @@ import { ToolkitWidget } from "./toolkit";
 import { RecentlyVisitedWidget } from "./recently-visited";
 import { TopVisitedWidget } from "./top-visited";
 import { ChatAssistantWidget } from "./chat";
+import { MyTasksWidget } from "./vikunja";
 import { ServiceHealthWidget } from "./grafana/ServiceHealthWidget";
 import { GrafanaAlertsWidget } from "./grafana/GrafanaAlertsWidget";
 export type HomeWidgetDefinition = WidgetDefinition<WidgetId>;
@@ -74,6 +75,14 @@ export const WIDGETS: WidgetRegistry<WidgetId> = {
     title: "Service Health",
     description: "Latest health samples written by the Prometheus scrape job.",
     component: ServiceHealthWidget,
+    defaultSize: { w: 6, h: 5 },
+    minSize: { w: 3, h: 3 },
+  },
+  "my-tasks": {
+    id: "my-tasks",
+    title: "My Tasks",
+    description: "Open tasks assigned to you from Vikunja.",
+    component: MyTasksWidget,
     defaultSize: { w: 6, h: 5 },
     minSize: { w: 3, h: 3 },
   },

@@ -64,6 +64,7 @@ model User {
   agentApprovalsRequested         AgentApprovalRequest[]  @relation("AgentApprovalAgent")
   agentApprovalDecisions          AgentApprovalRequest[]  @relation("AgentApprovalDecider")
   orgMemberships                  UserOrgMembership[]
+  vikunjaProjects                 VikunjaProject[]
 
   @@index([userKind])
 }

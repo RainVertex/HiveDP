@@ -1,0 +1,105 @@
+model VikunjaProject {
+  id                String   @id @default(cuid())
+  externalId        Int
+  ownerId           String
+  integrationId     String
+  title             String
+  description       String?
+  isArchived        Boolean  @default(false)
+  externalCreatedAt DateTime?
+  externalUpdatedAt DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  owner             User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  integration       Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  tasks             VikunjaTask[]
+  buckets           VikunjaBucket[]
+  labels            VikunjaLabel[]
+
+  @@unique([externalId, ownerId])
+  @@index([ownerId])
+  @@index([integrationId])
+}
+
+model VikunjaTask {
+  id                String   @id @default(cuid())
+  externalId        Int
+  projectId         String
+  title             String
+  description       String?
+  done              Boolean  @default(false)
+  bucketId          String?
+  priority          Int      @default(0)
+  dueDate           DateTime?
+  position          Float    @default(0)
+  assignees         Json?
+  labelIds          Json?
+  parentId          String?
+  externalCreatedAt DateTime?
+  externalUpdatedAt DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  project           VikunjaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  bucket            VikunjaBucket? @relation(fields: [bucketId], references: [id], onDelete: SetNull)
+  parent            VikunjaTask?   @relation("vikunjaSubtasks", fields: [parentId], references: [id], onDelete: SetNull)
+  children          VikunjaTask[]  @relation("vikunjaSubtasks")
+  comments          VikunjaComment[]
+
+  @@unique([externalId, projectId])
+  @@index([projectId, done])
+  @@index([projectId, externalUpdatedAt])
+}
+
+model VikunjaBucket {
+  id         String   @id @default(cuid())
+  externalId Int
+  projectId  String
+  title      String
+  position   Float    @default(0)
+  limit      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  project    VikunjaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks      VikunjaTask[]
+
+  @@unique([externalId, projectId])
+  @@index([projectId, position])
+}
+
+model VikunjaLabel {
+  id         String   @id @default(cuid())
+  externalId Int
+  projectId  String
+  title      String
+  hexColor   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  project    VikunjaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([externalId, projectId])
+  @@index([projectId])
+}
+
+model VikunjaComment {
+  id                String   @id @default(cuid())
+  externalId        Int
+  taskId            String
+  authorName        String?
+  comment           String
+  externalCreatedAt DateTime?
+  externalUpdatedAt DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  task              VikunjaTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([externalId, taskId])
+  @@index([taskId, externalCreatedAt])
+}
+
+model VikunjaSyncCursor {
+  id            String   @id @default(cuid())
+  integrationId String   @unique
+  lastSyncedAt  DateTime
+  updatedAt     DateTime @updatedAt
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+}

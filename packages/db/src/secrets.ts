@@ -1,4 +1,4 @@
-// AES-256-GCM helper for encrypting Integration.config fields (Plane API
+// AES-256-GCM helper for encrypting Integration.config fields (API
 // tokens, webhook secrets, etc.) at rest. The key comes from the
 // INTEGRATION_SECRET_KEY env var — 32 bytes encoded as hex (64 chars).
 //

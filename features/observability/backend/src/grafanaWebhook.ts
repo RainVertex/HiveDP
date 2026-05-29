@@ -12,7 +12,7 @@
 //   5. notify(tx, ...) per recipient inside a transaction.
 //
 // MUST be mounted with express.raw() and BEFORE express.json() — same
-// constraint as the Plane / GitHub webhook receivers in apps/api/src/createServer.ts.
+// constraint as the GitHub webhook receiver in apps/api/src/createServer.ts.
 
 import { Router } from "express";
 import express from "express";

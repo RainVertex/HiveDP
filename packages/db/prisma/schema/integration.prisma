@@ -3,6 +3,7 @@ enum IntegrationKind {
   jira
   slack
   grafana
+  vikunja
 }
 
 model Integration {
@@ -17,6 +18,8 @@ model Integration {
   teamRequests    TeamRequest[]
   observabilityConfigs EntityObservabilityConfig[]
   alertDeliveryStates  AlertDeliveryState[]
+  vikunjaProjects      VikunjaProject[]
+  vikunjaSyncCursor    VikunjaSyncCursor?
 
   @@index([kind])
 }

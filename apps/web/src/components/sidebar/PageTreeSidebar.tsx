@@ -28,7 +28,7 @@ const SECTION_TITLES: Record<PageSection, string> = {
   catalog: "Catalog",
   selfservice: "Self-service",
   requests: "Requests",
-  workspace: "Workspace",
+  workspace: "Project Management",
   teams: "Teams",
   observability: "Observability",
   admin: "Admin",

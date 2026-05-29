@@ -1,4 +1,4 @@
-// GitHub App connect dialog. Unlike Plane (which is a form), GitHub install
+// GitHub App connect dialog. Unlike form-based integrations, GitHub install
 // is a redirect flow: the admin clicks Install, the browser navigates to
 // GitHub, and the App's OAuth callback comes back to /api/integrations/
 // github/callback, which records the Integration and triggers bulk sync.

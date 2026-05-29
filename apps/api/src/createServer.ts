@@ -8,6 +8,7 @@ import { requireAuth } from "./middleware/requireAuth";
 import { apiLimiter } from "./middleware/rateLimit";
 import { loadEnv } from "./config/env";
 import { authRouter } from "./auth/routes";
+import { oidcRouter } from "./oidc";
 import { adminUsersRouter } from "./routes/admin/users";
 import { adminAuditRouter } from "./routes/admin/audit";
 import { adminJobsRouter } from "./routes/admin/jobs";
@@ -47,6 +48,8 @@ import {
   teamRequestsRouter,
   teamsRouter,
 } from "@feature/teams-backend";
+import { vikunjaRouter, configureAuth as configureVikunjaAuth } from "@feature/vikunja-backend";
+import { issueCode as oidcIssueCode } from "./oidc";
 import { webhooksRouter } from "@feature/webhooks-backend";
 
 export function createServer() {
@@ -55,6 +58,21 @@ export function createServer() {
   // resolveTools() can find them when streamAgent loads the seeded
   // Platform Assistant.
   registerChatTools();
+  configureVikunjaAuth({
+    issueCode: async (userId: string) => {
+      const { prisma } = await import("@internal/db");
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      return oidcIssueCode({
+        userId: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        githubLogin: user.githubLogin,
+        clientId: process.env.VIKUNJA_OIDC_CLIENT_ID ?? "platform-vikunja",
+        redirectUri: `${process.env.VIKUNJA_API_URL ?? "http://localhost:3456/api/v1"}/auth/openid/platform`,
+      });
+    },
+  });
   const app = express();
 
   app.set("trust proxy", 1);
@@ -87,6 +105,7 @@ export function createServer() {
   registerHealthRoute(app);
 
   app.use("/auth", authRouter);
+  app.use(oidcRouter);
 
   // /mcp uses bearer-token auth (ScaffolderMcpToken), not the session cookie,
   // so it sits outside the /api requireAuth chain. The MCP transport handles
@@ -140,6 +159,7 @@ export function createServer() {
   app.use("/api/teams/maintainer-requests", maintainerRequestsRouter);
   app.use("/api/teams/policies", teamPoliciesRouter);
   app.use("/api/teams", teamsRouter);
+  app.use("/api/vikunja", vikunjaRouter);
   app.use("/api/webhooks", webhooksRouter);
 
   app.use(errorHandler);

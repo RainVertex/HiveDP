@@ -50,6 +50,11 @@ import {
 } from "@feature/teams-frontend";
 import { MyApprovalsTeamPage, MyRequestsTeamPage } from "@feature/requests-frontend";
 import { NotificationsPage } from "@feature/notifications-frontend";
+import {
+  VikunjaProjectsPage,
+  VikunjaProjectDetailPage,
+  VikunjaTaskDetailPage,
+} from "@feature/vikunja-frontend";
 import { WebhookSettingsPage } from "@feature/webhooks-frontend";
 
 function AdminRoute({ children }: { children: ReactNode }) {
@@ -127,6 +132,9 @@ export function AppRoutes() {
       <Route path="/self-service/request-team" element={<RequestTeamPage />} />
       <Route path="/self-service/request-maintainer" element={<RequestMaintainerPickerPage />} />
       <Route path="/teams/:slug/webhooks" element={<WebhookSettingsPage scope="team" />} />
+      <Route path="/vikunja" element={<VikunjaProjectsPage />} />
+      <Route path="/vikunja/projects/:id" element={<VikunjaProjectDetailPage />} />
+      <Route path="/vikunja/tasks/:id" element={<VikunjaTaskDetailPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
       <Route path="/settings/webhooks" element={<WebhookSettingsPage scope="user" />} />
       <Route path="/admin/team-requests" element={<AdminTeamRequestsPage />} />

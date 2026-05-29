@@ -1,6 +1,6 @@
 // Grafana connect flow. Two-step: probe to discover candidate datasources,
 // then commit with the admin's chosen UIDs. Mirrors the validate→encrypt→
-// persist→return-webhook-url shape of the Plane flow in ../index.ts so the
+// persist→return-webhook-url shape used by other providers so the
 // integration surface stays uniform across providers.
 
 import { randomBytes } from "node:crypto";

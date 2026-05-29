@@ -163,9 +163,7 @@ async function main() {
     create: { entityId: "seed-catalog-web", teamId: productTeam.id },
   });
 
-  // Workspace seed data (projects/tasks/notes) was removed when the workspace
-  // module became a Plane integration mirror. Connect a Plane workspace via
-  // the Integrations page to populate /workspace.
+  // Workspace seed data is populated via the Vikunja integration sync.
 
   // Catalog enricher agent. The provider/model registry is created by the
   // agent_provider_registry migration with stable IDs, so we can reference
@@ -256,12 +254,6 @@ async function seedPlatformAssistant() {
   const readToolIds = [
     "whoami",
     "get_today",
-    "workspace_my_work",
-    "workspace_my_open_items",
-    "workspace_get_workitem",
-    "workspace_team_work",
-    "workspace_list_sprints",
-    "workspace_get_sprint",
     "teams_list_mine",
     "teams_get",
     "teams_list_members",
@@ -905,7 +897,7 @@ async function seedDefaultPages() {
       id: "__page_workspace__",
       section: "workspace",
       title: "Projects",
-      url: "/workspace",
+      url: "/vikunja",
       order: 1024,
     },
     { id: "__page_agents__", section: "workspace", title: "Agents", url: "/agents", order: 2048 },

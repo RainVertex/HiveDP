@@ -32,6 +32,35 @@ services:
     volumes:
       - platform-lgtm:/data
 
+  vikunja:
+    image: vikunja/vikunja:latest
+    container_name: platform-vikunja
+    restart: unless-stopped
+    user: "0:0"
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: "http://localhost:${VIKUNJA_PORT:-3456}"
+      VIKUNJA_SERVICE_SECRET: "${VIKUNJA_JWT_SECRET:-vikunja-dev-jwt-secret}"
+      VIKUNJA_SERVICE_FRONTENDURL: "http://localhost:${VIKUNJA_PORT:-3456}"
+      VIKUNJA_SERVICE_ENABLECORS: "false"
+      VIKUNJA_DATABASE_TYPE: sqlite
+      VIKUNJA_SERVICE_ENABLEREGISTRATION: "true"
+      VIKUNJA_AUTH_OPENID_ENABLED: "true"
+      VIKUNJA_AUTH_OPENID_REDIRECTURL: "http://localhost:${VIKUNJA_PORT:-3456}/auth/openid/platform"
+      VIKUNJA_AUTH_OPENID_PROVIDERS_PLATFORM_NAME: "Platform"
+      VIKUNJA_AUTH_OPENID_PROVIDERS_PLATFORM_AUTHURL: "http://host.docker.internal:${API_PORT:-4000}"
+      VIKUNJA_AUTH_OPENID_PROVIDERS_PLATFORM_CLIENTID: "${VIKUNJA_OIDC_CLIENT_ID:-platform-vikunja}"
+      VIKUNJA_AUTH_OPENID_PROVIDERS_PLATFORM_CLIENTSECRET: "${VIKUNJA_OIDC_CLIENT_SECRET:-vikunja-dev-oidc-secret}"
+      VIKUNJA_AUTH_OPENID_PROVIDERS_PLATFORM_SCOPE: "openid profile email"
+      VIKUNJA_AUTH_OPENID_PROVIDERS_PLATFORM_USERNAMECLAIM: "preferred_username"
+      VIKUNJA_RATELIMIT_ENABLED: "false"
+    ports:
+      - "${VIKUNJA_PORT:-3456}:3456"
+    volumes:
+      - platform-vikunja-db:/db
+      - platform-vikunja-files:/app/vikunja/files
+
 volumes:
   platform-pg:
   platform-lgtm:
+  platform-vikunja-db:
+  platform-vikunja-files:

@@ -10,6 +10,12 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     envDir: "../../",
+    resolve: {
+      dedupe: ["react", "react-dom", "react-router-dom"],
+    },
+    optimizeDeps: {
+      include: ["@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
+    },
     server: {
       port: webPort,
       proxy: {
@@ -18,6 +24,14 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
         "/auth": {
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        "/oidc": {
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        "/.well-known/openid-configuration": {
           target: apiTarget,
           changeOrigin: true,
         },

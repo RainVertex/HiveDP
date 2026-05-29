@@ -30,7 +30,8 @@
     "db:migrate": "yarn workspace @internal/db prisma:migrate",
     "db:deploy": "yarn workspace @internal/db prisma:deploy",
     "db:studio": "yarn workspace @internal/db prisma:studio",
-    "db:seed": "yarn workspace @internal/db db:seed"
+    "db:seed": "yarn workspace @internal/db db:seed",
+    "db:reset": "node scripts/db-reset.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -46,20 +46,17 @@ function summary(n: NotificationDto): string {
       return "Added to team";
     case "team.member.removed":
       return "Removed from team";
-    case "plane.work_item.assigned": {
+    case "vikunja.task.assigned": {
       const p = n.payload as Record<string, unknown>;
-      const id = typeof p.projectIdentifier === "string" ? p.projectIdentifier : "";
-      const seq = typeof p.sequenceId === "number" ? p.sequenceId : "";
-      const name = typeof p.workItemName === "string" ? p.workItemName : "a work item";
-      return `Assigned to ${id}-${seq}: ${name}`;
+      const title = typeof p.taskTitle === "string" ? p.taskTitle : "a task";
+      const project = typeof p.projectTitle === "string" ? ` in ${p.projectTitle}` : "";
+      return `Assigned to: ${title}${project}`;
     }
-    case "plane.comment.posted": {
+    case "vikunja.comment.posted": {
       const p = n.payload as Record<string, unknown>;
-      const id = typeof p.projectIdentifier === "string" ? p.projectIdentifier : "";
-      const seq = typeof p.sequenceId === "number" ? p.sequenceId : "";
-      const name = typeof p.workItemName === "string" ? p.workItemName : "a work item";
-      const author = typeof p.authorDisplayName === "string" ? p.authorDisplayName : "Someone";
-      return `${author} commented on ${id}-${seq}: ${name}`;
+      const title = typeof p.taskTitle === "string" ? p.taskTitle : "a task";
+      const author = typeof p.authorName === "string" ? p.authorName : "Someone";
+      return `${author} commented on: ${title}`;
     }
     default:
       return n.kind;
