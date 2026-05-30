@@ -11,27 +11,39 @@ export function ThemeSwitcher({ variant = "select" }: ThemeSwitcherProps) {
   if (variant === "select") {
     const active = themes.find((t) => t.id === theme);
     return (
-      <label className="relative flex items-center gap-2 text-xs text-app-text-muted">
+      <label className="flex items-center gap-2 text-xs text-app-text-muted">
         <span className="hidden sm:inline">Theme</span>
-        <select
-          aria-label="Theme"
-          value={theme}
-          onChange={(e) => setTheme(e.target.value as ThemeId)}
-          className="appearance-none pl-3 pr-7 py-1.5 rounded-md border border-app-border bg-app-surface text-app-text text-sm focus:outline-none focus:ring-2 focus:ring-app-primary"
-        >
-          {themes.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        {active && (
-          <span
+        <span className="relative inline-flex items-center">
+          {active && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border border-app-border"
+              style={{ backgroundColor: active.swatch.primary }}
+            />
+          )}
+          <select
+            aria-label="Theme"
+            value={theme}
+            onChange={(e) => setTheme(e.target.value as ThemeId)}
+            className="appearance-none bg-none rounded-md border border-app-border bg-app-surface py-1.5 pl-8 pr-8 text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-primary"
+          >
+            {themes.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <svg
             aria-hidden
-            className="pointer-events-none absolute right-2 h-3 w-3 rounded-full border border-app-border"
-            style={{ backgroundColor: active.swatch.primary }}
-          />
-        )}
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-app-text-muted"
+          >
+            <path d="M6 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
       </label>
     );
   }

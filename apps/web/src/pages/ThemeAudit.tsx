@@ -133,25 +133,25 @@ export function ThemeAuditPage() {
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              className="rounded-app-md bg-app-primary px-4 py-2 text-sm font-medium text-app-primary-foreground hover:bg-app-primary-hover"
+              className="rounded-app-md bg-app-primary px-4 py-2 text-sm font-medium text-app-primary-foreground transition-all duration-150 hover:-translate-y-0.5 hover:bg-app-primary-hover hover:shadow-app-md"
             >
               Primary action
             </button>
             <button
               type="button"
-              className="rounded-app-md bg-app-primary-soft px-4 py-2 text-sm font-medium text-app-primary-soft-foreground hover:opacity-90"
+              className="rounded-app-md bg-app-primary-soft px-4 py-2 text-sm font-medium text-app-primary-soft-foreground transition-all duration-150 hover:-translate-y-0.5 hover:shadow-app-md hover:ring-2 hover:ring-inset hover:ring-app-primary"
             >
               Primary soft
             </button>
             <button
               type="button"
-              className="rounded-app-md border border-app-border bg-app-surface px-4 py-2 text-sm text-app-text hover:bg-app-surface-hover"
+              className="rounded-app-md border border-app-border bg-app-surface px-4 py-2 text-sm text-app-text transition-all duration-150 hover:-translate-y-0.5 hover:bg-app-surface-hover hover:shadow-app-md"
             >
               Secondary
             </button>
             <button
               type="button"
-              className="rounded-app-md bg-app-danger px-4 py-2 text-sm font-medium text-app-danger-foreground hover:opacity-90"
+              className="rounded-app-md bg-app-danger px-4 py-2 text-sm font-medium text-app-danger-foreground transition-all duration-150 hover:-translate-y-0.5 hover:opacity-90 hover:shadow-app-md"
             >
               Delete
             </button>
