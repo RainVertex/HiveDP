@@ -1,39 +1,17 @@
-import type OpenAI from "openai";
 import { prisma, Prisma, type CatalogEntity } from "@internal/db";
 import {
   discoverAndPersist,
   parseGithubUrl,
   type DiscoverAndPersistResult,
 } from "@feature/scaffolder-backend";
+import { registerTools, type RegisteredTool } from "@internal/llm-core";
 
-// Tool registry for agents.
-//
-// Each entry pairs an OpenAI-shaped tool definition with the handler that
-// runs when the model emits a tool call. The agentic loop in runAgent reads
-// agent.toolIds and resolves them through this registry.
-//
-// Phase 1 scope: catalog tools only (lookup / discover / propose-drift)
-// moved verbatim from the previous hardcoded enricher executor. Scaffolder
-// tool integration arrives in Phase 2 once we have a UI for picking tools
-// and a story for propagating the calling Actor through the run loop. The
-// shape of this registry is already actor-aware (see ToolContext) so adding
-// scaffolder tools later is purely additive.
+// Catalog tools for the Catalog Enricher agent (lookup / discover /
+// propose-drift). Registered into the shared llm-core registry at server
+// startup via registerAgentTools(). Kept in the agent domain rather than in
+// llm-core so the shared package carries no feature-specific dependencies.
 
-export interface ToolContext {
-  // null for system / cron runs. required for actor-bound tools.
-  userId: string | null;
-  isAdmin: boolean;
-  teamIds: string[];
-  signal?: AbortSignal;
-}
-
-export interface RegisteredTool {
-  id: string;
-  openaiDef: OpenAI.Chat.Completions.ChatCompletionFunctionTool;
-  handler: (args: unknown, ctx: ToolContext) => Promise<unknown>;
-}
-
-const CATALOG_TOOLS: RegisteredTool[] = [
+export const CATALOG_TOOLS: RegisteredTool[] = [
   {
     id: "catalog_lookup",
     openaiDef: {
@@ -148,43 +126,7 @@ const CATALOG_TOOLS: RegisteredTool[] = [
   },
 ];
 
-const REGISTRY: Map<string, RegisteredTool> = new Map(CATALOG_TOOLS.map((t) => [t.id, t]));
-
-/** Add tools to the global registry at startup. */
-export function registerTools(tools: RegisteredTool[]): void {
-  for (const t of tools) REGISTRY.set(t.id, t);
-}
-
-/** Internal, for tests that want a clean slate. */
-export function _resetExtraTools(): void {
-  REGISTRY.clear();
-  for (const t of CATALOG_TOOLS) REGISTRY.set(t.id, t);
-}
-
-export interface ToolDescriptor {
-  id: string;
-  name: string;
-  description: string;
-}
-
-// Lightweight metadata for the UI tool-multiselect. Filtered by what the
-// caller is allowed to see (Phase 1: all tools are visible to authenticated
-// users. finer ACL arrives with scaffolder integration in Phase 2).
-export function listAvailableTools(_ctx: ToolContext): ToolDescriptor[] {
-  return CATALOG_TOOLS.map((t) => ({
-    id: t.id,
-    name: t.openaiDef.function.name,
-    description: t.openaiDef.function.description ?? "",
-  }));
-}
-
-// Resolve an Agent's declared toolIds to concrete defs + handlers. Order is
-// preserved so the model sees a stable tool list across runs of the same
-// agent.
-export function resolveTools(toolIds: string[]): RegisteredTool[] {
-  return toolIds.map((id) => {
-    const t = REGISTRY.get(id);
-    if (!t) throw new Error(`Unknown tool: ${id}`);
-    return t;
-  });
+/** Register the catalog tools into the shared registry at server startup. */
+export function registerAgentTools(): void {
+  registerTools(CATALOG_TOOLS);
 }

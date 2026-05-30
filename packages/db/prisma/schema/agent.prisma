@@ -45,116 +45,38 @@ model LlmModel {
   @@index([providerId])
 }
 
+// A task-specific agent configured through the UI. Lean by design: an agent
+// is its model + system prompt + tool set + a simple approval mode. Agents
+// act on behalf of the invoking user (per-user isolation flows through
+// ToolContext.userId in the executor); they have no standalone identity,
+// team ownership, or encrypted secret of their own.
 model Agent {
   id           String      @id @default(cuid())
   name         String
   description  String?
+  // Task category. Documented values: "platform-assistant" |
+  // "catalog-enrichment" | "custom". Drives the recommended-model map in
+  // @internal/llm-core (recommendationsForKind).
   kind         String
   status       AgentStatus @default(idle)
   modelId      String
   instructions String
   toolIds      Json        @default("[]")
-  ownerUserId  String?
-  owningTeamId String?
+  // "auto": write tools run without confirmation (autonomous agents like the
+  // Catalog Enricher). "ask": write tools require confirmation; in chat this
+  // is the prepare/submit prose flow, in autonomous runs write tools are
+  // blocked.
+  approvalMode String      @default("ask")
   maxToolCalls Int         @default(10)
   tokenBudget  Int?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  // Class-table-inheritance link to the backing User (userKind='agent'). 1:1.
-  // Created by the agents_section_and_identity migration for existing rows;
-  // required for new agents. Cascades on User delete so removing the identity
-  // also removes the configuration row.
-  userId String @unique
-
-  // Adapter selector. Free-text so adapters can be added without a migration.
-  // v1 values: 'openai_compat', 'anthropic', 'gemini'.
-  modelProvider String @default("openai_compat")
-
-  // Per-tool approval policy:
-  //   { "<toolName>": "auto"|"requires_approval"|"forbidden",
-  //     "_sectionDefaults": { "<section>": "auto"|"requires_approval"|"forbidden" } }
-  // Lookup order in approvalPolicy.ts: per-tool entry → section default →
-  // global default ("requires_approval"). Empty {} preserves today's behavior
-  // (no gates) for existing agents until an admin opts in via the UI.
-  toolApprovalPolicy Json @default("{}")
-
-  // Monthly aggregate budgets. tokenBudget (per-run cap) above stays unchanged.
-  tokenBudgetMonthly Int?
-  tokenBudgetUsed    Int      @default(0)
-  costBudgetMonthly  Decimal? @db.Decimal(10, 6)
-  costBudgetUsed     Decimal  @default(0) @db.Decimal(10, 6)
-
-  // When true (default), every action requires an invoking human and the
-  // agent's effective permissions become min(agent.role, invoker.role).
-  // Admin opt-in to false enables fully-autonomous runs (cron, webhook).
-  onBehalfOfRequired Boolean @default(true)
-
-  // Optional override for which Secret holds this agent's provider API key.
-  // Falls back to LlmProvider.apiKeyEnvVar when null.
-  secretId String?
-
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
   runs              AgentRun[]
   llmModel          LlmModel           @relation(fields: [modelId], references: [id])
-  owner             User?              @relation("AgentOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  owningTeam        Team?              @relation("AgentOwningTeam", fields: [owningTeamId], references: [id], onDelete: SetNull)
-  user              User               @relation("AgentBackingUser", fields: [userId], references: [id], onDelete: Cascade)
-  secret            Secret?            @relation(fields: [secretId], references: [id], onDelete: SetNull)
   chatConversations ChatConversation[]
 
   @@index([modelId])
-  @@index([owningTeamId])
-  @@index([ownerUserId])
-}
-
-// Encrypted-at-rest API keys (provider keys, etc.). Scope:
-//   - personal: ownerUserId set, ownerTeamId null
-//   - team:     ownerTeamId set, ownerUserId null
-//   - org:      both null (admin-managed shared secret)
-// The XOR is enforced by a CHECK constraint in the migration.
-//
-// encryptedValue is AES-256-GCM(plaintext, key=APP_SECRET_MASTER_KEY) with a
-// per-secret IV prepended. See features/agents/backend/src/secrets.ts.
-model Secret {
-  id             String   @id @default(cuid())
-  ownerUserId    String?
-  ownerTeamId    String?
-  name           String
-  encryptedValue Bytes
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  ownerUser      User?    @relation("SecretOwnerUser", fields: [ownerUserId], references: [id], onDelete: Cascade)
-  ownerTeam      Team?    @relation("SecretOwnerTeam", fields: [ownerTeamId], references: [id], onDelete: Cascade)
-  agents         Agent[]
-
-  @@index([ownerUserId])
-  @@index([ownerTeamId])
-}
-
-// Pending tool calls from autonomous (non-chat) agent runs that hit a
-// `requires_approval` policy. Chat-driven approvals continue to use the
-// existing ChatActionPreview / *_prepare-*_submit flow.
-//
-// agentUserId points at the backing User (userKind='agent') of the agent
-// requesting the action. decidedByUserId is the human who approved/rejected
-// — null until decided.
-model AgentApprovalRequest {
-  id              String    @id @default(cuid())
-  agentUserId     String
-  toolName        String
-  parsedParams    Json
-  status          String    @default("pending")
-  requestedAt     DateTime  @default(now())
-  decidedByUserId String?
-  decidedAt       DateTime?
-  expiresAt       DateTime
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  agentUser       User      @relation("AgentApprovalAgent", fields: [agentUserId], references: [id], onDelete: Cascade)
-  decidedBy       User?     @relation("AgentApprovalDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
-
-  @@index([agentUserId, status])
-  @@index([status, expiresAt])
 }
 
 model AgentRun {

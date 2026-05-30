@@ -53,16 +53,8 @@ model User {
   templateAccessRequestsReviewed  TemplateAccessRequest[] @relation("TemplateAccessRequestReviewer")
   maintainerRequestsSubmitted     MaintainerRequest[]     @relation("MaintainerRequestRequester")
   maintainerRequestsReviewed      MaintainerRequest[]     @relation("MaintainerRequestReviewer")
-  ownedAgents                     Agent[]                 @relation("AgentOwner")
-  // 1:1 back-relation when this User row IS an agent (userKind='agent').
-  // Null for human users.
-  agentProfile                    Agent?                  @relation("AgentBackingUser")
   chatConversations               ChatConversation[]
-  ownedSecrets                    Secret[]                @relation("SecretOwnerUser")
-  // When this User row is itself an agent (userKind='agent'), the approval
-  // requests this agent has emitted. Empty for human users.
-  agentApprovalsRequested         AgentApprovalRequest[]  @relation("AgentApprovalAgent")
-  agentApprovalDecisions          AgentApprovalRequest[]  @relation("AgentApprovalDecider")
+  systemSettingsUpdated           SystemSetting[]         @relation("SystemSettingUpdatedBy")
   orgMemberships                  UserOrgMembership[]
   createdProjects                 Project[]               @relation("ProjectCreator")
   projectMemberships              ProjectMember[]         @relation("ProjectMemberUser")

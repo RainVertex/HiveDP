@@ -1,4 +1,3 @@
 export { AgentsPage } from "./AgentsPage";
-export { AgentNewWizard } from "./AgentNewWizard";
+export { AgentFormPage } from "./AgentFormPage";
 export { AgentDetailPage } from "./AgentDetailPage";
-export { AgentApprovalsPage } from "./AgentApprovalsPage";

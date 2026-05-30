@@ -1,0 +1,11 @@
+// Generic key/value store for admin-managed platform settings. Values are
+// JSON so a setting can hold a string, number, or object. The chat feature
+// reads "chat.activeModelId" (the admin-selected active chat model); when the
+// key is unset the assistant is treated as not configured yet.
+model SystemSetting {
+  key             String   @id
+  value           Json
+  updatedAt       DateTime @updatedAt
+  updatedByUserId String?
+  updatedBy       User?    @relation("SystemSettingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+}

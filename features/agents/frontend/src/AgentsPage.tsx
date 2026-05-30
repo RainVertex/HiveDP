@@ -19,12 +19,9 @@ export function AgentsPage() {
   return (
     <PageLayout
       title="Agents"
-      description="AI agents you've configured. Each agent has its own model, tool permissions, and approval policy."
+      description="Task-specific AI agents. Each agent has its own model, tools, and approval mode."
     >
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <Link to="/agents/approvals" className="text-sm text-app-text-muted hover:underline">
-          Pending approvals →
-        </Link>
+      <div className="mb-4 flex items-center justify-end gap-2">
         <Link
           to="/agents/new"
           className="rounded-md bg-app-primary px-3 py-1.5 text-sm font-medium text-app-primary-on hover:opacity-90"
@@ -51,7 +48,7 @@ export function AgentsPage() {
           {items.map((agent) => (
             <li key={agent.id} className="p-4">
               <Link
-                to={`/agents/${agent.userId}`}
+                to={`/agents/${agent.id}`}
                 className="block hover:bg-app-surface-hover rounded -m-1 p-1"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -65,7 +62,7 @@ export function AgentsPage() {
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-1.5 text-xs">
                     <span className="rounded-full border border-app-border bg-app-surface px-2 py-0.5 text-app-text-muted">
-                      {agent.modelProvider}
+                      {agent.kind}
                     </span>
                     {agent.llmModel && (
                       <span className="rounded-full border border-app-border bg-app-surface px-2 py-0.5 text-app-text-muted">
@@ -83,11 +80,6 @@ export function AgentsPage() {
                     >
                       {agent.status}
                     </span>
-                    {!agent.onBehalfOfRequired && (
-                      <span className="rounded-full bg-app-warning/10 px-2 py-0.5 text-app-warning">
-                        autonomous
-                      </span>
-                    )}
                   </div>
                 </div>
               </Link>

@@ -1,415 +1,247 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageLayout, ConfirmDialog } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
-import type {
-  Agent,
-  AgentRun,
-  AgentToolDescriptor,
-  ToolApprovalPolicy,
-} from "@internal/shared-types";
-import { ToolApprovalMatrix } from "./components/ToolApprovalMatrix";
+import type { Agent, AgentRun } from "@internal/shared-types";
 
-// Tabbed detail page for one agent. Tabs: Overview · Model · Tools &
-// Approvals · Permissions · Budgets · Runs.
-//
-// Read-mostly: each tab shows the current configuration plus targeted
-// edit affordances (e.g. an inline approval-matrix editor on the Tools
-// tab). Heavier edits route through the wizard's PATCH equivalent
-// not built in Pass 4 to keep scope manageable.
-//
-// The route is /agents/:userId, addressing the agent by its backing User
-// id (Pass-1 schema). We fetch via api.agents.getByUser.
+type AgentDetail = Agent & {
+  llmModel?: { slug: string; displayName: string; provider: { slug: string; displayName: string } };
+  runs?: AgentRun[];
+};
 
-type TabKey = "overview" | "model" | "tools" | "permissions" | "budgets" | "runs";
-
-const TABS: Array<{ key: TabKey; label: string }> = [
-  { key: "overview", label: "Overview" },
-  { key: "model", label: "Model" },
-  { key: "tools", label: "Tools & Approvals" },
-  { key: "permissions", label: "Permissions" },
-  { key: "budgets", label: "Budgets" },
-  { key: "runs", label: "Runs" },
-];
+interface TestResult {
+  status: "succeeded" | "failed";
+  finalText: string | null;
+  tokensInput: number;
+  tokensOutput: number;
+  costUsd: number | null;
+  error: string | null;
+}
 
 export function AgentDetailPage() {
-  const { userId } = useParams<{ userId: string }>();
   const api = useApi();
-  const [agent, setAgent] = useState<Agent | null>(null);
-  const [tools, setTools] = useState<AgentToolDescriptor[]>([]);
+  const navigate = useNavigate();
+  const { id = "" } = useParams<{ id: string }>();
+  const [agent, setAgent] = useState<AgentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabKey>("overview");
-  const [savingPolicy, setSavingPolicy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
 
-  const load = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const a = await api.agents.getByUser(userId);
-      setAgent(a);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }, [api, userId]);
+  const load = useCallback(() => {
+    api.agents
+      .get(id)
+      .then((a) => setAgent(a as AgentDetail))
+      .catch((err) => setError(err.message ?? "Failed to load agent"));
+  }, [api, id]);
 
   useEffect(() => {
     void load();
-    api.agents
-      .listTools()
-      .then((r) => setTools(r.items))
-      .catch(() => {
-        // tools list optional
-      });
-  }, [api, load]);
+  }, [load]);
 
-  async function savePolicy(next: ToolApprovalPolicy) {
-    if (!agent) return;
-    setSavingPolicy(true);
-    try {
-      const updated = await api.agents.update(agent.id, { toolApprovalPolicy: next });
-      setAgent(updated);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSavingPolicy(false);
-    }
-  }
-
-  async function doDelete() {
-    if (!agent) return;
+  async function onDelete() {
     setDeleting(true);
     try {
-      await api.agents.delete(agent.id);
-      // Hard navigate so cached lists refresh.
-      window.location.href = "/agents";
-    } catch (e) {
-      setError((e as Error).message);
+      await api.agents.delete(id);
+      navigate("/agents");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
       setDeleting(false);
+      setConfirmDelete(false);
     }
   }
 
-  if (error)
+  async function runTest() {
+    if (!prompt.trim()) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await api.agents.test(id, prompt.trim());
+      setTestResult(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Test failed");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  if (error && !agent) {
     return (
       <PageLayout title="Agent">
         <p className="text-sm text-app-danger">{error}</p>
-        <Link to="/agents" className="text-sm text-app-primary hover:underline">
-          ← Back to agents
-        </Link>
       </PageLayout>
     );
-  if (!agent)
+  }
+  if (!agent) {
     return (
       <PageLayout title="Agent">
         <p className="text-sm text-app-text-muted">Loading…</p>
       </PageLayout>
     );
+  }
+
+  const toolIds = Array.isArray(agent.toolIds) ? agent.toolIds : [];
 
   return (
     <PageLayout
       title={agent.name}
-      description={agent.description ?? "Agent configuration and run history."}
+      description={agent.description ?? undefined}
+      actions={
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/agents/${agent.id}/edit`}
+            className="rounded-md border border-app-border bg-app-surface px-3 py-1.5 text-sm text-app-text hover:bg-app-surface-hover"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="rounded-md border border-app-danger px-3 py-1.5 text-sm text-app-danger hover:bg-app-danger/10"
+          >
+            Delete
+          </button>
+        </div>
+      }
     >
-      <div className="mb-4 flex items-center justify-between">
-        <Badges agent={agent} />
-        <button
-          type="button"
-          onClick={() => setConfirmDelete(true)}
-          className="rounded-md border border-app-danger/40 bg-app-surface px-3 py-1.5 text-sm text-app-danger hover:bg-app-danger hover:text-white"
-        >
-          Delete
-        </button>
-      </div>
+      {error && <p className="mb-4 text-sm text-app-danger">{error}</p>}
 
-      <Tabs current={tab} onChange={setTab} />
+      <section className="mb-6 grid gap-3 rounded-lg border border-app-border bg-app-surface p-4 text-sm sm:grid-cols-2">
+        <Field label="Kind" value={agent.kind} />
+        <Field label="Status" value={agent.status} />
+        <Field
+          label="Model"
+          value={
+            agent.llmModel
+              ? `${agent.llmModel.displayName} (${agent.llmModel.provider.displayName})`
+              : agent.modelId
+          }
+        />
+        <Field label="Approval mode" value={agent.approvalMode} />
+        <Field label="Max tool calls" value={String(agent.maxToolCalls)} />
+        <Field
+          label="Token budget"
+          value={agent.tokenBudget != null ? String(agent.tokenBudget) : "—"}
+        />
+      </section>
 
-      <div className="mt-4 rounded-lg border border-app-border bg-app-surface p-5">
-        {tab === "overview" && <OverviewTab agent={agent} />}
-        {tab === "model" && <ModelTab agent={agent} />}
-        {tab === "tools" && (
-          <ToolsTab agent={agent} tools={tools} saving={savingPolicy} onSave={savePolicy} />
+      <section className="mb-6">
+        <h2 className="mb-2 text-sm font-semibold text-app-text">Tools</h2>
+        {toolIds.length === 0 ? (
+          <p className="text-sm text-app-text-muted">No tools.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {toolIds.map((t) => (
+              <span
+                key={t}
+                className="rounded-full border border-app-border bg-app-surface px-2 py-0.5 font-mono text-xs text-app-text-muted"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
         )}
-        {tab === "permissions" && <PermissionsTab agent={agent} />}
-        {tab === "budgets" && <BudgetsTab agent={agent} />}
-        {tab === "runs" && <RunsTab agent={agent} api={api} />}
-      </div>
+      </section>
 
-      <p className="mt-4">
-        <Link to="/agents" className="text-sm text-app-text-muted hover:underline">
-          ← Back to agents
-        </Link>
-      </p>
+      <section className="mb-6">
+        <h2 className="mb-2 text-sm font-semibold text-app-text">System prompt</h2>
+        <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-app-border bg-app-bg-sunken p-3 text-xs text-app-text">
+          {agent.instructions}
+        </pre>
+      </section>
+
+      <section className="mb-6 rounded-lg border border-app-border bg-app-surface p-4">
+        <h2 className="mb-2 text-sm font-semibold text-app-text">Try it out</h2>
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          rows={3}
+          placeholder="Prompt to test this agent…"
+          className="w-full resize-y rounded-md border border-app-border bg-app-bg-sunken px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-primary"
+        />
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            disabled={testing || !prompt.trim()}
+            onClick={() => void runTest()}
+            className="rounded-md bg-app-primary px-3 py-1.5 text-sm font-medium text-app-primary-on hover:opacity-90 disabled:opacity-50"
+          >
+            {testing ? "Running…" : "Run test"}
+          </button>
+        </div>
+        {testResult && (
+          <div className="mt-3 rounded-md border border-app-border bg-app-bg-sunken p-3 text-sm">
+            <div className="mb-1 text-xs text-app-text-muted">
+              {testResult.status} · in {testResult.tokensInput} / out {testResult.tokensOutput}{" "}
+              tokens
+              {testResult.costUsd != null ? ` · $${testResult.costUsd.toFixed(4)}` : ""}
+            </div>
+            {testResult.error ? (
+              <p className="text-app-danger">{testResult.error}</p>
+            ) : (
+              <p className="whitespace-pre-wrap text-app-text">
+                {testResult.finalText ?? "(no text)"}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-sm font-semibold text-app-text">Recent runs</h2>
+        {!agent.runs || agent.runs.length === 0 ? (
+          <p className="text-sm text-app-text-muted">No runs yet.</p>
+        ) : (
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-app-text-muted">
+                <th className="py-1">Started</th>
+                <th className="py-1">Status</th>
+                <th className="py-1">Tokens</th>
+                <th className="py-1">Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {agent.runs.map((r) => (
+                <tr key={r.id} className="border-t border-app-border">
+                  <td className="py-1.5 text-app-text-muted">
+                    {new Date(r.startedAt).toLocaleString()}
+                  </td>
+                  <td className="py-1.5 text-app-text">{r.status}</td>
+                  <td className="py-1.5 text-app-text-muted">
+                    {(r.tokensInput ?? 0) + (r.tokensOutput ?? 0)}
+                  </td>
+                  <td className="py-1.5 text-app-text-muted">
+                    {r.costUsd != null ? `$${Number(r.costUsd).toFixed(4)}` : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
 
       <ConfirmDialog
         open={confirmDelete}
-        title="Delete agent?"
-        message={`This will permanently delete "${agent.name}" and its backing User row, plus all conversations and runs. Cannot be undone.`}
+        title="Delete agent"
+        message={`Delete "${agent.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
         destructive
         busy={deleting}
-        confirmLabel="Delete agent"
-        onConfirm={() => void doDelete()}
-        onClose={() => !deleting && setConfirmDelete(false)}
+        onConfirm={() => void onDelete()}
+        onClose={() => setConfirmDelete(false)}
       />
     </PageLayout>
   );
 }
 
-// Tab panels
-
-function OverviewTab({ agent }: { agent: Agent }) {
-  return (
-    <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-      <DefRow label="Status" value={agent.status} />
-      <DefRow label="Kind" value={agent.kind} />
-      <DefRow label="Created" value={new Date(agent.createdAt).toLocaleString()} />
-      <DefRow label="Updated" value={new Date(agent.updatedAt).toLocaleString()} />
-      <DefRow label="Backing user id" value={agent.userId} mono />
-      <DefRow label="Agent id" value={agent.id} mono />
-      <div className="sm:col-span-2">
-        <dt className="text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-          System prompt
-        </dt>
-        <dd>
-          <pre className="mt-1 max-h-72 overflow-y-auto whitespace-pre-wrap rounded-md border border-app-border bg-app-surface-hover p-3 font-mono text-xs">
-            {agent.instructions}
-          </pre>
-        </dd>
-      </div>
-    </dl>
-  );
-}
-
-function ModelTab({ agent }: { agent: Agent }) {
-  return (
-    <dl className="space-y-3 text-sm">
-      <DefRow label="Adapter" value={agent.modelProvider} />
-      <DefRow
-        label="Model"
-        value={
-          agent.llmModel
-            ? `${agent.llmModel.displayName} (${agent.llmModel.provider.displayName})`
-            : agent.modelId
-        }
-      />
-      <DefRow label="Model id" value={agent.modelId} mono />
-      <DefRow
-        label="API key source"
-        value={
-          agent.secretId ? `Secret override (${agent.secretId})` : "Provider env var (default)"
-        }
-        mono={!!agent.secretId}
-      />
-    </dl>
-  );
-}
-
-function ToolsTab({
-  agent,
-  tools,
-  saving,
-  onSave,
-}: {
-  agent: Agent;
-  tools: AgentToolDescriptor[];
-  saving: boolean;
-  onSave: (next: ToolApprovalPolicy) => void;
-}) {
-  const [draft, setDraft] = useState<ToolApprovalPolicy>(agent.toolApprovalPolicy);
-  const dirty = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(agent.toolApprovalPolicy),
-    [draft, agent.toolApprovalPolicy],
-  );
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-app-text">Tool approval policy</h3>
-        <button
-          type="button"
-          disabled={!dirty || saving}
-          onClick={() => onSave(draft)}
-          className="rounded-md bg-app-primary px-3 py-1.5 text-sm font-medium text-app-primary-on hover:opacity-90 disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Save policy"}
-        </button>
-      </div>
-      <ToolApprovalMatrix
-        policy={draft}
-        enabledToolIds={agent.toolIds}
-        tools={tools}
-        onChange={setDraft}
-      />
-    </div>
-  );
-}
-
-function PermissionsTab({ agent }: { agent: Agent }) {
-  return (
-    <dl className="space-y-3 text-sm">
-      <DefRow
-        label="On-behalf-of required"
-        value={
-          agent.onBehalfOfRequired
-            ? "Yes (every action needs an invoking human)"
-            : "No (autonomous)"
-        }
-      />
-      <DefRow
-        label="Owning team id"
-        value={agent.owningTeamId ?? "— Personal —"}
-        mono={!!agent.owningTeamId}
-      />
-      <DefRow
-        label="Primary contact (owner) user id"
-        value={agent.ownerUserId ?? "—"}
-        mono={!!agent.ownerUserId}
-      />
-      <p className="text-xs text-app-text-muted">
-        The agent's role and team memberships live on its backing User row. Manage those from Admin
-        → Users (admin only).
-      </p>
-    </dl>
-  );
-}
-
-function BudgetsTab({ agent }: { agent: Agent }) {
-  return (
-    <dl className="space-y-3 text-sm">
-      <DefRow label="Per-run tool calls (max)" value={String(agent.maxToolCalls)} />
-      <DefRow
-        label="Per-run token budget"
-        value={agent.tokenBudget == null ? "unlimited" : String(agent.tokenBudget)}
-      />
-      <DefRow
-        label="Monthly token budget"
-        value={
-          agent.tokenBudgetMonthly == null
-            ? "unlimited"
-            : `${agent.tokenBudgetUsed} / ${agent.tokenBudgetMonthly}`
-        }
-      />
-      <DefRow
-        label="Monthly cost budget"
-        value={
-          agent.costBudgetMonthly == null
-            ? "unlimited"
-            : `$${agent.costBudgetUsed} / $${agent.costBudgetMonthly}`
-        }
-      />
-    </dl>
-  );
-}
-
-function RunsTab({ agent, api }: { agent: Agent; api: ReturnType<typeof useApi> }) {
-  const [runs, setRuns] = useState<AgentRun[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Use the existing /:id endpoint which includes runs in the response.
-    api.agents
-      .get(agent.id)
-      .then((full) => {
-        const fullRuns = (full as Agent & { runs?: AgentRun[] }).runs;
-        setRuns(fullRuns ?? []);
-      })
-      .catch((e) => setError((e as Error).message));
-  }, [api, agent.id]);
-
-  if (error) return <p className="text-sm text-app-danger">{error}</p>;
-  if (!runs) return <p className="text-sm text-app-text-muted">Loading…</p>;
-  if (runs.length === 0) return <p className="text-sm text-app-text-muted">No runs yet.</p>;
-
-  return (
-    <table className="w-full text-sm">
-      <thead className="border-b border-app-border">
-        <tr className="text-left text-xs uppercase tracking-wide text-app-text-muted">
-          <th className="px-2 py-2">Started</th>
-          <th className="px-2 py-2">Status</th>
-          <th className="px-2 py-2">Tokens</th>
-          <th className="px-2 py-2">Cost</th>
-          <th className="px-2 py-2">Error</th>
-        </tr>
-      </thead>
-      <tbody>
-        {runs.map((r) => (
-          <tr key={r.id} className="border-t border-app-border">
-            <td className="px-2 py-2 text-app-text-muted">
-              {new Date(r.startedAt).toLocaleString()}
-            </td>
-            <td className="px-2 py-2">{r.status}</td>
-            <td className="px-2 py-2 text-app-text-muted">
-              {(r.tokensInput ?? 0) + (r.tokensOutput ?? 0)}
-            </td>
-            <td className="px-2 py-2 text-app-text-muted">
-              {r.costUsd != null ? `$${r.costUsd}` : "—"}
-            </td>
-            <td className="px-2 py-2 text-xs text-app-danger">{r.error ?? ""}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-// Chrome
-
-function Tabs({ current, onChange }: { current: TabKey; onChange: (k: TabKey) => void }) {
-  return (
-    <div className="flex gap-1 border-b border-app-border">
-      {TABS.map((t) => (
-        <button
-          key={t.key}
-          type="button"
-          onClick={() => onChange(t.key)}
-          className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
-            current === t.key
-              ? "border-app-primary text-app-text"
-              : "border-transparent text-app-text-muted hover:text-app-text"
-          }`}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Badges({ agent }: { agent: Agent }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 text-xs">
-      <span className="rounded-full border border-app-border bg-app-surface px-2 py-0.5 text-app-text-muted">
-        {agent.modelProvider}
-      </span>
-      {agent.llmModel && (
-        <span className="rounded-full border border-app-border bg-app-surface px-2 py-0.5 text-app-text-muted">
-          {agent.llmModel.displayName}
-        </span>
-      )}
-      <span
-        className={`rounded-full px-2 py-0.5 ${
-          agent.status === "running"
-            ? "bg-app-warning/10 text-app-warning"
-            : agent.status === "failed"
-              ? "bg-app-danger/10 text-app-danger"
-              : "bg-app-surface text-app-text-muted"
-        }`}
-      >
-        {agent.status}
-      </span>
-      {!agent.onBehalfOfRequired && (
-        <span className="rounded-full bg-app-warning/10 px-2 py-0.5 text-app-warning">
-          autonomous
-        </span>
-      )}
-    </div>
-  );
-}
-
-function DefRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase tracking-wide text-app-text-muted">{label}</dt>
-      <dd className={`text-app-text ${mono ? "font-mono text-xs" : ""}`}>{value}</dd>
+      <div className="text-[10px] uppercase tracking-wide text-app-text-muted">{label}</div>
+      <div className="text-app-text">{value}</div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { prisma } from "@internal/db";
-import type { RegisteredTool } from "@feature/agents-backend";
+import type { RegisteredTool } from "@internal/llm-core";
 import { requireUserId } from "./core";
 
 // Read-only chat tool that lists enabled GitHub App installations so the

@@ -4,11 +4,13 @@ import { prisma } from "@internal/db";
 import type {
   ChatConversationSummaryDto,
   ChatConversationDetailDto,
+  ChatConfigDto,
   ChatMessageDto,
   ChatToolCallSummary,
   ChatRole,
   ChatSseEvent,
 } from "@internal/shared-types";
+import { getSetting, isProviderReady } from "@internal/llm-core";
 import { streamAgent } from "./streamExecutor";
 
 // /api/chat router, conversation CRUD plus the SSE message endpoint and a
@@ -86,7 +88,30 @@ async function findConversation(conversationId: string, userId: string) {
   });
 }
 
+// The assistant is ready only when an admin selected an active chat model
+// (SystemSetting "chat.activeModelId") and that model is still enabled and its
+// provider is ready (env key present, or local). Otherwise chat shows the
+// not-configured state.
+async function resolveChatReadiness(): Promise<{ ready: boolean; reason: string | null }> {
+  const activeModelId = await getSetting<string>("chat.activeModelId");
+  if (!activeModelId) return { ready: false, reason: "no_active_model" };
+  const model = await prisma.llmModel.findUnique({
+    where: { id: activeModelId },
+    include: { provider: true },
+  });
+  if (!model || !model.enabled || !model.provider.enabled || !isProviderReady(model.provider)) {
+    return { ready: false, reason: "model_unavailable" };
+  }
+  return { ready: true, reason: null };
+}
+
 // Routes
+
+chatRouter.get("/config", async (_req, res) => {
+  const { ready, reason } = await resolveChatReadiness();
+  const dto: ChatConfigDto = { ready, reason };
+  res.json(dto);
+});
 
 chatRouter.get("/conversations", async (req, res) => {
   const userId = req.user!.id;
@@ -206,6 +231,18 @@ chatRouter.post("/conversations/:id/messages", async (req, res) => {
   const conv = await findConversation(conversationId, user.id);
   if (!conv) {
     res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+
+  // Block before opening the SSE when no active chat model is configured, so
+  // the client gets a clean JSON 409 instead of an SSE error frame.
+  const readiness = await resolveChatReadiness();
+  if (!readiness.ready) {
+    res.status(409).json({
+      error: "The assistant is not set up yet. Ask an admin to select a chat model.",
+      code: "not_configured",
+      reason: readiness.reason,
+    });
     return;
   }
 

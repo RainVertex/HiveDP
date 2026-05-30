@@ -2,43 +2,21 @@ import type { ID, ISODateString, NamedEntity, Timestamped } from "./common";
 
 export type AgentStatus = "idle" | "running" | "succeeded" | "failed";
 
-/** Adapter selector. */
+/** Adapter selector derived from the provider kind. */
 export type ProviderKind = "openai_compat" | "anthropic" | "gemini";
 
 /** How an agent should treat one specific tool call. */
 export type ToolApprovalMode = "auto" | "requires_approval" | "forbidden";
 
-/** Per-tool approval policy for an agent. */
+/** Per-tool approval policy (used by the shared decidePolicy helper). */
 export interface ToolApprovalPolicy {
   [toolName: string]: ToolApprovalMode | Record<string, ToolApprovalMode> | undefined;
   /** Defaults applied when no per-tool entry matches. */
   _sectionDefaults?: Record<string, ToolApprovalMode>;
 }
 
-/** Status of a pending autonomous-run approval request. */
-export type AgentApprovalStatus = "pending" | "approved" | "rejected" | "expired";
-
-export interface AgentApprovalRequestDto extends Timestamped {
-  id: ID;
-  agentUserId: ID;
-  agentName: string;
-  toolName: string;
-  parsedParams: Record<string, unknown>;
-  status: AgentApprovalStatus;
-  requestedAt: ISODateString;
-  decidedByUserId: ID | null;
-  decidedAt: ISODateString | null;
-  expiresAt: ISODateString;
-}
-
-/** Encrypted-at-rest secret (e.g. */
-export interface SecretDto extends Timestamped {
-  id: ID;
-  ownerUserId: ID | null;
-  ownerTeamId: ID | null;
-  name: string;
-  createdAt: ISODateString;
-}
+/** Lean approval mode on an agent: auto-run write tools, or ask first. */
+export type ApprovalMode = "auto" | "ask";
 
 export interface LlmProviderSummary {
   slug: string;
@@ -71,22 +49,9 @@ export interface Agent extends NamedEntity {
   modelId: ID;
   instructions: string;
   toolIds: string[];
-  ownerUserId: ID | null;
-  owningTeamId: ID | null;
+  approvalMode: ApprovalMode;
   maxToolCalls: number;
   tokenBudget: number | null;
-  // New in agents_section_and_identity migration. The backing User row id
-  // (User.userKind = 'agent'). same id used for permission checks, audit log
-  // actorUserId, team membership, etc.
-  userId: ID;
-  modelProvider: ProviderKind;
-  toolApprovalPolicy: ToolApprovalPolicy;
-  tokenBudgetMonthly: number | null;
-  tokenBudgetUsed: number;
-  costBudgetMonthly: number | null;
-  costBudgetUsed: number;
-  onBehalfOfRequired: boolean;
-  secretId: ID | null;
   llmModel?: {
     slug: string;
     displayName: string;
@@ -115,18 +80,9 @@ export interface CreateAgentInput {
   modelId: ID;
   instructions: string;
   toolIds?: string[];
-  owningTeamId?: ID | null;
+  approvalMode?: ApprovalMode;
   maxToolCalls?: number;
   tokenBudget?: number | null;
-  // Optional in v1 (defaults applied server-side). Wizard sends them.
-  modelProvider?: ProviderKind;
-  toolApprovalPolicy?: ToolApprovalPolicy;
-  onBehalfOfRequired?: boolean;
-  /** Role for the backing User row. */
-  role?: "admin" | "member";
-  secretId?: ID | null;
-  tokenBudgetMonthly?: number | null;
-  costBudgetMonthly?: number | null;
 }
 
 export type UpdateAgentInput = Partial<CreateAgentInput>;
@@ -135,4 +91,42 @@ export interface RunAgentResponse {
   runId: ID;
   agentId: ID;
   status: AgentStatus;
+}
+
+// Admin AI / Models settings surface.
+
+export interface AdminAiModelRow {
+  id: ID;
+  slug: string;
+  displayName: string;
+  modelName: string;
+  supportsTools: boolean;
+  supportsVision: boolean;
+  enabled: boolean;
+  isActiveChatModel: boolean;
+}
+
+export interface AdminAiProviderGroup {
+  slug: string;
+  displayName: string;
+  kind: string;
+  /** True when the provider needs no key (local) or its env key is present. */
+  ready: boolean;
+  apiKeyEnvVar: string | null;
+  models: AdminAiModelRow[];
+}
+
+export interface AdminAiModelsResponse {
+  providers: AdminAiProviderGroup[];
+  activeChatModelId: ID | null;
+}
+
+export interface ActiveChatModelDto {
+  modelId: ID | null;
+}
+
+export interface AiRecommendationsDto {
+  kind: string;
+  requiresTools: boolean;
+  recommendedModelIds: ID[];
 }

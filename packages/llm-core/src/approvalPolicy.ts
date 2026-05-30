@@ -5,18 +5,9 @@ import type { ToolApprovalMode, ToolApprovalPolicy } from "@internal/shared-type
 // 2. Section default: policy._sectionDefaults[section]
 // 3. Global default: "requires_approval"
 //
-// The global default deliberately errs on the cautious side: a brand-new
-// agent with an empty policy ({}) effectively forbids autonomous writes
-// until the operator opts specific tools into "auto". For chat-driven runs
-// the existing prepare→submit confirmation IS the approval, so any
+// The global default deliberately errs on the cautious side. For chat-driven
+// runs the existing prepare→submit confirmation IS the approval, so any
 // policy of "requires_approval" passes through that flow unchanged.
-//
-// Note on backward compat: existing seeded agents (Platform Assistant
-// Catalog Enricher) have toolApprovalPolicy = {} from the migration. To
-// preserve their pre-Pass-3 behavior the streamExecutor only enforces the
-// gate for "forbidden" outcomes, chat already gates writes via
-// *_prepare/*_submit. autonomous executor.ts paths enforce all three
-// outcomes, since cron runs have no in-session human to confirm.
 
 const GLOBAL_DEFAULT: ToolApprovalMode = "requires_approval";
 

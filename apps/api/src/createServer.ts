@@ -9,6 +9,7 @@ import { apiLimiter } from "./middleware/rateLimit";
 import { loadEnv } from "./config/env";
 import { authRouter } from "./auth/routes";
 import { adminUsersRouter } from "./routes/admin/users";
+import { adminAiRouter } from "./routes/admin/ai";
 import { adminAuditRouter } from "./routes/admin/audit";
 import { adminJobsRouter } from "./routes/admin/jobs";
 import { adminScaffolderMcpTokensRouter } from "./routes/admin/scaffolderMcpTokens";
@@ -17,12 +18,7 @@ import { scaffolderAccessRequestsRouter } from "./routes/scaffolderAccessRequest
 import { adminScaffolderAccessRequestsRouter } from "./routes/admin/scaffolderAccessRequests";
 import { adminScaffolderTemplateAclsRouter } from "./routes/admin/scaffolderTemplateAcls";
 import { usersRouter } from "./routes/users";
-import {
-  agentApprovalsRouter,
-  agentsRouter,
-  llmRouter,
-  secretsRouter,
-} from "@feature/agents-backend";
+import { agentsRouter, llmRouter, registerAgentTools } from "@feature/agents-backend";
 import { chatRouter, registerChatTools } from "@feature/chat-backend";
 import {
   catalogRouter,
@@ -52,9 +48,10 @@ import { webhooksRouter } from "@feature/webhooks-backend";
 
 export function createServer() {
   const env = loadEnv();
-  // Register chat tools into the global agent tool registry once at boot so
-  // resolveTools() can find them when streamAgent loads the seeded
-  // Platform Assistant.
+  // Register every tool into the shared llm-core registry once at boot so
+  // resolveTools() can find them. Catalog tools power the Catalog Enricher
+  // agent; chat tools power the seeded Platform Assistant.
+  registerAgentTools();
   registerChatTools();
   const app = express();
 
@@ -101,6 +98,7 @@ export function createServer() {
   app.use("/api", apiLimiter, requireAuth);
 
   app.use("/api/admin/users", adminUsersRouter);
+  app.use("/api/admin/ai", adminAiRouter);
   app.use("/api/admin/audit", adminAuditRouter);
   app.use("/api/admin/jobs", adminJobsRouter);
   app.use("/api/admin/scaffolder/mcp-tokens", adminScaffolderMcpTokensRouter);
@@ -108,8 +106,6 @@ export function createServer() {
   app.use("/api/admin/scaffolder/templates", adminScaffolderTemplateAclsRouter);
   app.use("/api/departments", departmentsRouter);
   app.use("/api/agents", agentsRouter);
-  app.use("/api/agent-approvals", agentApprovalsRouter);
-  app.use("/api/secrets", secretsRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/llm", llmRouter);
   app.use("/api/catalog", catalogRouter);

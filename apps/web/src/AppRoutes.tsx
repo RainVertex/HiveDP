@@ -6,16 +6,11 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ThemeAuditPage } from "./pages/ThemeAudit";
 import { AdminUsersPage } from "./admin/AdminUsersPage";
+import { AdminAiModelsPage } from "./admin/AdminAiModelsPage";
 import { AuditPage } from "./admin/AuditPage";
 import { JobsPage } from "./admin/JobsPage";
 import { McpTokensPage } from "./admin/McpTokensPage";
-import { SecretsPage } from "./admin/SecretsPage";
-import {
-  AgentApprovalsPage,
-  AgentDetailPage,
-  AgentNewWizard,
-  AgentsPage,
-} from "@feature/agents-frontend";
+import { AgentDetailPage, AgentFormPage, AgentsPage } from "@feature/agents-frontend";
 import { ChatRoute } from "./widgets/chat/ChatRoute";
 import {
   CatalogEntityPage,
@@ -75,9 +70,9 @@ export function AppRoutes() {
       <Route path="/chat/:conversationId?" element={<ChatRoute />} />
       <Route path="/p/:pageId" element={<DashboardPage />} />
       <Route path="/agents" element={<AgentsPage />} />
-      <Route path="/agents/new" element={<AgentNewWizard />} />
-      <Route path="/agents/approvals" element={<AgentApprovalsPage />} />
-      <Route path="/agents/:userId" element={<AgentDetailPage />} />
+      <Route path="/agents/new" element={<AgentFormPage />} />
+      <Route path="/agents/:id" element={<AgentDetailPage />} />
+      <Route path="/agents/:id/edit" element={<AgentFormPage />} />
       <Route path="/catalog" element={<CatalogPage />} />
       <Route path="/catalog/:id" element={<CatalogEntityPage />}>
         <Route index element={<EntityOverviewTab />} />
@@ -137,7 +132,7 @@ export function AppRoutes() {
       <Route path="/admin/team-policies" element={<AdminTeamPoliciesPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/admin/users" element={<AdminUsersPage />} />
-      <Route path="/admin/secrets" element={<SecretsPage />} />
+      <Route path="/admin/ai-models" element={<AdminAiModelsPage />} />
       <Route path="/admin/audit" element={<AuditPage />} />
       <Route path="/admin/jobs" element={<JobsPage />} />
       <Route path="/admin/mcp-tokens" element={<McpTokensPage />} />

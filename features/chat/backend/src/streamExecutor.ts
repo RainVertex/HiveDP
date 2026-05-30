@@ -2,7 +2,8 @@ import OpenAI from "openai";
 import { prisma, Prisma } from "@internal/db";
 import {
   computeCostUsd,
-  decidePolicy,
+  getSetting,
+  providerKindFromProvider,
   resolveProviderApiKey,
   resolveTools,
   selectAdapter,
@@ -10,12 +11,23 @@ import {
   type ResolvedModel,
   type RegisteredTool,
   type ToolContext,
-} from "@feature/agents-backend";
+} from "@internal/llm-core";
 import type { ChatSseEvent, ChatToolCallSummary, ChatPolicyCheck } from "@internal/shared-types";
 import { platformAssistantToolIds } from "./tools";
 import { ThinkTagSplitter } from "./thinkTagSplitter";
 
 const PLATFORM_ASSISTANT_AGENT_ID = "seed-agent-assistant";
+
+// Thrown when no active chat model is configured (or the configured one is
+// unavailable). The route turns this into a 409 not_configured response.
+export class ChatNotConfiguredError extends Error {
+  readonly code = "not_configured";
+  readonly reason: string;
+  constructor(reason: string) {
+    super(`Chat is not configured: ${reason}`);
+    this.reason = reason;
+  }
+}
 
 // SSE sibling of runAgent. Streams token deltas via onEvent("token"), runs
 // the same multi-turn tool loop with policy-routed concurrency (parallel
@@ -164,30 +176,31 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
   let finalText = "";
   let containsWrites = false;
 
-  const model = agent.llmModel as ResolvedModel;
+  // Resolve the active chat model the admin selected (SystemSetting
+  // "chat.activeModelId"), not the agent's placeholder modelId. The route
+  // pre-checks readiness and returns 409 before opening the SSE; these throws
+  // are a defensive backstop.
+  const activeModelId = await getSetting<string>("chat.activeModelId");
+  if (!activeModelId) throw new ChatNotConfiguredError("no_active_model");
+  const model = (await prisma.llmModel.findUnique({
+    where: { id: activeModelId },
+    include: { provider: true },
+  })) as ResolvedModel | null;
+  if (!model || !model.enabled || !model.provider.enabled) {
+    throw new ChatNotConfiguredError("model_unavailable");
+  }
 
-  // Resolve the provider API key once per turn, per-agent Secret override
-  // takes precedence over the env-var pattern. The adapter receives the
-  // pre-resolved key via AdapterRequest.apiKey (Pass 3).
+  // Resolve the provider API key once per turn from the env var on the
+  // provider row. Local providers (Ollama) resolve to null.
   const apiKey = await resolveProviderApiKey({
-    agentSecretId: agent.secretId,
-    providerSlug: agent.llmModel.provider.slug,
-    apiKeyEnvVar: agent.llmModel.provider.apiKeyEnvVar,
+    providerSlug: model.provider.slug,
+    apiKeyEnvVar: model.provider.apiKeyEnvVar,
   });
 
-  // Per-tool approval policy in effect for this conversation. Chat-driven
-  // runs only enforce 'forbidden', 'requires_approval' falls through to
-  // the existing *_prepare/*_submit confirmation pattern, which IS the
-  // human-in-the-loop approval. Empty {} preserves the legacy "no gates"
-  // behavior for the seeded Platform Assistant until an admin opts in.
-  const approvalPolicy = (agent.toolApprovalPolicy ?? {}) as Parameters<typeof decidePolicy>[0];
-
-  // Dispatch through the ProviderAdapter selected from the agent's
-  // modelProvider field. Agents created before Pass 2 default to
-  // 'openai_compat' and behave identically to the previous streamChat path.
-  // Anthropic and Gemini agents now run on their native SDKs.
+  // Dispatch through the ProviderAdapter selected from the resolved model's
+  // provider kind. The three seeded providers all map to openai_compat.
   const chatStream = (req: AdapterRequest) =>
-    selectAdapter(agent.modelProvider).stream({ ...req, apiKey });
+    selectAdapter(providerKindFromProvider(model.provider)).stream({ ...req, apiKey });
 
   // One splitter per turn (entire streamAgent invocation): a reasoning-capable
   // model may emit multiple `<think>` blocks across tool-call iterations, and
@@ -248,7 +261,7 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
         userMessageContent: args.userMessageContent,
         pendingPreviewsByPrepareToolId,
       });
-      const results = await runDispatched(dispatch, tools, toolCtx, args.onEvent, approvalPolicy);
+      const results = await runDispatched(dispatch, tools, toolCtx, args.onEvent);
       for (const r of results) {
         toolCallSummaries.push(r.summary);
         if (r.toolName.endsWith("_submit") && !r.summary.isError) {
@@ -437,20 +450,17 @@ async function runDispatched(
   tools: RegisteredTool[],
   ctx: ToolContext,
   onEvent: (e: ChatSseEvent) => void,
-  approvalPolicy: Parameters<typeof decidePolicy>[0],
 ): Promise<DispatchedResult[]> {
   const results: DispatchedResult[] = [];
 
   // Reads in parallel.
-  const parallelPromises = plan.parallel.map((tc) =>
-    runOne(tc, tools, ctx, onEvent, approvalPolicy),
-  );
+  const parallelPromises = plan.parallel.map((tc) => runOne(tc, tools, ctx, onEvent));
   const parallelResults = await Promise.all(parallelPromises);
   results.push(...parallelResults);
 
   // Serial: each prepare/submit one at a time, in submission order.
   for (const tc of plan.serial) {
-    results.push(await runOne(tc, tools, ctx, onEvent, approvalPolicy));
+    results.push(await runOne(tc, tools, ctx, onEvent));
   }
 
   // Deferred: emit a stub tool result so the protocol stays consistent (every
@@ -561,7 +571,6 @@ async function runOne(
   tools: RegisteredTool[],
   ctx: ToolContext,
   onEvent: (e: ChatSseEvent) => void,
-  approvalPolicy: Parameters<typeof decidePolicy>[0],
 ): Promise<DispatchedResult> {
   const startedAt = Date.now();
   const def = tools.find((t) => t.openaiDef.function.name === tc.function.name);
@@ -585,35 +594,6 @@ async function runOne(
         output: err,
         durationMs: Date.now() - startedAt,
         isError: true,
-      },
-    };
-  }
-
-  // Per-tool approval policy gate. Chat-driven runs only enforce 'forbidden'
-  // here, 'requires_approval' falls through to the existing
-  // *_prepare/*_submit confirmation pattern (the human user IS the approver
-  // in-session). 'forbidden' refuses outright with a model-actionable error.
-  const policyMode = decidePolicy(approvalPolicy, tc.function.name);
-  if (policyMode === "forbidden") {
-    const refusal = {
-      error: `Tool ${tc.function.name} forbidden by this agent's policy`,
-      code: "tool_forbidden" as const,
-    };
-    onEvent({
-      event: "tool_call_end",
-      data: { id: tc.id, name: tc.function.name, result: refusal },
-    });
-    return {
-      toolCallId: tc.id,
-      toolName: tc.function.name,
-      contentForLlm: refusal,
-      summary: {
-        name: tc.function.name,
-        input: args,
-        output: refusal,
-        durationMs: Date.now() - startedAt,
-        // Held back by policy, not a tool-handler failure.
-        isError: false,
       },
     };
   }

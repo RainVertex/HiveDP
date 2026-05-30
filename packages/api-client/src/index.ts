@@ -1,7 +1,9 @@
 import type {
   AdminUserRow,
   Agent,
-  AgentApprovalRequestDto,
+  AdminAiModelsResponse,
+  ActiveChatModelDto,
+  AiRecommendationsDto,
   AgentRun,
   AgentToolDescriptor,
   AuditEventRow,
@@ -40,7 +42,6 @@ import type {
   Scorecard,
   ScorecardSummary,
   SearchResults,
-  SecretDto,
   EntityObservabilityConfigDto,
   LokiLogLine,
   ServiceHealthSample,
@@ -61,6 +62,7 @@ import type {
   WebhookSubscriptionDto,
   ChatConversationSummaryDto,
   ChatConversationDetailDto,
+  ChatConfigDto,
   WorkflowRunRow,
   DeploymentRow,
 } from "@internal/shared-types";
@@ -231,10 +233,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
     agents: {
       list: () => request<ListResponse<Agent>>(`/api/agents`),
       get: (id: string) => request<Agent>(`/api/agents/${encodeURIComponent(id)}`),
-      // Lookup by the backing User id (used by the /agents/:userId pages
-      // since the sidebar URL addresses agents as users).
-      getByUser: (userId: string) =>
-        request<Agent>(`/api/agents/by-user/${encodeURIComponent(userId)}`),
       create: (body: CreateAgentInput) =>
         request<Agent>(`/api/agents`, { method: "POST", body: JSON.stringify(body) }),
       update: (id: string, body: UpdateAgentInput) =>
@@ -276,32 +274,25 @@ export function createApiClient(options: ApiClientOptions = {}) {
       listTools: () => request<ListResponse<AgentToolDescriptor>>(`/api/agents/tools`),
     },
 
-    secrets: {
-      list: () => request<ListResponse<SecretDto>>(`/api/secrets`),
-      create: (body: {
-        name: string;
-        value: string;
-        scope: "personal" | "team" | "org";
-        teamId?: string;
-      }) => request<SecretDto>(`/api/secrets`, { method: "POST", body: JSON.stringify(body) }),
-      delete: (id: string) =>
-        request<void>(`/api/secrets/${encodeURIComponent(id)}`, { method: "DELETE" }),
-    },
-
-    agentApprovals: {
-      list: (status?: "pending" | "approved" | "rejected" | "expired") => {
-        const q = status ? `?status=${encodeURIComponent(status)}` : "";
-        return request<ListResponse<AgentApprovalRequestDto>>(`/api/agent-approvals${q}`);
-      },
-      decide: (id: string, decision: "approved" | "rejected") =>
-        request<AgentApprovalRequestDto>(
-          `/api/agent-approvals/${encodeURIComponent(id)}/decision`,
-          { method: "POST", body: JSON.stringify({ decision }) },
-        ),
-    },
-
     llm: {
       listModels: () => request<ListResponse<LlmModelSummary>>(`/api/llm/models`),
+      recommendations: (kind: string) =>
+        request<AiRecommendationsDto>(`/api/llm/recommendations?kind=${encodeURIComponent(kind)}`),
+    },
+
+    adminAi: {
+      listModels: () => request<AdminAiModelsResponse>(`/api/admin/ai/models`),
+      setModelEnabled: (id: string, enabled: boolean) =>
+        request<void>(`/api/admin/ai/models/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ enabled }),
+        }),
+      getActiveChatModel: () => request<ActiveChatModelDto>(`/api/admin/ai/active-chat-model`),
+      setActiveChatModel: (modelId: string | null) =>
+        request<void>(`/api/admin/ai/active-chat-model`, {
+          method: "PUT",
+          body: JSON.stringify({ modelId }),
+        }),
     },
 
     catalog: {
@@ -865,6 +856,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
           method: "POST",
           body: JSON.stringify(body),
         }),
+      getConfig: () => request<ChatConfigDto>(`/api/chat/config`),
       getConversation: (id: string) =>
         request<ChatConversationDetailDto>(`/api/chat/conversations/${encodeURIComponent(id)}`),
       deleteConversation: (id: string) =>

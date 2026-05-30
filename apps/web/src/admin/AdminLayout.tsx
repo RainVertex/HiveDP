@@ -2,8 +2,8 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useCurrentUser } from "../auth";
 
 const navItems = [
+  { to: "/admin/ai-models", label: "AI / Models" },
   { to: "/admin/users", label: "Users" },
-  { to: "/admin/secrets", label: "Secrets" },
   { to: "/admin/audit", label: "Audit log" },
   { to: "/admin/jobs", label: "Jobs" },
 ];

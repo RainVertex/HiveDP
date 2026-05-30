@@ -1,4 +1,4 @@
-import type { RegisteredTool } from "@feature/agents-backend";
+import type { RegisteredTool } from "@internal/llm-core";
 
 // Maintainer-request write tools (approve / reject) deferred past v1: the
 // underlying handlers in features/teams/backend/src/maintainerRequests.ts

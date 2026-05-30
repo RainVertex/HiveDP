@@ -1,6 +1,6 @@
 import { prisma } from "@internal/db";
 import { z } from "zod";
-import type { RegisteredTool, ToolContext } from "@feature/agents-backend";
+import type { RegisteredTool, ToolContext } from "@internal/llm-core";
 import { createTeamRequest } from "@feature/teams-backend";
 import type { ChatPolicyCheck } from "@internal/shared-types";
 import { createPreview, resolveForSubmit, markConsumed } from "../preview";

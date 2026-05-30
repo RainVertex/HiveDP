@@ -42,6 +42,15 @@ export interface ChatConversationDetailDto extends ChatConversationSummaryDto {
   messages: ChatMessageDto[];
 }
 
+// Whether the assistant is ready to chat. Not ready until an admin selects an
+// active chat model in Admin -> AI / Models. reason is "no_active_model" when
+// none is selected, or "model_unavailable" when the selected model was
+// disabled or its provider lost its key.
+export interface ChatConfigDto {
+  ready: boolean;
+  reason: string | null;
+}
+
 // SSE event schema
 // Each frame on the wire: `event: <type>\ndata: <json>\n\n`. The discriminator
 // is the SSE event name. the data payload is the JSON shape below.

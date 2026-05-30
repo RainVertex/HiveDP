@@ -1,4 +1,4 @@
-import { registerTools, type RegisteredTool } from "@feature/agents-backend";
+import { registerTools, type RegisteredTool } from "@internal/llm-core";
 import { CHAT_CORE_TOOLS, CHAT_CORE_TOOL_IDS } from "./core";
 import { TEAMS_READ_TOOLS, TEAMS_READ_TOOL_IDS } from "./teams";
 import { REQUESTS_READ_TOOLS, REQUESTS_READ_TOOL_IDS } from "./requests";

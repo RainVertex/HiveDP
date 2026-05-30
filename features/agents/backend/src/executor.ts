@@ -2,23 +2,22 @@ import type OpenAI from "openai";
 import { prisma, Prisma } from "@internal/db";
 import {
   computeCostUsd,
+  selectAdapter,
+  providerKindFromProvider,
+  resolveProviderApiKey,
+  resolveTools,
   type ChatRequest,
   type ChatResult,
   type ResolvedModel,
-} from "./llm/client";
-import { selectAdapter } from "./llm/adapters";
-import { resolveProviderApiKey } from "./secrets";
-import { decidePolicy } from "./approvalPolicy";
-import { buildAgentRequestContext } from "./agentRequestContext";
-import { resolveTools, type ToolContext } from "./llm/toolRegistry";
+  type ToolContext,
+} from "@internal/llm-core";
 
 // Generic agent execution. The agent row carries everything driving the loop:
-// the system prompt (`instructions`), which tools it may call (`toolIds`)
-// the model + provider (`modelId` -> LlmModel -> LlmProvider), and the
-// per-loop and per-budget caps (`maxToolCalls`, `tokenBudget`). The chat
-// function is talked to via OpenAI shape regardless of provider so a single
-// loop serves Ollama, OpenAI, and Anthropic-via-OpenAI-compat without
-// branching.
+// the system prompt (`instructions`), which tools it may call (`toolIds`), the
+// model + provider (`modelId` -> LlmModel -> LlmProvider), the per-loop cap
+// (`maxToolCalls`), the optional per-run token budget, and the approval mode.
+// Every provider is talked to via the OpenAI shape so a single loop serves
+// Ollama, OpenAI, and Anthropic without branching.
 
 export type RunAgentInput = Record<string, unknown>;
 
@@ -42,11 +41,12 @@ export interface RunAgentResult {
 }
 
 export interface RunAgentOptions {
-  // Override the chat function for tests. Defaults to the real OpenAI-shape
-  // client in ./llm/client.
+  // Override the chat function for tests. Defaults to the real adapter path.
   chat?: (req: ChatRequest) => Promise<ChatResult>;
   signal?: AbortSignal;
   // For runs initiated by an authenticated user. null for cron / system runs.
+  // The id flows into ToolContext.userId so every tool scopes to this user
+  // (per-user isolation). Autonomous runs (cron) pass null.
   callerUserId?: string | null;
   callerIsAdmin?: boolean;
   callerTeamIds?: string[];
@@ -75,30 +75,24 @@ export async function runAgent(
       });
   await prisma.agent.update({ where: { id: agentId }, data: { status: "running" } });
 
-  // Resolve the provider API key once per run: per-agent Secret override
-  // takes precedence over the env-var pattern. The adapter receives the key
-  // via AdapterRequest.apiKey (added in Pass 3) so the lookup happens here
-  // rather than inside each adapter.
+  // Provider key resolved once per run from the env var named on the provider
+  // row. Local providers (Ollama) resolve to null. The adapter receives the
+  // pre-resolved key via AdapterRequest.apiKey.
   const apiKey = await resolveProviderApiKey({
-    agentSecretId: agent.secretId,
     providerSlug: agent.llmModel.provider.slug,
     apiKeyEnvVar: agent.llmModel.provider.apiKeyEnvVar,
   });
 
-  // Default chat function dispatches via the ProviderAdapter selected from
-  // the agent's modelProvider field. Tests can inject opts.chat to bypass
-  // the network. The pre-resolved apiKey is passed through every call.
+  // Adapter selected from the provider's kind. Tests inject opts.chat to skip
+  // the network.
   const chatFn =
     opts.chat ??
     ((req: ChatRequest) =>
-      selectAdapter(agent.modelProvider).stream({ ...req, apiKey } as Parameters<
-        ReturnType<typeof selectAdapter>["stream"]
-      >[0]));
-  // Per-tool approval policy in effect for this run. Read once from the
-  // Agent row so we don't re-fetch on every tool call. The policy is the
-  // JSONB column populated via the wizard (Pass 4), empty for legacy rows
-  // which preserves the pre-Pass-3 "no gates" behavior for chat.
-  const policy = (agent.toolApprovalPolicy ?? {}) as Parameters<typeof decidePolicy>[0];
+      selectAdapter(providerKindFromProvider(agent.llmModel.provider)).stream({
+        ...req,
+        apiKey,
+      }) as Promise<ChatResult>);
+
   const toolIds = Array.isArray(agent.toolIds) ? (agent.toolIds as unknown as string[]) : [];
   const tools = resolveTools(toolIds);
   const openaiTools: OpenAI.Chat.Completions.ChatCompletionFunctionTool[] = tools.map(
@@ -117,22 +111,22 @@ export async function runAgent(
 
   const model = agent.llmModel as ResolvedModel;
 
+  // Lean approval: per-user isolation flows through ToolContext.userId. An
+  // autonomous run (no invoking human) with approvalMode "ask" cannot confirm
+  // any tool call, so tools are blocked; with "auto" they run (e.g. the
+  // Catalog Enricher). Human-invoked runs always allow tools, the caller is
+  // the human in the loop. Chat's interactive prepare/submit confirmation
+  // lives in the chat streamExecutor, not here.
+  const isAutonomousRun = (opts.callerUserId ?? null) == null;
+  const blockToolsAutonomously = isAutonomousRun && agent.approvalMode === "ask";
+
   try {
-    // Resolve the effective request context: enforces onBehalfOfRequired
-    // (autonomous invocations of a "needs invoker" agent throw here and
-    // land in the catch below as a clean run-failed row) and computes
-    // min(agent.role, invoker.role) + team intersection for ToolContext.
-    const agentCtx = await buildAgentRequestContext({
-      agentUserId: agent.userId,
-      invokerUserId: opts.callerUserId ?? null,
-    });
     const toolCtx: ToolContext = {
-      userId: agentCtx.invokerUserId ?? agentCtx.agentUserId,
-      isAdmin: agentCtx.effectiveRole === "admin",
-      teamIds: agentCtx.effectiveTeamIds,
+      userId: opts.callerUserId ?? null,
+      isAdmin: opts.callerIsAdmin ?? false,
+      teamIds: opts.callerTeamIds ?? [],
       signal: opts.signal,
     };
-    const isAutonomousRun = agentCtx.invokerUserId == null;
 
     for (let step = 0; step < agent.maxToolCalls; step++) {
       const result = await chatFn({
@@ -168,51 +162,19 @@ export async function runAgent(
         if (!toolDef) {
           output = { error: `Unknown tool: ${tc.function.name}` };
           isError = true;
+        } else if (blockToolsAutonomously) {
+          output = {
+            error: `Agent runs in "ask" mode and has no human to confirm tool calls in an autonomous run.`,
+            code: "approval_required",
+          };
+          isError = true;
         } else {
-          // Per-tool approval policy gate. 'forbidden' refuses any call.
-          // 'requires_approval' on an autonomous run (no invoking human)
-          // writes an AgentApprovalRequest and refuses. the run will need
-          // to re-attempt after a human approves. For chat runs (handled
-          // in streamExecutor) the prepare/submit confirmation IS the
-          // approval, so 'requires_approval' falls through there.
-          const mode = decidePolicy(policy, tc.function.name);
-          if (mode === "forbidden") {
-            output = {
-              error: `Tool ${tc.function.name} forbidden by agent policy`,
-              code: "tool_forbidden",
-            };
+          try {
+            const parsed = JSON.parse(tc.function.arguments || "{}");
+            output = await toolDef.handler(parsed, toolCtx);
+          } catch (err) {
+            output = { error: (err as Error).message };
             isError = true;
-          } else if (mode === "requires_approval" && isAutonomousRun) {
-            // Persist a pending approval row scoped to this agent so the
-            // primary contact can decide later via /api/agent-approvals.
-            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
-            const parsed = safeJsonParse(tc.function.arguments);
-            const params: Record<string, unknown> =
-              parsed && typeof parsed === "object" && !Array.isArray(parsed)
-                ? (parsed as Record<string, unknown>)
-                : {};
-            await prisma.agentApprovalRequest.create({
-              data: {
-                agentUserId: agent.userId,
-                toolName: tc.function.name,
-                parsedParams: params as Prisma.InputJsonValue,
-                status: "pending",
-                expiresAt,
-              },
-            });
-            output = {
-              error: `Tool ${tc.function.name} requires approval; written to AgentApprovalRequest inbox`,
-              code: "approval_required",
-            };
-            isError = true;
-          } else {
-            try {
-              const parsed = JSON.parse(tc.function.arguments || "{}");
-              output = await toolDef.handler(parsed, toolCtx);
-            } catch (err) {
-              output = { error: (err as Error).message };
-              isError = true;
-            }
           }
         }
         toolCalls.push({
@@ -294,8 +256,7 @@ function safeJsonParse(s: string | undefined): unknown {
 // Async-by-default kickoff used by POST /api/agents/:id/run. Creates the
 // AgentRun row synchronously so the route can return its id, then runs the
 // executor in the background. runAgent's internal catch persists any failure
-// into the row, the .catch() here only catches catastrophic failures
-// before that point.
+// into the row.
 export async function startAgentRun(
   agentId: string,
   input: RunAgentInput,
@@ -314,10 +275,9 @@ export async function startAgentRun(
 
 // Catalog enricher compatibility wrapper.
 //
-// The daily cron at jobs.ts calls runEnricherForEntity. New code should use
-// runAgent() directly. This wrapper adapts the generic result to the
-// enricher's pre-existing shape (notably `driftsProposed`, derived from
-// the tool-call list).
+// The daily cron at jobs.ts calls runEnricherForEntity. It adapts the generic
+// result to the enricher's pre-existing shape (notably `driftsProposed`,
+// derived from the tool-call list).
 
 export interface EnricherInput {
   entityId: string;

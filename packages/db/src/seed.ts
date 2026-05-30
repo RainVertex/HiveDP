@@ -47,18 +47,13 @@ Rules:
 - When you're done, respond with a one-sentence summary of what you found.
   Do not loop forever; aim for at most 5 tool calls per run.`;
 
-  await upsertAgentBackingUser({
-    id: "agentuser-seed-agent-catalog-enricher",
-    agentId: "seed-agent-catalog-enricher",
-    displayName: "Catalog Enricher",
-  });
-
   await prisma.agent.upsert({
     where: { id: "seed-agent-catalog-enricher" },
     update: {
       instructions: enricherInstructions,
       modelId: "llmmodel_claude_sonnet_4_6",
       toolIds: ["catalog_lookup", "catalog_discover", "catalog_propose_drift"],
+      approvalMode: "auto",
     },
     create: {
       id: "seed-agent-catalog-enricher",
@@ -69,8 +64,8 @@ Rules:
       modelId: "llmmodel_claude_sonnet_4_6",
       instructions: enricherInstructions,
       toolIds: ["catalog_lookup", "catalog_discover", "catalog_propose_drift"],
+      approvalMode: "auto",
       maxToolCalls: 6,
-      userId: "agentuser-seed-agent-catalog-enricher",
     },
   });
 
@@ -93,7 +88,13 @@ Rules:
 // CHAT_WRITE_TOOLS_ENABLED , "false" omits write tools (read-only assistant)
 
 async function seedPlatformAssistant() {
-  const modelId = process.env.CHAT_LLM_MODEL_ID ?? "llmmodel_qwen3_8b_local";
+  // Chat resolves its model at request time from the SystemSetting
+  // "chat.activeModelId" (admin-selected via the AI / Models page). The
+  // Agent.modelId FK still needs a value, so point it at a stable placeholder
+  // that chat never actually uses. We intentionally do NOT seed
+  // chat.activeModelId, so the assistant starts in the not-configured state
+  // until an admin selects a model.
+  const placeholderModelId = "llmmodel_qwen3_8b_local";
   const writesEnabled = process.env.CHAT_WRITE_TOOLS_ENABLED !== "false";
 
   const readToolIds = [
@@ -151,18 +152,12 @@ call integrations_list_github first. If mirror_target_exists fails because
 nothing is connected, tell the user to install a GitHub App in Settings →
 Integrations.`;
 
-  await upsertAgentBackingUser({
-    id: "agentuser-seed-agent-assistant",
-    agentId: "seed-agent-assistant",
-    displayName: "Platform Assistant",
-  });
-
   await prisma.agent.upsert({
     where: { id: "seed-agent-assistant" },
     update: {
       instructions,
-      modelId,
       toolIds,
+      approvalMode: "ask",
     },
     create: {
       id: "seed-agent-assistant",
@@ -170,31 +165,11 @@ Integrations.`;
       description: "Interactive chatbot for the engineering platform.",
       kind: "platform-assistant",
       status: "idle",
-      modelId,
+      modelId: placeholderModelId,
       instructions,
       toolIds,
+      approvalMode: "ask",
       maxToolCalls: 12,
-      userId: "agentuser-seed-agent-assistant",
-    },
-  });
-}
-
-// Class-table-inheritance backing User for an Agent (userKind='agent'). The
-// agents_section_and_identity migration created these for pre-existing agents.
-// seed agents need them created here before the agent.upsert can satisfy
-// Agent.userId NOT NULL.
-async function upsertAgentBackingUser(input: { id: string; agentId: string; displayName: string }) {
-  await prisma.user.upsert({
-    where: { id: input.id },
-    update: {},
-    create: {
-      id: input.id,
-      githubId: `agent-bot-${input.agentId}`,
-      githubLogin: `agent-bot-${input.agentId}`,
-      email: `${input.agentId}@agents.local`,
-      displayName: input.displayName,
-      role: "member",
-      userKind: "agent",
     },
   });
 }
@@ -475,6 +450,13 @@ async function seedDefaultPages() {
     },
 
     // Admin
+    {
+      id: "__page_admin_ai_models__",
+      section: "admin",
+      title: "AI / Models",
+      url: "/admin/ai-models",
+      order: 512,
+    },
     {
       id: "__page_admin_users__",
       section: "admin",

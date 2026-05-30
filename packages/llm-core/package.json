@@ -1,5 +1,5 @@
 {
-  "name": "@feature/agents-backend",
+  "name": "@internal/llm-core",
   "version": "0.1.0",
   "private": true,
   "main": "src/index.ts",
@@ -11,18 +11,13 @@
     }
   },
   "dependencies": {
-    "@feature/catalog-backend": "0.1.0",
-    "@feature/scaffolder-backend": "0.1.0",
+    "@anthropic-ai/sdk": "^0.95.1",
+    "@google/genai": "^2.0.1",
     "@internal/db": "0.1.0",
-    "@internal/llm-core": "0.1.0",
-    "@internal/scaffolder-core": "0.1.0",
     "@internal/shared-types": "0.1.0",
-    "express": "^5.2.1",
-    "openai": "^6.37.0",
-    "zod": "^4.3.6"
+    "openai": "^6.37.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
     "typescript": "^6.0.2"
   },

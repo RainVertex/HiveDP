@@ -66,8 +66,6 @@ model Team {
   webhookSubscriptions WebhookSubscription[]
   createdRequests      TeamRequest[]
   maintainerRequests   MaintainerRequest[]
-  ownedAgents          Agent[]                 @relation("AgentOwningTeam")
-  ownedSecrets         Secret[]                @relation("SecretOwnerTeam")
   department           Department?             @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   parentTeam           Team?                   @relation("TeamHierarchy", fields: [parentTeamId], references: [id], onDelete: SetNull)
   childTeams           Team[]                  @relation("TeamHierarchy")

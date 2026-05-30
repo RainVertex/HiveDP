@@ -1,5 +1,5 @@
 import { prisma } from "@internal/db";
-import type { RegisteredTool, ToolContext } from "@feature/agents-backend";
+import type { RegisteredTool, ToolContext } from "@internal/llm-core";
 
 // Bootstrapping tools every conversation should call once: whoami so the
 // model knows who's asking, get_today so date-relative questions don't
