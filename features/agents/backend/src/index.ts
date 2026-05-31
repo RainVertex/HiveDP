@@ -1,7 +1,7 @@
 // Express routers for the agent CRUD API and the LLM model/recommendation registry.
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "@internal/db";
+import { prisma, ensureAgentBackingUser } from "@internal/db";
 import {
   listAvailableTools,
   listToolGroups,
@@ -132,9 +132,15 @@ agentsRouter.get("/", async (req, res) => {
           provider: { select: { slug: true, displayName: true } },
         },
       },
+      // Status is derived from the latest run, not stored on the agent (concurrent runs would race a shared column).
+      runs: { orderBy: { startedAt: "desc" }, take: 1, select: { status: true } },
     },
   });
-  res.json({ items: agents });
+  const items = agents.map(({ runs, ...agent }) => ({
+    ...agent,
+    status: runs[0]?.status ?? "idle",
+  }));
+  res.json({ items });
 });
 
 agentsRouter.get("/tools", (req, res) => {
@@ -166,7 +172,12 @@ agentsRouter.get("/:id", async (req, res) => {
     },
   });
   if (!agent) return res.status(404).json({ error: "Agent not found" });
-  res.json({ ...agent, toolsManaged: agent.id === PLATFORM_ASSISTANT_AGENT_ID });
+  // Derived from the most recent run (scoped above); the agent row no longer stores status.
+  res.json({
+    ...agent,
+    status: agent.runs[0]?.status ?? "idle",
+    toolsManaged: agent.id === PLATFORM_ASSISTANT_AGENT_ID,
+  });
 });
 
 agentsRouter.get("/:id/runs/:runId", async (req, res) => {
@@ -244,7 +255,11 @@ agentsRouter.post("/", async (req, res) => {
       temperature: data.temperature ?? null,
     },
   });
-  res.status(201).json(created);
+  const backingUserId = await ensureAgentBackingUser(created.id, {
+    name: created.name,
+    avatarUrl: created.avatarUrl,
+  });
+  res.status(201).json({ ...created, userId: backingUserId });
 });
 
 const updateAgentSchema = createAgentSchema.partial();
@@ -299,6 +314,8 @@ agentsRouter.patch("/:id", async (req, res) => {
       temperature: data.temperature,
     },
   });
+  // Keep the backing User's display identity in sync (and create it for agents predating the backing-user link).
+  await ensureAgentBackingUser(updated.id, { name: updated.name, avatarUrl: updated.avatarUrl });
   res.json(updated);
 });
 
@@ -311,10 +328,14 @@ agentsRouter.delete("/:id", async (req, res) => {
   }
   const existing = await prisma.agent.findUnique({
     where: { id: req.params.id },
-    select: { id: true },
+    select: { id: true, userId: true },
   });
   if (!existing) return res.status(404).json({ error: "Agent not found" });
   await prisma.agent.delete({ where: { id: req.params.id } });
+  // Remove the backing User so a deleted agent stops appearing in assignee/share pickers (cascades its task assignments and comments).
+  if (existing.userId) {
+    await prisma.user.delete({ where: { id: existing.userId } }).catch(() => {});
+  }
   res.status(204).end();
 });
 

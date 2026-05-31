@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 loadEnv({ path: resolve(__dirname, "../../../.env") });
 
 import { prisma } from "./index";
+import { ensureAgentBackingUser } from "./agentUser";
 
 async function main() {
   console.log("Seeding database…");
@@ -57,7 +58,6 @@ Rules:
       name: "Catalog Enricher",
       description: "Fills missing metadata on catalog entities using Claude.",
       kind: "catalog-enrichment",
-      status: "idle",
       modelId: "llmmodel_claude_sonnet_4_6",
       instructions: enricherInstructions,
       toolIds: ["catalog_lookup", "catalog_discover", "catalog_propose_drift"],
@@ -69,6 +69,14 @@ Rules:
   });
 
   await seedPlatformAssistant();
+
+  // Backing User (userKind='agent') per agent so agents can be assigned to tasks and granted access like teammates. Idempotent; also backfills any agent created before the link existed.
+  const allAgents = await prisma.agent.findMany({
+    select: { id: true, name: true, avatarUrl: true },
+  });
+  for (const a of allAgents) {
+    await ensureAgentBackingUser(a.id, { name: a.name, avatarUrl: a.avatarUrl });
+  }
 
   console.log("Seed complete.");
 }
@@ -149,7 +157,6 @@ Integrations.`;
       name: "Platform Assistant",
       description: "Interactive chatbot for the engineering platform.",
       kind: "platform-assistant",
-      status: "idle",
       modelId: placeholderModelId,
       instructions,
       toolIds,

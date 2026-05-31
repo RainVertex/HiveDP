@@ -4,6 +4,7 @@ import { addAssigneeSchema, attachLabelSchema, createTaskSchema, updateTaskSchem
 import { meetsLevel, resolveAccess } from "../services/permissions";
 import { taskDto, userSummary } from "../services/dto";
 import { notifyTaskAssigned } from "../services/notifications";
+import { triggerAgentRunForTask } from "../services/agentRuns";
 
 export const tasksRoutes: Router = Router();
 
@@ -219,7 +220,10 @@ tasksRoutes.post("/tasks/:id/assignees", async (req, res, next) => {
           assignedByUserId: userId,
         },
       });
-      if (target.id !== userId) {
+      if (target.userKind === "agent") {
+        // Assigning an agent kicks off a run against the task; it reports back as a comment.
+        triggerAgentRunForTask({ agentUserId: target.id, taskId: task.id });
+      } else if (target.id !== userId) {
         await notifyTaskAssigned({
           taskId: task.id,
           taskTitle: task.title,

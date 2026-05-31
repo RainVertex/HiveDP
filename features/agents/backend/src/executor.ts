@@ -65,7 +65,6 @@ export async function runAgent(
           input: input as Prisma.InputJsonValue,
         },
       });
-  await prisma.agent.update({ where: { id: agentId }, data: { status: "running" } });
 
   const apiKey = await resolveProviderApiKey({
     providerId: agent.llmModel.provider.id,
@@ -186,7 +185,6 @@ export async function runAgent(
         finishedAt: new Date(),
       },
     });
-    await prisma.agent.update({ where: { id: agentId }, data: { status: "succeeded" } });
     return {
       agentRunId: run.id,
       status: "succeeded",
@@ -212,7 +210,6 @@ export async function runAgent(
         finishedAt: new Date(),
       },
     });
-    await prisma.agent.update({ where: { id: agentId }, data: { status: "failed" } });
     return {
       agentRunId: run.id,
       status: "failed",

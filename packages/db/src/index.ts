@@ -30,3 +30,4 @@ if (process.env.NODE_ENV !== "production") {
 
 export * from "@prisma/client";
 export { encryptSecret, decryptSecret } from "./secrets";
+export { ensureAgentBackingUser, type AgentIdentity } from "./agentUser";

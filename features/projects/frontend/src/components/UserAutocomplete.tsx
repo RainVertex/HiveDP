@@ -4,6 +4,7 @@ interface PlatformUser {
   id: string;
   username: string;
   name: string;
+  kind?: "human" | "agent";
 }
 
 interface Props {
@@ -84,9 +85,20 @@ export function UserAutocomplete({ value, onChange, placeholder, onSelect, class
                 onClick={() => handlePick(u)}
                 className="block w-full px-3 py-1.5 text-left text-sm text-app-text hover:bg-app-surface-hover"
               >
-                <span className="font-medium">{u.username}</span>
-                {u.name && u.name !== u.username && (
-                  <span className="ml-2 text-xs text-app-text-muted">{u.name}</span>
+                {u.kind === "agent" ? (
+                  <>
+                    <span className="font-medium">{u.name}</span>
+                    <span className="ml-2 rounded bg-app-surface-hover px-1 text-[10px] uppercase tracking-wide text-app-text-muted">
+                      agent
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium">{u.username}</span>
+                    {u.name && u.name !== u.username && (
+                      <span className="ml-2 text-xs text-app-text-muted">{u.name}</span>
+                    )}
+                  </>
                 )}
               </button>
             </li>

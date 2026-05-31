@@ -18,7 +18,8 @@ usersRoutes.get("/users/search", async (req, res, next) => {
     }
     const users = await prisma.user.findMany({
       where: {
-        userKind: "human",
+        // Agents are assignable like teammates (assigning one runs it on the task), so they surface here too.
+        userKind: { in: ["human", "agent"] },
         OR: [
           { displayName: { contains: q, mode: "insensitive" } },
           { githubLogin: { contains: q, mode: "insensitive" } },
@@ -28,7 +29,14 @@ usersRoutes.get("/users/search", async (req, res, next) => {
       orderBy: { displayName: "asc" },
       take: 20,
     });
-    res.json(users.map(userSummary).filter(Boolean));
+    res.json(
+      users.map((u) => ({
+        id: u.id,
+        username: u.githubLogin,
+        name: u.displayName,
+        kind: u.userKind,
+      })),
+    );
   } catch (err) {
     next(err);
   }

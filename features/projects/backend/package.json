@@ -11,6 +11,7 @@
     }
   },
   "dependencies": {
+    "@feature/agents-backend": "0.1.0",
     "@feature/notifications-backend": "0.1.0",
     "@internal/db": "0.1.0",
     "@internal/shared-types": "0.1.0",

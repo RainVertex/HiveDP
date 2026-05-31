@@ -75,7 +75,6 @@ model Agent {
   // "catalog-enrichment" | "custom". Drives the recommended-model map in
   // @internal/llm-core (recommendationsForKind).
   kind         String
-  status       AgentStatus @default(idle)
   modelId      String
   instructions String
   toolIds      Json        @default("[]")
@@ -89,12 +88,15 @@ model Agent {
   // Sampling temperature override. Null means use the per-model recommended
   // default (samplingDefaults in the openai_compat adapter, 0.2 elsewhere).
   temperature  Float?
+  // Backing User (userKind='agent') the agent acts as when it does work (e.g. assigned to a task). Runs execute under this identity (ToolContext.userId), so the agent gets its own team/project grants.
+  userId       String?     @unique
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
   runs              AgentRun[]
   llmModel          LlmModel           @relation(fields: [modelId], references: [id])
   chatConversations ChatConversation[]
+  user              User?              @relation("AgentBackingUser", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([modelId])
 }
