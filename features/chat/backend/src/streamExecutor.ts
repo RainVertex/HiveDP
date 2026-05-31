@@ -13,7 +13,8 @@ import {
   type ToolContext,
 } from "@internal/llm-core";
 import type { ChatSseEvent, ChatToolCallSummary, ChatPolicyCheck } from "@internal/shared-types";
-import { platformAssistantToolIds } from "./tools";
+import { platformAssistantReadToolIds } from "@feature/agent-tools-backend";
+import { chatWriteToolIds } from "./tools";
 import { ThinkTagSplitter } from "./thinkTagSplitter";
 
 // SSE streaming chat loop: multi-turn tool dispatch with prepare/submit confirmation, reasoning split, and AgentRun persistence.
@@ -109,7 +110,9 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
 
   const persistedIds = Array.isArray(agent.toolIds) ? (agent.toolIds as unknown as string[]) : [];
   const toolIds =
-    args.agentId === PLATFORM_ASSISTANT_AGENT_ID ? platformAssistantToolIds() : persistedIds;
+    args.agentId === PLATFORM_ASSISTANT_AGENT_ID
+      ? [...platformAssistantReadToolIds(), ...chatWriteToolIds()]
+      : persistedIds;
   const tools = resolveTools(toolIds);
   const openaiTools = tools.map((t) => t.openaiDef);
 

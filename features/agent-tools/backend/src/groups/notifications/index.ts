@@ -1,6 +1,7 @@
 import { prisma } from "@internal/db";
 import type { RegisteredTool } from "@internal/llm-core";
-import { requireUserId } from "./core";
+import type { ToolGroup } from "../../types";
+import { requireUserId } from "../core";
 
 const myUnread: RegisteredTool = {
   id: "notifications_my_unread",
@@ -31,5 +32,12 @@ const myUnread: RegisteredTool = {
   },
 };
 
-export const NOTIFICATIONS_READ_TOOLS: RegisteredTool[] = [myUnread];
-export const NOTIFICATIONS_READ_TOOL_IDS = NOTIFICATIONS_READ_TOOLS.map((t) => t.id);
+export const notificationsGroup: ToolGroup = {
+  meta: {
+    id: "notifications",
+    label: "Bildirimler",
+    description: "Okunmamış bildirimler.",
+    order: 60,
+  },
+  tools: [myUnread],
+};

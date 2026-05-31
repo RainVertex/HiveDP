@@ -1,6 +1,7 @@
 import { prisma } from "@internal/db";
 import type { RegisteredTool } from "@internal/llm-core";
-import { requireUserId } from "./core";
+import type { ToolGroup } from "../../types";
+import { requireUserId } from "../core";
 
 const search: RegisteredTool = {
   id: "catalog_search",
@@ -112,5 +113,12 @@ const ownedByTeam: RegisteredTool = {
   },
 };
 
-export const CATALOG_READ_TOOLS: RegisteredTool[] = [search, getEntity, ownedByTeam];
-export const CATALOG_READ_TOOL_IDS = CATALOG_READ_TOOLS.map((t) => t.id);
+export const catalogGroup: ToolGroup = {
+  meta: {
+    id: "catalog",
+    label: "Katalog",
+    description: "Katalog varlıklarını arama ve görüntüleme.",
+    order: 40,
+  },
+  tools: [search, getEntity, ownedByTeam],
+};

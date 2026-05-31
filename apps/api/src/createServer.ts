@@ -19,8 +19,9 @@ import { scaffolderAccessRequestsRouter } from "./routes/scaffolderAccessRequest
 import { adminScaffolderAccessRequestsRouter } from "./routes/admin/scaffolderAccessRequests";
 import { adminScaffolderTemplateAclsRouter } from "./routes/admin/scaffolderTemplateAcls";
 import { usersRouter } from "./routes/users";
-import { agentsRouter, llmRouter, registerAgentTools } from "@feature/agents-backend";
-import { chatRouter, registerChatTools } from "@feature/chat-backend";
+import { agentsRouter, llmRouter } from "@feature/agents-backend";
+import { chatRouter, registerChatWriteTools } from "@feature/chat-backend";
+import { registerAllTools } from "@feature/agent-tools-backend";
 import {
   catalogRouter,
   devdocsRouter,
@@ -50,8 +51,8 @@ import { webhooksRouter } from "@feature/webhooks-backend";
 export function createServer() {
   const env = loadEnv();
   // Register tools into the shared llm-core registry at boot so resolveTools() can find them.
-  registerAgentTools();
-  registerChatTools();
+  registerAllTools();
+  registerChatWriteTools();
   const app = express();
 
   app.set("trust proxy", 1);

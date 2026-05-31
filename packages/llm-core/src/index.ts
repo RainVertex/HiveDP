@@ -5,8 +5,21 @@ export type { ChatRequest, ChatResult, ResolvedModel } from "./client";
 export { selectAdapter, providerKindFromProvider } from "./adapters";
 export type { ProviderAdapter, AdapterRequest, AdapterResult } from "./adapters";
 
-export { registerTools, resolveTools, listAvailableTools, _resetExtraTools } from "./toolRegistry";
-export type { RegisteredTool, ToolContext, ToolDescriptor } from "./toolRegistry";
+export {
+  registerTools,
+  registerToolGroups,
+  resolveTools,
+  listAvailableTools,
+  listToolGroups,
+  _resetExtraTools,
+} from "./toolRegistry";
+export type {
+  RegisteredTool,
+  ToolContext,
+  ToolDescriptor,
+  ToolGroupMeta,
+  ToolGroupDescriptor,
+} from "./toolRegistry";
 
 export { decidePolicy } from "./approvalPolicy";
 export { resolveProviderApiKey } from "./secrets";

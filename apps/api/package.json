@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@feature/agent-tools-backend": "0.1.0",
     "@feature/agents-backend": "0.1.0",
     "@feature/catalog-backend": "0.1.0",
     "@feature/chat-backend": "0.1.0",

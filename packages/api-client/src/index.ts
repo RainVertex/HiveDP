@@ -6,7 +6,7 @@ import type {
   ActiveChatModelDto,
   AiRecommendationsDto,
   AgentRun,
-  AgentToolDescriptor,
+  AgentToolsResponse,
   AuditEventRow,
   CatalogEntityKind,
   CatalogEntityOverview,
@@ -270,7 +270,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<AgentRun>(
           `/api/agents/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}`,
         ),
-      listTools: () => request<ListResponse<AgentToolDescriptor>>(`/api/agents/tools`),
+      listTools: () => request<AgentToolsResponse>(`/api/agents/tools`),
     },
 
     llm: {

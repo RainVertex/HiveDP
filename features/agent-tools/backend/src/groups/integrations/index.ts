@@ -1,8 +1,9 @@
 import { prisma } from "@internal/db";
 import type { RegisteredTool } from "@internal/llm-core";
-import { requireUserId } from "./core";
+import type { ToolGroup } from "../../types";
+import { requireUserId } from "../core";
 
-// Read-only chat tool listing enabled GitHub App installations so the model can resolve an org login to the
+// Read-only tool listing enabled GitHub App installations so the model can resolve an org login to the
 // cuid Integration.id team_request_prepare needs (without it the model hallucinates the id and submit fails).
 
 const listGithub: RegisteredTool = {
@@ -41,5 +42,12 @@ const listGithub: RegisteredTool = {
   },
 };
 
-export const INTEGRATIONS_READ_TOOLS: RegisteredTool[] = [listGithub];
-export const INTEGRATIONS_READ_TOOL_IDS = INTEGRATIONS_READ_TOOLS.map((t) => t.id);
+export const integrationsGroup: ToolGroup = {
+  meta: {
+    id: "integrations",
+    label: "Entegrasyonlar",
+    description: "Bağlı GitHub kurulumları.",
+    order: 70,
+  },
+  tools: [listGithub],
+};

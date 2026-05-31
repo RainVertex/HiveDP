@@ -39,6 +39,18 @@ export interface AgentToolDescriptor {
   description: string;
 }
 
+export interface AgentToolGroup {
+  id: string;
+  label: string;
+  description: string;
+  tools: AgentToolDescriptor[];
+}
+
+export interface AgentToolsResponse {
+  items: AgentToolDescriptor[];
+  groups: AgentToolGroup[];
+}
+
 export interface Agent extends NamedEntity {
   avatarUrl?: string | null;
   category?: string | null;

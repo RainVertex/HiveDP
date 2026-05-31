@@ -3,12 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageLayout, AgentAvatar } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
-import type {
-  Agent,
-  AgentToolDescriptor,
-  ApprovalMode,
-  LlmModelSummary,
-} from "@internal/shared-types";
+import type { Agent, AgentToolGroup, ApprovalMode, LlmModelSummary } from "@internal/shared-types";
 import { fileToAvatarDataUrl } from "./avatarImage";
 
 const KIND_OPTIONS = ["custom", "catalog-enrichment", "platform-assistant"];
@@ -20,7 +15,8 @@ export function AgentFormPage() {
   const isEdit = Boolean(id);
 
   const [models, setModels] = useState<LlmModelSummary[]>([]);
-  const [tools, setTools] = useState<AgentToolDescriptor[]>([]);
+  const [toolGroups, setToolGroups] = useState<AgentToolGroup[]>([]);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [categories, setCategories] = useState<string[]>([]);
   const [recommendedIds, setRecommendedIds] = useState<string[]>([]);
   const [requiresTools, setRequiresTools] = useState(false);
@@ -50,7 +46,7 @@ export function AgentFormPage() {
       .catch((err) => setError(err.message ?? "Failed to load models"));
     api.agents
       .listTools()
-      .then((res) => setTools(res.items))
+      .then((res) => setToolGroups(res.groups))
       .catch(() => {});
     api.agents
       .list()
@@ -124,6 +120,22 @@ export function AgentFormPage() {
 
   function toggleTool(tid: string) {
     setToolIds((prev) => (prev.includes(tid) ? prev.filter((t) => t !== tid) : [...prev, tid]));
+  }
+
+  // One checkbox per group: if all are selected it clears the group, otherwise it adds the missing ones.
+  function toggleGroup(group: AgentToolGroup) {
+    const ids = group.tools.map((t) => t.id);
+    const allSelected = ids.every((id) => toolIds.includes(id));
+    setToolIds((prev) => {
+      if (allSelected) return prev.filter((id) => !ids.includes(id));
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return [...next];
+    });
+  }
+
+  function toggleGroupOpen(groupId: string) {
+    setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
   }
 
   async function onPickAvatar(file: File | undefined) {
@@ -272,26 +284,77 @@ export function AgentFormPage() {
         </Labeled>
 
         <Labeled label="Tools">
-          {tools.length === 0 ? (
+          {toolGroups.length === 0 ? (
             <p className="text-xs text-app-text-muted">No tools registered.</p>
           ) : (
-            <div className="grid gap-1.5">
-              {tools.map((t) => (
-                <label key={t.id} className="flex items-start gap-2 text-sm text-app-text">
-                  <input
-                    type="checkbox"
-                    checked={toolIds.includes(t.id)}
-                    onChange={() => toggleTool(t.id)}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    <span className="font-mono text-xs">{t.id}</span>
-                    {t.description && (
-                      <span className="block text-xs text-app-text-muted">{t.description}</span>
+            <div className="grid gap-2">
+              {toolGroups.map((group) => {
+                const ids = group.tools.map((t) => t.id);
+                const selectedCount = ids.filter((id) => toolIds.includes(id)).length;
+                const allSelected = ids.length > 0 && selectedCount === ids.length;
+                const someSelected = selectedCount > 0 && !allSelected;
+                const open = Boolean(openGroups[group.id]);
+                return (
+                  <div
+                    key={group.id}
+                    className="overflow-hidden rounded-md border border-app-border"
+                  >
+                    <div className="flex items-start gap-2 bg-app-surface px-2 py-1.5">
+                      <TristateCheckbox
+                        checked={allSelected}
+                        indeterminate={someSelected}
+                        onChange={() => toggleGroup(group)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => toggleGroupOpen(group.id)}
+                        aria-expanded={open}
+                        className="flex flex-1 items-start gap-2 text-left text-sm font-medium text-app-text"
+                      >
+                        <span className="mt-0.5 w-3 shrink-0 text-xs text-app-text-muted">
+                          {open ? "▾" : "▸"}
+                        </span>
+                        <span>
+                          {group.label}
+                          <span className="ml-1 text-xs font-normal text-app-text-muted">
+                            ({selectedCount}/{ids.length})
+                          </span>
+                          {group.description && (
+                            <span className="block text-xs font-normal text-app-text-muted">
+                              {group.description}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </div>
+                    {open && (
+                      <div className="grid gap-1.5 border-t border-app-border px-2 py-2">
+                        {group.tools.map((t) => (
+                          <label
+                            key={t.id}
+                            className="flex items-start gap-2 text-sm text-app-text"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={toolIds.includes(t.id)}
+                              onChange={() => toggleTool(t.id)}
+                              className="mt-0.5 text-app-primary focus:ring-app-primary"
+                            />
+                            <span>
+                              <span className="font-mono text-xs">{t.id}</span>
+                              {t.description && (
+                                <span className="block text-xs text-app-text-muted">
+                                  {t.description}
+                                </span>
+                              )}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
                     )}
-                  </span>
-                </label>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </Labeled>
@@ -465,6 +528,31 @@ function CategoryCombobox({
         </ul>
       )}
     </div>
+  );
+}
+
+// Native checkboxes can't show the indeterminate state via props, so set it on the DOM node.
+function TristateCheckbox({
+  checked,
+  indeterminate,
+  onChange,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="mt-0.5 text-app-primary focus:ring-app-primary"
+    />
   );
 }
 

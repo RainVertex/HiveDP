@@ -1,2 +1,2 @@
 export { chatRouter } from "./routes";
-export { registerChatTools } from "./tools";
+export { registerChatWriteTools } from "./tools";

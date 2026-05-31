@@ -1,5 +1,5 @@
 {
-  "name": "@feature/chat-backend",
+  "name": "@feature/agent-tools-backend",
   "version": "0.1.0",
   "private": true,
   "main": "src/index.ts",
@@ -11,17 +11,12 @@
     }
   },
   "dependencies": {
-    "@feature/agent-tools-backend": "0.1.0",
-    "@feature/teams-backend": "0.1.0",
-    "@internal/llm-core": "0.1.0",
+    "@feature/scaffolder-backend": "0.1.0",
     "@internal/db": "0.1.0",
-    "@internal/shared-types": "0.1.0",
-    "express": "^5.2.1",
-    "openai": "^6.37.0",
-    "zod": "^4.3.6"
+    "@internal/llm-core": "0.1.0",
+    "openai": "^6.37.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
     "typescript": "^6.0.2"
   },

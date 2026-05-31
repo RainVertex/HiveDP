@@ -1,57 +1,40 @@
-import { registerTools, type RegisteredTool } from "@internal/llm-core";
-import { CHAT_CORE_TOOLS, CHAT_CORE_TOOL_IDS } from "./core";
-import { TEAMS_READ_TOOLS, TEAMS_READ_TOOL_IDS } from "./teams";
-import { REQUESTS_READ_TOOLS, REQUESTS_READ_TOOL_IDS } from "./requests";
-import { CATALOG_READ_TOOLS, CATALOG_READ_TOOL_IDS } from "./catalog";
-import { ORG_READ_TOOLS, ORG_READ_TOOL_IDS } from "./org";
-import { NOTIFICATIONS_READ_TOOLS, NOTIFICATIONS_READ_TOOL_IDS } from "./notifications";
-import { INTEGRATIONS_READ_TOOLS, INTEGRATIONS_READ_TOOL_IDS } from "./integrations";
+import { registerTools, registerToolGroups, type RegisteredTool } from "@internal/llm-core";
 import { TEAM_REQUEST_WRITE_TOOLS, TEAM_REQUEST_WRITE_TOOL_IDS } from "./teamRequestWrites";
 import {
   MAINTAINER_REQUEST_WRITE_TOOLS,
   MAINTAINER_REQUEST_WRITE_TOOL_IDS,
 } from "./maintainerRequestWrites";
 
-// Aggregator registering chat tools so resolveTools() finds them when the Platform Assistant agent boots.
-// Write tools register only when CHAT_WRITE_TOOLS_ENABLED is unset or "true" (flip off if write quality is poor).
+// Chat write tools stay here because they need chat conversation context (the prepare/submit preview flow).
+// Read tools live in @feature/agent-tools-backend. Writes register only when CHAT_WRITE_TOOLS_ENABLED is unset or "true".
 
-export const CHAT_READ_TOOLS: RegisteredTool[] = [
-  ...CHAT_CORE_TOOLS,
-  ...TEAMS_READ_TOOLS,
-  ...REQUESTS_READ_TOOLS,
-  ...CATALOG_READ_TOOLS,
-  ...ORG_READ_TOOLS,
-  ...NOTIFICATIONS_READ_TOOLS,
-  ...INTEGRATIONS_READ_TOOLS,
-];
-
-export const CHAT_READ_TOOL_IDS: string[] = [
-  ...CHAT_CORE_TOOL_IDS,
-  ...TEAMS_READ_TOOL_IDS,
-  ...REQUESTS_READ_TOOL_IDS,
-  ...CATALOG_READ_TOOL_IDS,
-  ...ORG_READ_TOOL_IDS,
-  ...NOTIFICATIONS_READ_TOOL_IDS,
-  ...INTEGRATIONS_READ_TOOL_IDS,
-];
+const WRITE_GROUP = {
+  id: "team-requests-write",
+  label: "Takım istekleri (yazma)",
+  description: "Takım oluşturma isteği hazırlama ve gönderme.",
+  order: 80,
+};
 
 export const CHAT_WRITE_TOOLS: RegisteredTool[] = [
   ...TEAM_REQUEST_WRITE_TOOLS,
   ...MAINTAINER_REQUEST_WRITE_TOOLS,
-];
+].map((t) => ({ ...t, group: WRITE_GROUP.id }));
 
 export const CHAT_WRITE_TOOL_IDS: string[] = [
   ...TEAM_REQUEST_WRITE_TOOL_IDS,
   ...MAINTAINER_REQUEST_WRITE_TOOL_IDS,
 ];
 
-export function platformAssistantToolIds(): string[] {
-  const writesEnabled = process.env.CHAT_WRITE_TOOLS_ENABLED !== "false";
-  return writesEnabled ? [...CHAT_READ_TOOL_IDS, ...CHAT_WRITE_TOOL_IDS] : [...CHAT_READ_TOOL_IDS];
+function writesEnabled(): boolean {
+  return process.env.CHAT_WRITE_TOOLS_ENABLED !== "false";
 }
 
-export function registerChatTools(): void {
-  const writesEnabled = process.env.CHAT_WRITE_TOOLS_ENABLED !== "false";
-  registerTools(CHAT_READ_TOOLS);
-  if (writesEnabled) registerTools(CHAT_WRITE_TOOLS);
+export function chatWriteToolIds(): string[] {
+  return writesEnabled() ? [...CHAT_WRITE_TOOL_IDS] : [];
+}
+
+export function registerChatWriteTools(): void {
+  if (!writesEnabled()) return;
+  registerToolGroups([WRITE_GROUP]);
+  registerTools(CHAT_WRITE_TOOLS);
 }

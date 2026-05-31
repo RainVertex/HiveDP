@@ -1,6 +1,7 @@
 import { prisma } from "@internal/db";
 import type { RegisteredTool } from "@internal/llm-core";
-import { requireUserId } from "./core";
+import type { ToolGroup } from "../../types";
+import { requireUserId } from "../core";
 
 const myPending: RegisteredTool = {
   id: "requests_my_pending",
@@ -128,9 +129,12 @@ const myMaintainerRequests: RegisteredTool = {
   },
 };
 
-export const REQUESTS_READ_TOOLS: RegisteredTool[] = [
-  myPending,
-  myTeamRequests,
-  myMaintainerRequests,
-];
-export const REQUESTS_READ_TOOL_IDS = REQUESTS_READ_TOOLS.map((t) => t.id);
+export const requestsGroup: ToolGroup = {
+  meta: {
+    id: "requests",
+    label: "İstekler",
+    description: "Kullanıcının açık istekleri ve durumları.",
+    order: 30,
+  },
+  tools: [myPending, myTeamRequests, myMaintainerRequests],
+};

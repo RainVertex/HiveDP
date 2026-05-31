@@ -1,6 +1,7 @@
 import { prisma } from "@internal/db";
 import type { RegisteredTool } from "@internal/llm-core";
-import { requireUserId } from "./core";
+import type { ToolGroup } from "../../types";
+import { requireUserId } from "../core";
 
 const listDepartments: RegisteredTool = {
   id: "org_list_departments",
@@ -67,5 +68,12 @@ const getDepartment: RegisteredTool = {
   },
 };
 
-export const ORG_READ_TOOLS: RegisteredTool[] = [listDepartments, getDepartment];
-export const ORG_READ_TOOL_IDS = ORG_READ_TOOLS.map((t) => t.id);
+export const orgGroup: ToolGroup = {
+  meta: {
+    id: "org",
+    label: "Organizasyon",
+    description: "Departman listeleme ve detayları.",
+    order: 50,
+  },
+  tools: [listDepartments, getDepartment],
+};

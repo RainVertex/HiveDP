@@ -2,7 +2,12 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "@internal/db";
-import { listAvailableTools, resolveTools, recommendationsForKind } from "@internal/llm-core";
+import {
+  listAvailableTools,
+  listToolGroups,
+  resolveTools,
+  recommendationsForKind,
+} from "@internal/llm-core";
 import { runAgent, startAgentRun } from "./executor";
 
 export {
@@ -22,7 +27,6 @@ export {
   type AgentJobDefinition,
   type AgentJobContext,
 } from "./jobs";
-export { registerAgentTools, CATALOG_TOOLS } from "./catalogTools";
 export {
   registerTools,
   resolveTools,
@@ -132,12 +136,14 @@ agentsRouter.get("/", async (req, res) => {
 
 agentsRouter.get("/tools", (req, res) => {
   if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+  const ctx = {
+    userId: req.user.id,
+    isAdmin: req.user.role === "admin",
+    teamIds: [],
+  };
   res.json({
-    items: listAvailableTools({
-      userId: req.user.id,
-      isAdmin: req.user.role === "admin",
-      teamIds: [],
-    }),
+    items: listAvailableTools(ctx),
+    groups: listToolGroups(ctx),
   });
 });
 

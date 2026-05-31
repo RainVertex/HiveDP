@@ -1,6 +1,7 @@
 import { prisma } from "@internal/db";
 import type { RegisteredTool } from "@internal/llm-core";
-import { requireUserId } from "./core";
+import type { ToolGroup } from "../../types";
+import { requireUserId } from "../core";
 
 const listMine: RegisteredTool = {
   id: "teams_list_mine",
@@ -115,5 +116,12 @@ const listMembers: RegisteredTool = {
   },
 };
 
-export const TEAMS_READ_TOOLS: RegisteredTool[] = [listMine, getTeam, listMembers];
-export const TEAMS_READ_TOOL_IDS = TEAMS_READ_TOOLS.map((t) => t.id);
+export const teamsGroup: ToolGroup = {
+  meta: {
+    id: "teams",
+    label: "Takımlar",
+    description: "Takım listeleme ve üyelik sorguları.",
+    order: 20,
+  },
+  tools: [listMine, getTeam, listMembers],
+};
