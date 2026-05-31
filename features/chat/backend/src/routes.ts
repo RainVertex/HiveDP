@@ -80,6 +80,19 @@ async function findConversation(conversationId: string, userId: string) {
   });
 }
 
+// Resolves the per-conversation agent identity so summaries carry the avatar before the first detail fetch.
+async function loadAgentIdentities(
+  agentIds: string[],
+): Promise<Map<string, { name: string; avatarUrl: string | null }>> {
+  const ids = [...new Set(agentIds)];
+  if (ids.length === 0) return new Map();
+  const agents = await prisma.agent.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, avatarUrl: true },
+  });
+  return new Map(agents.map((a) => [a.id, { name: a.name, avatarUrl: a.avatarUrl }]));
+}
+
 async function resolveChatReadiness(): Promise<{ ready: boolean; reason: string | null }> {
   const activeModelId = await getSetting<string>("chat.activeModelId");
   if (!activeModelId) return { ready: false, reason: "no_active_model" };
@@ -117,12 +130,15 @@ chatRouter.get("/conversations", async (req, res) => {
       },
     },
   });
+  const agents = await loadAgentIdentities(rows.map((r) => r.agentId));
   const dto: ChatConversationSummaryDto[] = rows.map((r) => ({
     id: r.id,
     title: r.title,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     lastAssistantAt: r.messages[0]?.createdAt.toISOString() ?? null,
+    assistantName: agents.get(r.agentId)?.name ?? null,
+    assistantAvatarUrl: agents.get(r.agentId)?.avatarUrl ?? null,
   }));
   res.json(dto);
 });
@@ -137,12 +153,18 @@ chatRouter.post("/conversations", async (req, res) => {
       title: parsed.title ?? "New chat",
     },
   });
+  const agent = await prisma.agent.findUnique({
+    where: { id: conv.agentId },
+    select: { name: true, avatarUrl: true },
+  });
   const dto: ChatConversationSummaryDto = {
     id: conv.id,
     title: conv.title,
     createdAt: conv.createdAt.toISOString(),
     updatedAt: conv.updatedAt.toISOString(),
     lastAssistantAt: null,
+    assistantName: agent?.name ?? null,
+    assistantAvatarUrl: agent?.avatarUrl ?? null,
   };
   res.status(201).json(dto);
 });

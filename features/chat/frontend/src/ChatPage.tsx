@@ -161,6 +161,23 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
+  // Platform Assistant identity is global; cache the last one we see so the live bubble keeps its avatar while `active` is briefly null.
+  const assistantRef = useRef<{ name: string | null; avatarUrl: string | null }>({
+    name: null,
+    avatarUrl: null,
+  });
+  const seenAssistant =
+    active?.assistantName || active?.assistantAvatarUrl
+      ? active
+      : conversations.find((c) => c.assistantName || c.assistantAvatarUrl);
+  if (seenAssistant && (seenAssistant.assistantName || seenAssistant.assistantAvatarUrl)) {
+    assistantRef.current = {
+      name: seenAssistant.assistantName ?? null,
+      avatarUrl: seenAssistant.assistantAvatarUrl ?? null,
+    };
+  }
+  const assistant = assistantRef.current;
+
   const mainPane = (
     <main className="flex h-full flex-1 flex-col bg-app-bg">
       <header className="flex items-center gap-2 border-b border-app-border bg-app-surface px-3 py-2.5 sm:px-4 sm:py-3">
@@ -193,8 +210,8 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
           stream={stream}
           userName={userName}
           userAvatarUrl={userAvatarUrl}
-          assistantName={active?.assistantName ?? undefined}
-          assistantAvatarUrl={active?.assistantAvatarUrl}
+          assistantName={assistant.name ?? undefined}
+          assistantAvatarUrl={assistant.avatarUrl}
         />
       )}
       <Composer

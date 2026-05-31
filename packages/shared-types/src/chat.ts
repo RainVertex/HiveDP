@@ -30,12 +30,12 @@ export interface ChatConversationSummaryDto {
   createdAt: ISODateString;
   updatedAt: ISODateString;
   lastAssistantAt: ISODateString | null;
+  assistantName?: string | null;
+  assistantAvatarUrl?: string | null;
 }
 
 export interface ChatConversationDetailDto extends ChatConversationSummaryDto {
   messages: ChatMessageDto[];
-  assistantName?: string | null;
-  assistantAvatarUrl?: string | null;
 }
 
 // reason is "no_active_model" when none selected, "model_unavailable" when selected model is disabled or lost its key.

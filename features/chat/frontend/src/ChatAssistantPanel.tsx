@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "@internal/api-client/react";
 import type { ChatConversationDetailDto } from "@internal/shared-types";
@@ -86,6 +86,19 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
     reset();
   }, [reset]);
 
+  // Platform Assistant identity is global; cache the last one we see so the live bubble keeps its avatar while `active` is briefly null.
+  const assistantRef = useRef<{ name: string | null; avatarUrl: string | null }>({
+    name: null,
+    avatarUrl: null,
+  });
+  if (active && (active.assistantName || active.assistantAvatarUrl)) {
+    assistantRef.current = {
+      name: active.assistantName ?? null,
+      avatarUrl: active.assistantAvatarUrl ?? null,
+    };
+  }
+  const assistant = assistantRef.current;
+
   return (
     // -m-4 cancels WidgetFrame's inner padding so MessageList/Composer sit flush.
     <div className="-m-4 flex h-[calc(100%+2rem)] flex-col">
@@ -118,8 +131,8 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
           stream={stream}
           userName={userName}
           userAvatarUrl={userAvatarUrl}
-          assistantName={active?.assistantName ?? undefined}
-          assistantAvatarUrl={active?.assistantAvatarUrl}
+          assistantName={assistant.name ?? undefined}
+          assistantAvatarUrl={assistant.avatarUrl}
         />
         <Composer
           onSend={handleSend}
