@@ -1,5 +1,5 @@
 // Admin form to create or edit an agent (model, prompt, tools, approval mode, limits).
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageLayout, AgentAvatar } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
@@ -21,6 +21,7 @@ export function AgentFormPage() {
 
   const [models, setModels] = useState<LlmModelSummary[]>([]);
   const [tools, setTools] = useState<AgentToolDescriptor[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [recommendedIds, setRecommendedIds] = useState<string[]>([]);
   const [requiresTools, setRequiresTools] = useState(false);
 
@@ -50,6 +51,17 @@ export function AgentFormPage() {
     api.agents
       .listTools()
       .then((res) => setTools(res.items))
+      .catch(() => {});
+    api.agents
+      .list()
+      .then((res) => {
+        const distinct = [
+          ...new Set(
+            res.items.map((a) => a.category?.trim()).filter((c): c is string => Boolean(c)),
+          ),
+        ].sort((a, b) => a.localeCompare(b));
+        setCategories(distinct);
+      })
       .catch(() => {});
   }, [api]);
 
@@ -195,12 +207,12 @@ export function AgentFormPage() {
         </Labeled>
 
         <Labeled label="Category">
-          <input
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="e.g. Plan & Coordinate"
-            className={inputCls}
-          />
+          <CategoryCombobox value={category} onChange={setCategory} options={categories} />
+          {categories.length > 0 && (
+            <p className="mt-1 text-xs text-app-text-muted">
+              Pick an existing category or type a new one.
+            </p>
+          )}
         </Labeled>
 
         <Labeled label="Avatar">
@@ -384,6 +396,77 @@ export function AgentFormPage() {
 
 const inputCls =
   "w-full rounded-md border border-app-border bg-app-surface px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-primary";
+
+// Free-text input plus a theme-styled dropdown of existing values (native datalist cannot be themed).
+function CategoryCombobox({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocMouseDown(e: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [open]);
+
+  const q = value.trim().toLowerCase();
+  const filtered = q ? options.filter((o) => o.toLowerCase().includes(q)) : options;
+
+  return (
+    <div ref={rootRef} className="relative">
+      <input
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+        placeholder="e.g. Plan & Coordinate"
+        className={`${inputCls} ${options.length > 0 ? "pr-8" : ""}`}
+      />
+      {options.length > 0 && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Toggle category list"
+          onClick={() => setOpen((v) => !v)}
+          className="absolute inset-y-0 right-0 flex items-center px-2 text-xs text-app-text-muted"
+        >
+          ▾
+        </button>
+      )}
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border border-app-border bg-app-surface py-1 shadow-lg">
+          {filtered.map((o) => (
+            <li key={o}>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(o);
+                  setOpen(false);
+                }}
+                className="block w-full px-2 py-1.5 text-left text-sm text-app-text hover:bg-app-surface-hover"
+              >
+                {o}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function Labeled({
   label,
