@@ -72,6 +72,8 @@ export interface Agent extends NamedEntity {
   };
 }
 
+export type AgentRunTrigger = "chat" | "task" | "test" | "manual" | "cron";
+
 export interface AgentRun extends Timestamped {
   id: ID;
   agentId: ID;
@@ -84,6 +86,10 @@ export interface AgentRun extends Timestamped {
   costUsd?: number | null;
   startedAt: ISODateString;
   finishedAt?: ISODateString | null;
+  // How the run was started and what it acted on, for the per-agent activity history.
+  trigger?: AgentRunTrigger | null;
+  task?: { id: ID; title: string; projectId: ID } | null;
+  conversation?: { id: ID; title: string } | null;
 }
 
 export interface CreateAgentInput {

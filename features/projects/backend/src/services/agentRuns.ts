@@ -47,6 +47,8 @@ async function runAgentForTask({
       callerUserId: agentUserId,
       callerIsAdmin: false,
       callerTeamIds: memberships.map((m) => m.teamId),
+      trigger: "task",
+      taskId: task.id,
     },
   );
 

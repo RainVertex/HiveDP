@@ -203,6 +203,8 @@ export function AgentDetailPage() {
             <thead>
               <tr className="text-left text-app-text-muted">
                 <th className="py-1">Started</th>
+                <th className="py-1">Trigger</th>
+                <th className="py-1">Context</th>
                 <th className="py-1">Status</th>
                 <th className="py-1">Tokens</th>
                 <th className="py-1">Cost</th>
@@ -213,6 +215,18 @@ export function AgentDetailPage() {
                 <tr key={r.id} className="border-t border-app-border">
                   <td className="py-1.5 text-app-text-muted">
                     {new Date(r.startedAt).toLocaleString()}
+                  </td>
+                  <td className="py-1.5 text-app-text-muted">
+                    {r.trigger ? (
+                      <span className="rounded-full border border-app-border bg-app-surface px-2 py-0.5">
+                        {r.trigger}
+                      </span>
+                    ) : (
+                      <span className="text-app-text-muted">-</span>
+                    )}
+                  </td>
+                  <td className="py-1.5">
+                    <RunContext run={r} />
                   </td>
                   <td className="py-1.5 text-app-text">{r.status}</td>
                   <td className="py-1.5 text-app-text-muted">
@@ -249,4 +263,23 @@ function Field({ label, value }: { label: string; value: string }) {
       <div className="text-app-text">{value}</div>
     </div>
   );
+}
+
+// Links a run back to what it acted on: the task it worked, the conversation it answered, or nothing for test/manual/cron runs.
+function RunContext({ run }: { run: AgentRun }) {
+  if (run.task) {
+    return (
+      <Link to={`/tasks/${run.task.id}`} className="text-app-primary hover:underline">
+        {run.task.title}
+      </Link>
+    );
+  }
+  if (run.conversation) {
+    return (
+      <Link to={`/chat/${run.conversation.id}`} className="text-app-primary hover:underline">
+        {run.conversation.title}
+      </Link>
+    );
+  }
+  return <span className="text-app-text-muted">-</span>;
 }

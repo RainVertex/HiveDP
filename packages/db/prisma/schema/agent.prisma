@@ -7,8 +7,7 @@ enum AgentStatus {
 
 // Configured upstream the platform can reach (Ollama, OpenAI, Anthropic via
 // its OpenAI-compatible endpoint, vLLM, etc.). Every provider is talked to
-// via the OpenAI SDK; only baseUrl + the optional env-var-referenced API key
-// differ. Secrets stay in env, not the database.
+// via the OpenAI SDK.
 model LlmProvider {
   id           String     @id @default(cuid())
   slug         String     @unique
@@ -104,8 +103,13 @@ model Agent {
 model AgentRun {
   id             String      @id @default(cuid())
   agentId        String
-  // The user who invoked this run (chat turn, /test, manual /run). Null for system/cron runs (e.g. the catalog enricher). Run reads are scoped to this owner; null-owner runs are admin-only.
+  // The user who invoked this run (chat turn, /test, manual /run).
   userId         String?
+  // How the run was started: "chat" | "task" | "test" | "manual" | "cron". Null for legacy rows.
+  trigger        String?
+  // Context the run acted on, when applicable, so a bot's history links back to the task/conversation.
+  taskId         String?
+  conversationId String?
   status         AgentStatus
   input          Json
   output         Json?
@@ -118,10 +122,14 @@ model AgentRun {
   finishedAt     DateTime?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
-  agent          Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  user           User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  agent          Agent             @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user           User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  task           Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  conversation   ChatConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
   @@index([agentId])
   @@index([status])
   @@index([userId])
+  @@index([taskId])
+  @@index([conversationId])
 }

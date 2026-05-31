@@ -168,6 +168,18 @@ agentsRouter.get("/:id", async (req, res) => {
         where: isAdmin ? undefined : { userId: req.user.id },
         orderBy: { startedAt: "desc" },
         take: 20,
+        select: {
+          id: true,
+          status: true,
+          trigger: true,
+          tokensInput: true,
+          tokensOutput: true,
+          costUsd: true,
+          startedAt: true,
+          finishedAt: true,
+          task: { select: { id: true, title: true, projectId: true } },
+          conversation: { select: { id: true, title: true } },
+        },
       },
     },
   });
@@ -358,6 +370,7 @@ agentsRouter.post("/:id/test", async (req, res) => {
         callerUserId: req.user.id,
         callerIsAdmin: req.user.role === "admin",
         callerTeamIds: teamIds,
+        trigger: "test",
       },
     );
     res.json(result);
@@ -388,6 +401,7 @@ agentsRouter.post("/:id/run", async (req, res) => {
       callerUserId: req.user.id,
       callerIsAdmin: req.user.role === "admin",
       callerTeamIds: teamIds,
+      trigger: "manual",
     });
     res.status(202).json({ runId: kicked.runId, agentId: req.params.id, status: "running" });
   } catch (err) {

@@ -88,6 +88,8 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
     data: {
       agentId: args.agentId,
       userId: args.callerUserId,
+      trigger: "chat",
+      conversationId: args.conversationId,
       status: "running",
       input: {
         conversationId: args.conversationId,

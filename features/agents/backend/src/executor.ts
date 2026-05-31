@@ -42,6 +42,10 @@ export interface RunAgentOptions {
   callerIsAdmin?: boolean;
   callerTeamIds?: string[];
   existingRunId?: string;
+  // Provenance recorded on the AgentRun so a bot's history is queryable and contextual.
+  trigger?: string;
+  taskId?: string | null;
+  conversationId?: string | null;
 }
 
 export async function runAgent(
@@ -61,6 +65,9 @@ export async function runAgent(
         data: {
           agentId,
           userId: opts.callerUserId ?? null,
+          trigger: opts.trigger ?? null,
+          taskId: opts.taskId ?? null,
+          conversationId: opts.conversationId ?? null,
           status: "running",
           input: input as Prisma.InputJsonValue,
         },
@@ -243,6 +250,9 @@ export async function startAgentRun(
     data: {
       agentId,
       userId: opts.callerUserId ?? null,
+      trigger: opts.trigger ?? null,
+      taskId: opts.taskId ?? null,
+      conversationId: opts.conversationId ?? null,
       status: "running",
       input: input as Prisma.InputJsonValue,
     },
@@ -278,7 +288,10 @@ export async function runEnricherForEntity(
   input: EnricherInput,
   opts: RunEnricherOptions = {},
 ): Promise<EnricherRunResult> {
-  const result = await runAgent(agentId, input as unknown as RunAgentInput, opts);
+  const result = await runAgent(agentId, input as unknown as RunAgentInput, {
+    ...opts,
+    trigger: "cron",
+  });
   const driftsProposed = result.toolCalls.filter(
     (c) => c.name === "catalog_propose_drift" && !c.isError,
   ).length;

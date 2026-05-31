@@ -93,6 +93,7 @@ model Task {
   assignees       TaskAssignee[]
   labels          TaskLabel[]
   comments        TaskComment[]
+  agentRuns       AgentRun[]
 
   @@index([projectId, done])
   @@index([projectId, bucketId, position])

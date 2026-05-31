@@ -16,6 +16,7 @@ model ChatConversation {
   agent     Agent               @relation(fields: [agentId], references: [id], onDelete: Restrict)
   messages  ChatMessage[]
   previews  ChatActionPreview[]
+  agentRuns AgentRun[]
 
   @@index([userId, updatedAt])
   @@index([agentId])
