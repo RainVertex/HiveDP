@@ -1,3 +1,4 @@
+// Scaffolder action that upserts the ScaffoldBinding row and writes .platform/binding.yaml.
 import { promises as fs } from "node:fs";
 import { dirname, join } from "node:path";
 import { z } from "zod";

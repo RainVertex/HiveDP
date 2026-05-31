@@ -1,16 +1,15 @@
+// Debounced user search picker backed by GET /api/users?query=.
 import { useEffect, useRef, useState } from "react";
 import { useApi } from "@internal/api-client/react";
 import type { UserSummary } from "@internal/shared-types";
 
 interface UserPickerProps {
-  /** User ids that should not be selectable (e.g. */
   excludeIds?: string[];
   onSelect: (user: UserSummary) => void;
   placeholder?: string;
   disabled?: boolean;
 }
 
-/** Debounced search hitting `GET /api/users?query=`. */
 export function UserPicker({
   excludeIds = [],
   onSelect,

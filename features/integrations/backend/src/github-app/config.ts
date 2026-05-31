@@ -1,26 +1,5 @@
-// GitHub App configuration is per-platform-instance (one App, multiple
-// installations). All values come from env so that App credentials never
-// touch the database. Values are optional at process start, the install
-// flow returns 503 with a friendly message until they're set.
-//
-// REQUIRED GITHUB APP PERMISSIONS (configure in the App's GitHub settings):
-//
-// Repository permissions:
-// - Administration: Read (revoke installation on disconnect)
-// - Contents: Read (read catalog-info.yaml, CODEOWNERS)
-// - Metadata: Read (mandatory. list repos)
-// Organization permissions:
-// - Members: Read (list teams + team members for sync)
-// - Administration: Read (read org metadata, optional)
-//
-// Subscribed events:
-// installation, installation_repositories, repository, push
-// team, membership, organization
-//
-// When new permissions are added to an existing App, current installations
-// must accept the upgrade in their GitHub UI before the new APIs are usable.
-// Missing perms surface as 403/404 from teams.list / orgs.listMembers. the
-// reconciliation routine logs and skips, leaving prior state intact.
+// Loads GitHub App credentials from env (never the database), returning missing keys if unset.
+// Adding new App permissions requires installations to accept the upgrade before those APIs work.
 
 export interface GitHubAppConfig {
   appId: string;
@@ -62,8 +41,7 @@ export function loadGitHubAppConfig(): GitHubAppConfigResult {
     if (!v) {
       missing.push(envKey);
     } else {
-      // PEM keys are commonly stored as a single line with "\n" escapes when
-      // round-tripped through .env files. Restore real newlines.
+      // .env files store PEM keys with escaped \n, restore real newlines.
       values[k] = k === "privateKey" ? v.replace(/\\n/g, "\n") : v;
     }
   }

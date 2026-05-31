@@ -1,3 +1,4 @@
+// Modal dialog for manually registering an existing service into the catalog.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApi } from "@internal/api-client/react";
 import type { CatalogEntityKind, TeamSummary } from "@internal/shared-types";
@@ -39,9 +40,7 @@ export function RegisterEntityDialog({ open, onClose, onCreated }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    // Load teams across all orgs so the owner dropdown can be filtered
-    // client-side once the user picks an org. allOrgs=1 is the simplest way
-    // to make this work for admins and members alike.
+    // Load teams across all orgs so the owner dropdown can be filtered client-side after org pick.
     api.teams
       .list({ allOrgs: true })
       .then((res) => setTeams(res.items))
@@ -54,8 +53,7 @@ export function RegisterEntityDialog({ open, onClose, onCreated }: Props) {
         if (opts.length > 0 && !accountLogin) setAccountLogin(opts[0].accountLogin);
       })
       .catch(() => setOrgs([]));
-    // accountLogin is intentionally not a dep here. we only initialize once
-    // per open.
+    // accountLogin intentionally omitted from deps; we only initialize once per open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, open]);
 
@@ -64,8 +62,7 @@ export function RegisterEntityDialog({ open, onClose, onCreated }: Props) {
     [teams, accountLogin],
   );
 
-  // Drop any owner team that doesn't belong to the newly picked org so the
-  // submit body can never contain cross-org owners.
+  // Drop owners not in the picked org so the submit body never contains cross-org owners.
   useEffect(() => {
     if (ownerTeamIds.length === 0) return;
     const valid = new Set(teamsForSelectedOrg.map((t) => t.id));

@@ -1,6 +1,6 @@
+// Trivial unified-diff producer for plan() output.
 import type { UnifiedDiff } from "./types";
 
-/** Trivial unified-diff producer for plan() output. */
 export function makeUnifiedDiff(
   before: string | null,
   after: string | null,

@@ -9,7 +9,7 @@ interface RespondToProposalDialogProps {
   onResponded: (next: TeamRequestDto) => void;
 }
 
-/** Requester-side counter-proposal dialog. */
+// Requester-side dialog for countering an admin's team-request proposal.
 export function RespondToProposalDialog({
   request,
   onClose,

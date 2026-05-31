@@ -1,3 +1,4 @@
+// Sidebar rendering a section's page tree with create, rename, move, and delete.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useApi } from "@internal/api-client/react";
@@ -87,7 +88,7 @@ function saveExpanded(section: PageSection, set: Set<string>): void {
   try {
     window.localStorage.setItem(expandedKey(section), JSON.stringify(Array.from(set)));
   } catch {
-    // best-effort
+    // Persisting expanded state is best-effort.
   }
 }
 

@@ -1,8 +1,7 @@
-/** Redacts known secret values from log lines. */
+// Redactor: masks registered secret values in log output.
 export class Redactor {
   private secrets: string[] = [];
 
-  /** Register a secret value. */
   add(value: string | undefined | null): this {
     if (!value) return this;
     if (value.length < 4) return this;

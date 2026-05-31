@@ -1,13 +1,14 @@
+// Toolbar with Customize/edit-mode controls (clear, add, cancel, save, reset) for a widget grid.
 import { AddWidgetMenu } from "./AddWidgetMenu";
 import type { WidgetDefinition } from "./types";
 import type { UseGridLayoutResult } from "./useGridLayout";
 import type { UseRemoteGridLayoutResult } from "./useRemoteGridLayout";
 
 interface WidgetEditToolbarProps<TId extends string> {
-  /** Accepts either the localStorage-backed hook (home page) or the server-backed hook */
+  // Accepts either the localStorage-backed hook (home page) or the server-backed hook.
   layout: UseGridLayoutResult<TId> | UseRemoteGridLayoutResult<TId>;
   availableWidgets: WidgetDefinition<TId>[];
-  /** Hide the "Reset" button when there's no inherent default to reset to (i.e. */
+  // Hide "Reset" when there's no inherent default to reset to.
   hideReset?: boolean;
 }
 

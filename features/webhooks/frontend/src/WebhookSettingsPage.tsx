@@ -1,3 +1,4 @@
+// Settings page for managing user-scoped and team-scoped outbound webhooks.
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";
@@ -19,7 +20,6 @@ const KNOWN_EVENT_KINDS = [
 ];
 
 interface WebhookSettingsPageProps {
-  /** When set, the page manages team-scoped webhooks for this slug. */
   scope?: "user" | "team";
 }
 

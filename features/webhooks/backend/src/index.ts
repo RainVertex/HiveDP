@@ -1,3 +1,4 @@
+// Webhook subscription REST router (CRUD, test ping, delivery history) plus delivery/job re-exports.
 import { Router } from "express";
 import { z } from "zod";
 import { Prisma, prisma } from "@internal/db";
@@ -166,8 +167,7 @@ webhooksRouter.post("/", async (req, res, next) => {
       });
       return created;
     });
-    // Secret is included once on create so the caller can record it. never
-    // returned by GET endpoints again.
+    // Secret is returned only here on create, never by GET endpoints again.
     res.status(201).json(toSubDto(sub, true));
   } catch (err) {
     next(err);

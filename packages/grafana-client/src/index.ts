@@ -1,13 +1,5 @@
-// Thin typed wrapper around the Grafana HTTP API. One client instance maps to
-// one Integration row (one baseUrl + one service-account token). Stateless
-// beyond that, safe to instantiate per-request.
-//
-// Topology: backend never talks to Prometheus / Loki / Tempo directly. Every
-// upstream call goes through Grafana's `/api/datasources/proxy/uid/<uid>/...`
-// so this client owns three concerns: (1) datasource discovery, (2) proxying
-// queries to whichever datasource UID the integration was configured with
-// (3) the render endpoint for dashboard PNG embeds.
-
+// Thin typed wrapper around the Grafana HTTP API; Prometheus/Loki/Tempo are reached only via Grafana's datasource proxy.
+// One client maps to one Integration (baseUrl + service-account token); stateless and safe to instantiate per-request.
 import type { LokiLogLine, TempoSpan, TempoTrace } from "@internal/shared-types";
 import type {
   GrafanaClientConfig,
@@ -37,10 +29,7 @@ export class GrafanaApiError extends Error {
 }
 
 export interface LogsQueryOpts {
-  /**
-   * Override for the default trace-id extraction regex set. First capture
-   * group is the trace ID. Compiled once per call.
-   */
+  // Overrides the default trace-id regex set; first capture group is the trace ID.
   traceIdRegex?: string;
 }
 
@@ -60,11 +49,7 @@ export interface GrafanaClient {
   renderPanel(opts: RenderPanelOpts): Promise<Buffer>;
 }
 
-// Default trace-id extraction regexes. Ordered most-specific first so we
-// prefer structured fields (`"trace_id": "..."`, `traceparent: ...`) over
-// the unstructured `traceID=` form which can match neighboring text.
-// Widths 16 (8-byte Jaeger) and 32 (16-byte W3C/OTel). case-insensitive
-// where applicable.
+// Ordered most-specific first so structured fields win over the unstructured `traceID=` form, which can match neighboring text.
 const DEFAULT_TRACE_ID_REGEXES: RegExp[] = [
   /"trace_id"\s*:\s*"([0-9a-f]{16,32})"/i,
   /traceparent:\s*\d+-([0-9a-f]{32})-/i,
@@ -162,9 +147,7 @@ export function createGrafanaClient(config: GrafanaClientConfig): GrafanaClient 
 
   function nsToMs(ns: string | number | undefined): number {
     if (ns === undefined) return 0;
-    // Stay precise enough for Date math: divide via Number after BigInt parse
-    // to avoid the floating-point precision loss `Number(bigNs) / 1e6` brings
-    // for nanosecond timestamps.
+    // Divide as BigInt to avoid the float precision loss `Number(bigNs) / 1e6` brings for nanosecond timestamps.
     try {
       const big = typeof ns === "string" ? BigInt(ns) : BigInt(Math.trunc(ns));
       return Number(big / 1_000_000n);
@@ -271,8 +254,7 @@ export function createGrafanaClient(config: GrafanaClientConfig): GrafanaClient 
           });
         }
       }
-      // Loki returns oldest-first per stream; sort overall newest-first to
-      // match the panel UI (most recent at top).
+      // Loki returns oldest-first per stream; re-sort newest-first to match the panel UI.
       out.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0));
       return out;
     },
@@ -283,9 +265,7 @@ export function createGrafanaClient(config: GrafanaClientConfig): GrafanaClient 
     },
 
     checkImageRenderer: async () => {
-      // The plugin advertises itself at /api/plugins/grafana-image-renderer/settings
-      // when installed and enabled. 404 ⇒ plugin absent. Anything other than
-      // 200 ⇒ assume unavailable so the embed endpoint degrades cleanly.
+      // Non-200 from the plugin settings endpoint means absent/disabled, so the embed endpoint degrades cleanly.
       try {
         const res = await fetchImpl(`${baseUrl}/api/plugins/grafana-image-renderer/settings`, {
           headers: authHeader,

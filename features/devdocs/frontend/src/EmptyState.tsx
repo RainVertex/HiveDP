@@ -1,3 +1,4 @@
+// Placeholder shown when an entity has no DevDocs, explaining how to add them and offering a resync.
 import type { DocSyncStateRow } from "@internal/shared-types";
 
 export interface EmptyStateProps {

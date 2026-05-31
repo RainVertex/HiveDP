@@ -1,8 +1,4 @@
-// Per-type datasource picker reused by the Grafana connect dialog and the
-// configure panel. Three datasource types (Prometheus, Loki, Tempo), same
-// pattern: render a select when candidates exist, render a "no datasource"
-// note otherwise. Prometheus is required (the scrape job depends on it).
-// Loki and Tempo are optional.
+// Datasource picker for the Grafana connect/configure flows (Prometheus required, Loki/Tempo optional).
 
 export interface DatasourceCandidate {
   uid: string;

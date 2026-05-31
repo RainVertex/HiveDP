@@ -1,3 +1,4 @@
+// Projects landing page: lists projects and hosts the create-project form.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";

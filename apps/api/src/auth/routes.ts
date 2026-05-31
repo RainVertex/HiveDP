@@ -1,3 +1,4 @@
+// Express router for the GitHub OAuth sign-in/sign-out flow and the /me endpoint.
 import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { prisma } from "@internal/db";
@@ -101,11 +102,7 @@ authRouter.get("/github/callback", authCallbackLimiter, async (req, res, next) =
       env.bootstrapAdminEmail.length > 0 &&
       gh.primaryEmail === env.bootstrapAdminEmail;
 
-    // Admins bypass the integration-org membership check so they can sign in
-    // to configure the first GitHub integration (bootstrap case) and so an
-    // existing admin can't get locked out if temporarily removed from every
-    // org. All other users must be an active member of at least one enabled
-    // kind=github Integration's org.
+    // Admins bypass the org check so they can bootstrap the first integration and never get locked out.
     const skipOrgCheck = shouldBootstrapAdmin || existingUser?.role === "admin";
 
     let activeLogins: string[] = [];
@@ -150,11 +147,7 @@ authRouter.get("/github/callback", authCallbackLimiter, async (req, res, next) =
       return;
     }
 
-    // Persist which orgs GitHub just confirmed for this user. The integration
-    // disconnect flow reads this to identify users who must be disabled when
-    // their last covering org is removed. Admins skip the org check so they
-    // have no rows here, which is intentional, admins are not auto-disabled
-    // on disconnect.
+    // Disconnect flow reads these rows to auto-disable users; admins intentionally have none.
     if (!skipOrgCheck) {
       try {
         await syncUserOrgMemberships(user.id, activeLogins);
@@ -163,10 +156,7 @@ authRouter.get("/github/callback", authCallbackLimiter, async (req, res, next) =
       }
     }
 
-    // Drain any GitHub-team pending memberships waiting for this user. Safe
-    // to call on every sign-in (idempotent, fast no-op when nothing pending).
-    // Errors are logged but don't block sign-in, pending will get picked up
-    // by the next webhook or weekly cron either way.
+    // Idempotent drain of pending team memberships; failures are non-blocking since webhook/cron retries.
     try {
       const drained = await resolvePendingForUser(user.id, user.githubId);
       if (drained.resolved > 0 || drained.skippedExpired > 0) {

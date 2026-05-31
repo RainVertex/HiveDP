@@ -1,11 +1,5 @@
-// Daily cleanup of stale AlertDeliveryState rows so the dedup table doesn't
-// grow unbounded. A row is "stale" once both the firing and resolved
-// timestamps (if any) are older than the cutoff, OR if both are null and the
-// row hasn't been touched since the cutoff. Prisma's `{ lt: cutoff }` against
-// a nullable column excludes NULL values, so we have to spell out the
-// firing-only-never-resolved branch explicitly, that branch is the
-// load-bearing fix: an attacker who can hit the webhook with unique
-// fingerprints would otherwise grow the table without bound.
+// Daily cleanup of stale AlertDeliveryState rows so the dedup table cannot grow unbounded.
+// The explicit firing-only branch is load-bearing: `{ lt }` on a nullable column drops NULLs, so unique-fingerprint spam would otherwise never be reaped.
 
 import { prisma } from "@internal/db";
 import type { ObservabilityJobDefinition } from "./types";
@@ -22,18 +16,15 @@ export function alertStateCleanupJob(): ObservabilityJobDefinition {
       const result = await prisma.alertDeliveryState.deleteMany({
         where: {
           OR: [
-            // Resolved and quiet for the whole window.
             {
               AND: [
                 { lastResolvedAt: { lt: cutoff } },
                 { OR: [{ lastFiringAt: null }, { lastFiringAt: { lt: cutoff } }] },
               ],
             },
-            // Firing-only fingerprint that hasn't been seen in a window, usually
-            // garbage from a flapper or an attacker varying fingerprints.
+            // Firing-only fingerprint never resolved (flapper or fingerprint spam).
             { AND: [{ lastResolvedAt: null }, { lastFiringAt: { lt: cutoff } }] },
-            // Both nulls: shouldn't happen after a normal upsert flow, but if a
-            // row got into that state, updatedAt is the only signal we have.
+            // Both null is anomalous, so fall back to updatedAt.
             {
               AND: [
                 { lastResolvedAt: null },

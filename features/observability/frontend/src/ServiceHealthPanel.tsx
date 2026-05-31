@@ -1,13 +1,10 @@
-// Compact list of the most recent ServiceHealthSample rows. Used both on the
-// /observability page (Health tab) and as the body of the home-page
-// service-health widget.
+// Compact list of the most recent ServiceHealthSample rows.
 
 import { useEffect, useState } from "react";
 import type { ServiceHealthSample } from "@internal/shared-types";
 import { useApi } from "@internal/api-client/react";
 
 export interface ServiceHealthPanelProps {
-  /** When set, scope to a single entity. otherwise show the latest 200 across the org. */
   entityId?: string;
   limit?: number;
 }

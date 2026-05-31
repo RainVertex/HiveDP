@@ -1,3 +1,4 @@
+// Static registry of app routes plus a prefix/substring search helper.
 import type { PageSection } from "@internal/shared-types";
 
 export interface KnownRoute {
@@ -8,11 +9,9 @@ export interface KnownRoute {
 }
 
 export const KNOWN_ROUTES: KnownRoute[] = [
-  // Catalog
   { path: "/catalog", label: "Catalog", section: "catalog" },
   { path: "/scorecards", label: "Scorecards", section: "catalog" },
 
-  // Self-service (initiate-a-request entry points only)
   { path: "/scaffolder", label: "Templates", section: "selfservice" },
   { path: "/scaffolder/bindings", label: "Bindings", section: "selfservice" },
   { path: "/self-service/request-team", label: "Request a team", section: "selfservice" },
@@ -22,22 +21,17 @@ export const KNOWN_ROUTES: KnownRoute[] = [
     section: "selfservice",
   },
 
-  // Requests (status + approvals)
   { path: "/requests/team", label: "My Requests", section: "requests" },
   { path: "/approvals/team", label: "My Approvals", section: "requests" },
 
-  // Agents
   { path: "/agents", label: "Agents", section: "agents" },
   { path: "/search", label: "Search", section: "catalog" },
 
-  // Teams
   { path: "/teams", label: "All teams", section: "teams" },
 
-  // Observability
   { path: "/observability", label: "Service health", section: "observability" },
   { path: "/dora-metrics", label: "DORA metrics", section: "observability" },
 
-  // Admin
   { path: "/admin/users", label: "Users", section: "admin", adminOnly: true },
   { path: "/admin/audit", label: "Audit log", section: "admin", adminOnly: true },
   { path: "/admin/jobs", label: "Jobs", section: "admin", adminOnly: true },
@@ -45,7 +39,6 @@ export const KNOWN_ROUTES: KnownRoute[] = [
   { path: "/admin/team-requests", label: "Team requests", section: "admin", adminOnly: true },
   { path: "/admin/team-policies", label: "Team policies", section: "admin", adminOnly: true },
 
-  // Account / cross-section utilities
   { path: "/", label: "Home", section: "account" },
   { path: "/settings", label: "Settings", section: "account" },
   { path: "/notifications", label: "Notifications", section: "account" },

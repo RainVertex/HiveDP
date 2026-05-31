@@ -1,9 +1,8 @@
+// Nunjucks rendering tuned to the Backstage ${{ }} templating dialect.
 import nunjucks from "nunjucks";
 import { stringHelpers } from "./plan-ctx";
 
-// Backstage uses ${{ ... }} for parameter interpolation. Nunjucks ships with
-// {{ ... }} by default. the tag overrides below switch it to the Backstage
-// dialect so skeletons stay portable.
+// Override Nunjucks defaults to the Backstage dialect so skeletons stay portable.
 const TAGS = {
   blockStart: "${%",
   blockEnd: "%}",
@@ -33,8 +32,7 @@ export function renderTemplate(source: string, values: Record<string, unknown>):
   return sharedEnv.renderString(source, { values });
 }
 
-// Returns true when the source contains any ${{ }} or ${% %} tag, so callers
-// can short-circuit pure copies without an unnecessary render pass.
+// Lets callers short-circuit pure copies and skip an unnecessary render pass.
 export function hasTemplating(source: string): boolean {
   return source.includes("${{") || source.includes("${%");
 }

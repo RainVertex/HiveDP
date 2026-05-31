@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatToolCallStartEvent, ChatToolCallEndEvent } from "@internal/shared-types";
 
-// Hand-rolled SSE consumer for /api/chat/conversations/:id/messages. The
-// browser EventSource doesn't support POST bodies, so we use fetch() with a
-// streaming response and parse `event:`/`data:` frames manually. The hook
-// exposes everything the UI needs to render a turn: the streaming token text
-// the tool-call timeline (both reads and writes), and a final "done" signal.
-// Backend still emits `preview` SSE frames for *_prepare tools, but the UI
-// no longer renders them, confirmation happens in prose ("yes"/"confirm")
-// detected server-side by looksLikeConfirmation().
+// React hook that consumes the chat SSE stream via fetch (EventSource lacks POST bodies).
 
 export type ChatStreamStatus = "idle" | "streaming" | "done" | "error";
 
@@ -23,16 +16,11 @@ export interface ChatToolCallView {
 
 export interface ChatStreamState {
   status: ChatStreamStatus;
-  /** Streaming assistant text. */
   text: string;
-  /** Concatenated `<think>` content streamed for this turn (empty if the model isn't reasoning). */
   reasoning: string;
-  /** Client-side timestamp captured on the first reasoning token, used to tick the live counter. */
   reasoningStartedAt: number | null;
-  /** Server-reported total ms once reasoning has fully ended. null while still reasoning. */
   reasoningDurationMs: number | null;
   toolCalls: ChatToolCallView[];
-  /** True while a *_submit tool call is mid-execution. UI uses this to disable the Stop button */
   submitInFlight: boolean;
   error?: string;
 }
@@ -57,13 +45,9 @@ export function useChatStream(conversationId: string | null) {
 
   const send = useCallback(
     async (content: string, overrideConversationId?: string) => {
-      // Allow callers to pass a freshly-created conversation id directly
-      // bypassing the closed-over conversationId. Without this, sending the
-      // very first message after creating a conversation reads the stale
-      // null id from this hook's closure and throws.
+      // Override lets the first message use a freshly-created id, not the stale closure value.
       const cid = overrideConversationId ?? conversationId;
       if (!cid) throw new Error("No conversation selected");
-      // Abort any in-flight stream before starting a new one.
       abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
@@ -100,7 +84,6 @@ export function useChatStream(conversationId: string | null) {
           const { value, done } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
-          // Frames are separated by blank lines per the SSE spec.
           let idx: number;
           while ((idx = buffer.indexOf("\n\n")) !== -1) {
             const frame = buffer.slice(0, idx);
@@ -124,8 +107,7 @@ export function useChatStream(conversationId: string | null) {
   const abort = useCallback(() => {
     if (!conversationId) return;
     abortRef.current?.abort();
-    // Tell the server to drop its in-flight controller. Best-effort, the
-    // route also detects req.close.
+    // Best-effort server-side cancel, the route also detects req.close.
     void fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/abort`, {
       method: "POST",
       credentials: "include",
@@ -143,7 +125,6 @@ function handleFrame(
   frame: string,
   setState: React.Dispatch<React.SetStateAction<ChatStreamState>>,
 ) {
-  // Each frame: `event: <name>\ndata: <json>` (whitespace tolerated).
   let eventName = "message";
   let dataStr = "";
   for (const line of frame.split("\n")) {
@@ -198,7 +179,7 @@ function handleFrame(
       break;
     }
     case "preview": {
-      // Backend still emits this for *_prepare tools. UI no longer renders it.
+      // Emitted for *_prepare tools, intentionally not rendered.
       break;
     }
     case "error": {

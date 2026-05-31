@@ -1,18 +1,13 @@
+// Collapsible panel showing the model's reasoning, with a live-ticking duration counter.
 import { useEffect, useRef, useState } from "react";
-
-// Collapsible header + body rendering the model's `<think>` content. The
-// header reads "Reasoning - Ns" while the model is still thinking, with the
-// counter ticking live, and flips to "Reasoned - Ns" once reasoning ends.
-// On the flip, the section auto-collapses exactly once. after that the user
-// owns the toggle state.
 
 interface Props {
   reasoning: string;
-  /** Client-side ms-since-epoch when the first reasoning token arrived. */
+  // Client-side ms-since-epoch when the first reasoning token arrived.
   startedAt?: number | null;
-  /** Final server-reported duration. Null while still streaming. */
+  // Final server-reported duration, null while still streaming.
   durationMs: number | null;
-  /** True iff this is the live (in-flight) assistant turn AND reasoning hasn't finished. */
+  // True iff this is the live assistant turn AND reasoning hasn't finished.
   isStreaming: boolean;
 }
 
@@ -22,8 +17,7 @@ export function ReasoningSection({ reasoning, startedAt, durationMs, isStreaming
   const lastStreamingRef = useRef(isStreaming);
   const [now, setNow] = useState(() => Date.now());
 
-  // Auto-collapse exactly once when reasoning transitions from streaming → done
-  // unless the user has manually toggled at some point.
+  // Auto-collapse once on streaming-to-done, unless the user already toggled.
   useEffect(() => {
     const wasStreaming = lastStreamingRef.current;
     lastStreamingRef.current = isStreaming;

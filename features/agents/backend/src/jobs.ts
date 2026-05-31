@@ -1,3 +1,4 @@
+// Scheduled agent jobs: the daily catalog enrichment sweep with a soft token cap.
 import { prisma } from "@internal/db";
 import { runEnricherForEntity } from "./executor";
 
@@ -20,14 +21,6 @@ export interface AgentJobDefinition {
 
 const ENRICHER_AGENT_ID = "seed-agent-catalog-enricher";
 
-// Daily catalog enrichment sweep. Runs the Catalog Enricher agent against the
-// 50 oldest-seen entities with a repoUrl, in lastSeenAt-ascending order so
-// the agent works through stale entities first. Honors a soft per-run token
-// cap so a runaway model doesn't burn the daily budget.
-//
-// The skip-if-key-missing guard now reads the enricher agent's provider from
-// the LLM registry, so swapping the enricher to a local model (no env var
-// required) is a one-row change and the cron auto-adapts.
 export function catalogEnricherJob(): AgentJobDefinition {
   return {
     name: "agents.catalogEnricher",

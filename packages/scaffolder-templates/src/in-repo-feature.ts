@@ -1,3 +1,4 @@
+// Scaffolder template that adds a new feature module to this monorepo and auto-wires backend/frontend.
 import { z } from "zod";
 import { defineTemplate, stringHelpers } from "@internal/scaffolder-core";
 import { skeletonPath } from "./paths";
@@ -72,8 +73,7 @@ export const inRepoFeatureTemplate = defineTemplate({
   },
 });
 
-// Exported for tests so they can pass these through string helpers without
-// duplicating the helpers themselves.
+// Exported for tests so they reuse the same string helpers.
 export const inRepoFeatureHelpers = {
   pascal: stringHelpers.toPascal,
   camel: stringHelpers.toCamel,

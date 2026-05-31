@@ -1,3 +1,4 @@
+// Admin page to toggle and configure the hard team-request policies.
 import { useCallback, useEffect, useState } from "react";
 import { PageLayout } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
@@ -88,7 +89,6 @@ interface PolicyConfigEditorProps {
   onSave: (kind: TeamPolicyKind, body: { config: Record<string, unknown> }) => Promise<void>;
 }
 
-/** Renders a typed editor per kind. */
 function PolicyConfigEditor({ policy, busy, onSave }: PolicyConfigEditorProps) {
   if (policy.kind === "name_pattern") {
     return <NamePatternEditor policy={policy} busy={busy} onSave={onSave} />;

@@ -1,3 +1,5 @@
+// Inline GitHub drift indicator with a manual resync; hidden for non-admins and non-github kinds.
+
 import { useCallback, useEffect, useState } from "react";
 import { DriftBadge } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
@@ -8,9 +10,6 @@ export interface IntegrationDriftBadgeProps {
   kind: string;
 }
 
-// Inline drift indicator for GitHub integrations on the integrations page.
-// Silently hides for non-admins (the backing endpoint 403s) and for non-github
-// kinds. The expand panel lists stale teams and exposes the manual Resync.
 export function IntegrationDriftBadge({ integrationId, kind }: IntegrationDriftBadgeProps) {
   const api = useApi();
   const [data, setData] = useState<GithubDriftSummaryDto | null>(null);

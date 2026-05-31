@@ -1,7 +1,7 @@
+// Hook that loads catalog entities and returns a Map of id to display name.
 import { useEffect, useState } from "react";
 import { useApi } from "@internal/api-client/react";
 
-/** Returns a Map of catalog-entity id → display name. */
 export function useCatalogEntityNames(): Map<string, string> {
   const api = useApi();
   const [names, setNames] = useState<Map<string, string>>(() => new Map());
@@ -17,8 +17,7 @@ export function useCatalogEntityNames(): Map<string, string> {
         setNames(m);
       })
       .catch(() => {
-        // Fall through with an empty map. formatPath uses its default
-        // humanization when no name is found.
+        // On failure leave the map empty; callers fall back to humanized paths.
       });
     return () => {
       cancelled = true;

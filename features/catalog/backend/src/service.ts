@@ -1,3 +1,4 @@
+// Canonical write path and helpers for catalog entities (register, drift, staleness).
 import {
   Prisma,
   prisma,
@@ -16,8 +17,7 @@ export type RegisterCatalogEntityInput = {
   repoUrl?: string | null;
   tags?: string[];
   yamlSpec?: Prisma.InputJsonValue | null;
-  // Org the entity belongs to. Required on create. on update the existing
-  // row's accountLogin is preserved (cross-org transfers are not allowed).
+  // Required on create; preserved on update (cross-org transfers are not allowed).
   accountLogin?: string;
 };
 
@@ -44,10 +44,7 @@ export async function registerCatalogEntity(
   input: RegisterCatalogEntityInput,
   opts: RegisterCatalogEntityOptions,
 ): Promise<RegisterCatalogEntityResult> {
-  // Lookup precedence: githubRepoId is the stable id and survives renames, so
-  // try it first when provided. Fall back to (name, kind), both for legacy
-  // callers and for the "claim" path where a manually-registered entity is
-  // later observed via the App.
+  // githubRepoId is stable across renames so it wins; fall back to (name, kind) for the claim path.
   const existing = await findExisting(input, opts);
 
   if (opts.dryRun) {
@@ -59,9 +56,7 @@ export async function registerCatalogEntity(
     };
   }
 
-  // unowned is derived: empty owner set on a discovery entity. We compute it
-  // from the *resolved* ownerTeamIds (input override or existing) so a manual
-  // edit that adds owners flips it false on the next write.
+  // Resolve from input override or existing so a manual owner edit flips unowned on next write.
   const finalOwners =
     input.ownerTeamIds !== undefined
       ? (input.ownerTeamIds ?? [])
@@ -70,9 +65,7 @@ export async function registerCatalogEntity(
         : [];
 
   if (!existing) {
-    // If the caller didn't pass an accountLogin explicitly (e.g. GitHub
-    // auto-sync), derive it from the installationId so we don't force every
-    // caller to look it up. Manual paths must pass it directly.
+    // Auto-sync callers omit accountLogin; derive it from installationId. Manual paths pass it directly.
     let accountLogin = input.accountLogin ?? null;
     if (!accountLogin && opts.installationId != null) {
       accountLogin = await resolveAccountLoginByInstallation(opts.installationId);
@@ -120,27 +113,17 @@ export async function registerCatalogEntity(
   if (input.yamlSpec !== undefined) {
     patch.yamlSpec = input.yamlSpec === null ? Prisma.JsonNull : input.yamlSpec;
   }
-  // Allow App-driven updates to fix up name/kind when a repo is renamed
-  // only when we matched on githubRepoId (otherwise we'd silently rewrite
-  // identity for a (name, kind) match).
+  // Only rewrite name/kind on a githubRepoId match, else a (name, kind) match would lose identity.
   if (opts.githubRepoId != null && existing.githubRepoId === opts.githubRepoId) {
     if (input.name !== existing.name) patch.name = input.name;
     if (input.kind !== existing.kind) patch.kind = input.kind;
   }
-  // Sticky downgrade for needsOnboarding: only flips true → false. Once a
-  // valid yaml has been seen, a later stub-from-metadata write must not
-  // resurrect the onboarding flag.
+  // Sticky one-way flip true to false; a later stub write must not resurrect the onboarding flag.
   if (opts.needsOnboarding === false && existing.needsOnboarding) {
     patch.needsOnboarding = false;
   }
-  // Always reflect current owner count for unowned. Manual edits hit this
-  // path too because the route layer calls registerCatalogEntity.
   patch.unowned = finalOwners.length === 0 && opts.source === "discovery";
-  // Write-once for installationId / githubRepoId, *except* during revival.
-  // When an entity is stale (uninstall-marked) and is being re-discovered by
-  // a new installation, the new installationId must overwrite the old one
-  // otherwise the next disconnect of the new install can't find this entity
-  // to re-stale.
+  // Write-once for installationId/githubRepoId, except on revival where a new install must overwrite the old id.
   const isReviving = existing.staleSince !== null;
   if (opts.installationId != null && (existing.installationId == null || isReviving)) {
     patch.installationId = opts.installationId;
@@ -194,16 +177,12 @@ async function findExisting(input: RegisterCatalogEntityInput, opts: RegisterCat
 }
 
 function fireScorecardEvaluation(entityId: string): void {
-  // Fire-and-forget: scorecard evaluation is a downstream concern that should
-  // never fail or delay the catalog write path. Errors are swallowed. the
-  // scheduled job (catalog.scorecardEvaluator) will reconcile state on its
-  // next run.
+  // Fire-and-forget; the catalog.scorecardEvaluator job reconciles on its next run.
   void evaluateScorecardsForEntity(entityId).catch(() => {});
 }
 
 function fireDevDocsSync(entityId: string): void {
-  // Same fire-and-forget contract as scorecards. The scheduled
-  // `catalog.devdocsSync` job reconciles anything missed here.
+  // Fire-and-forget; the catalog.devdocsSync job reconciles anything missed here.
   void syncDevDocsForEntity(entityId).catch(() => {});
 }
 
@@ -230,18 +209,15 @@ function isNoopUpdate(
   if (input.repoUrl !== undefined && input.repoUrl !== existing.repoUrl) return false;
   if (input.tags !== undefined && !sameStringArray(input.tags, existing.tags)) return false;
   if (input.yamlSpec !== undefined) return false;
-  // App-import bookkeeping: a sync that would flip needsOnboarding off, or
-  // populate installationId/githubRepoId on a row that's still missing them
-  // is a real write, not a noop.
+  // Flipping needsOnboarding off or populating missing installationId/githubRepoId is a real write.
   if (opts.needsOnboarding === false && existing.needsOnboarding) return false;
   if (opts.installationId != null && existing.installationId == null) return false;
   if (opts.githubRepoId != null && existing.githubRepoId == null) return false;
-  // If a rename would propagate (githubRepoId match path), it's not a noop.
+  // A rename that would propagate via the githubRepoId match path is not a noop.
   if (opts.githubRepoId != null && existing.githubRepoId === opts.githubRepoId) {
     if (input.name !== existing.name) return false;
     if (input.kind !== existing.kind) return false;
   }
-  // unowned drift: existing flag disagrees with the resolved owner count.
   if (opts.source === "discovery") {
     const finalOwners =
       input.ownerTeamIds !== undefined

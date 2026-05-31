@@ -1,3 +1,4 @@
+// Server-backed widget grid layout state with edit/draft/commit and async save.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Layout } from "react-grid-layout";
 import type { WidgetInstance, WidgetRegistry } from "./types";
@@ -42,17 +43,13 @@ export function useRemoteGridLayout<TId extends string>({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Reset state when the *content* of `initialWidgets` changes (e.g. navigating
-  // to a different page). Comparing by content rather than reference protects
-  // against callers that forget to memoize, a fresh-but-equivalent array
-  // reference would otherwise reset editMode mid-edit.
+  // Compare initialWidgets by content so an unmemoized but equal array does not reset editMode mid-edit.
   const initialKey = useMemo(() => JSON.stringify(initialWidgets), [initialWidgets]);
   useEffect(() => {
     setCommitted(initialWidgets);
     setDraft(initialWidgets);
     setEditMode(false);
     setSaveError(null);
-    // initialKey is the content-stable dep. initialWidgets is the value we copy in.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialKey]);
 
@@ -91,8 +88,7 @@ export function useRemoteGridLayout<TId extends string>({
   }, []);
 
   const resetToDefault = useCallback(() => {
-    // Remote layouts have no inherent "default", closest equivalent is reverting
-    // unsaved edits, which is what `cancel` does. Provided as a no-op for parity.
+    // Remote layouts have no inherent default, kept as a no-op for parity with useGridLayout.
   }, []);
 
   const updateLayout = useCallback((layout: Layout) => {

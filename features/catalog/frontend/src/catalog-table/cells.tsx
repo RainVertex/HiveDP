@@ -1,3 +1,4 @@
+// Cell renderers for the catalog table (badges, owner/tags/repo/date/name cells).
 import { Link } from "react-router-dom";
 import type { CatalogEntityKind, Lifecycle, Team } from "@internal/shared-types";
 

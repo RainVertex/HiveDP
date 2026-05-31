@@ -1,3 +1,4 @@
+// Resolves and syncs a catalog entity's DevDocs (README or docs/ tree) from GitHub into DocPage rows.
 import { Prisma, prisma } from "@internal/db";
 import matter from "gray-matter";
 import type { DocResolvedSource } from "@internal/shared-types";
@@ -37,7 +38,6 @@ export async function syncDevDocsForEntity(entityId: string): Promise<SyncResult
     };
   }
 
-  // Fast path: no repo and no spec.docs at all → nothing to sync.
   const specSource = readSpecDocs(entity);
   if (!entity.repoUrl && !specSource) {
     await writeSyncState(entityId, { kind: "none" }, "ok", 0, null);
@@ -45,7 +45,7 @@ export async function syncDevDocsForEntity(entityId: string): Promise<SyncResult
     return { entityId, status: "skipped", pageCount: 0, resolvedSource: { kind: "none" } };
   }
 
-  // External URL: render as a link in the UI, no markdown to sync.
+  // External URL renders as a link in the UI, no markdown to sync.
   if (specSource?.kind === "spec-url") {
     await writeSyncState(entityId, specSource, "ok", 0, null);
     await prisma.docPage.deleteMany({ where: { entityId } });
@@ -57,7 +57,6 @@ export async function syncDevDocsForEntity(entityId: string): Promise<SyncResult
     };
   }
 
-  // Need a parseable GitHub URL for everything else.
   if (!entity.repoUrl) {
     const src: DocResolvedSource = { kind: "none" };
     await writeSyncState(entityId, src, "ok", 0, null);

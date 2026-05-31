@@ -8,7 +8,9 @@ export type WidgetId =
   | "chat-assistant"
   | "service-health"
   | "grafana-alerts"
-  | "my-tasks";
+  | "my-tasks"
+  | "markdown"
+  | "iframe";
 
 export interface VisitRecord {
   path: string;

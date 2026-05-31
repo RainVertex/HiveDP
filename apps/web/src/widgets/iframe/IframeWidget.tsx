@@ -1,3 +1,4 @@
+// Dashboard widget that embeds an https:// page in a sandboxed iframe.
 import type { WidgetComponentProps } from "@internal/shared-ui";
 
 export function IframeWidget({ config }: WidgetComponentProps) {

@@ -1,3 +1,4 @@
+// Scaffolder action that walks a repo for catalog-info.yaml and upserts each entity.
 import { z } from "zod";
 import type { Action, ReadCtx, WriteCtx } from "@internal/scaffolder-core";
 import { discoverAndPersist } from "../services/catalog-discovery";
@@ -31,12 +32,9 @@ export const catalogDiscoverAction: Action<CatalogDiscoverInput, CatalogDiscover
   description:
     "Walk a repo for catalog-info.yaml and upsert each entity through the shared catalog service.",
   schema: catalogDiscoverInput,
-  // Network reads are scoped to repo:read. writes to db:write:catalog so the
-  // capability gate matches what registerCatalogEntity actually does.
+  // Capabilities mirror what registerCatalogEntity actually does.
   capabilities: ["repo:read", "db:write:catalog"],
-  // Discovery is non-idempotent at the action layer (the whether-to-update
-  // decision lives inside the shared service). Always present as "absent" so
-  // plan() never short-circuits it.
+  // Non-idempotent here (update decision lives in the shared service), so always "absent" so plan() never short-circuits.
   async match(_input, _ctx: ReadCtx) {
     return "absent";
   },
@@ -95,9 +93,7 @@ export const catalogDiscoverAction: Action<CatalogDiscoverInput, CatalogDiscover
         errors: result.errors.length,
         entityIds: result.entityIds,
       },
-      // The shared service's create call records its own compensation per
-      // entity. the discover action itself can't unwind a partial sweep
-      // safely, so it's a noop at this layer.
+      // Shared service records compensation per entity, this layer can't unwind a partial sweep safely.
       compensation: { kind: "noop", reason: "discovery results recorded individually" },
     };
   },

@@ -1,3 +1,4 @@
+// Onboarding API: seeds per-user tasks and tracks their completion/dismissal.
 import { Router, type Request } from "express";
 import { Prisma, prisma } from "@internal/db";
 import type { UserTask } from "@internal/db";
@@ -36,7 +37,7 @@ async function audit(
       },
     });
   } catch {
-    // best effort
+    // Audit is best-effort; never fail the request on audit errors.
   }
 }
 

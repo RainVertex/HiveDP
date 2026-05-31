@@ -1,7 +1,6 @@
-import { prisma, Prisma } from "@internal/db";
+// Generic key/value system settings backed by the SystemSetting table.
 
-// Generic key/value system settings backed by the SystemSetting table. Reads
-// return null when the key is unset so callers decide the default.
+import { prisma, Prisma } from "@internal/db";
 
 export async function getSetting<T = unknown>(key: string): Promise<T | null> {
   const row = await prisma.systemSetting.findUnique({ where: { key } });
@@ -21,8 +20,7 @@ export async function setSetting(
   });
 }
 
-// Remove a setting entirely. getSetting then returns null. Used to "unset" a
-// value (e.g. clearing the active chat model) without storing JSON null.
+// Unsets a value without storing JSON null, so getSetting returns null afterward.
 export async function clearSetting(key: string): Promise<void> {
   await prisma.systemSetting.deleteMany({ where: { key } });
 }

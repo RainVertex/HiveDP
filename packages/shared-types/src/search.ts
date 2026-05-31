@@ -5,7 +5,7 @@ export interface SearchHit {
   kind: "catalog" | "team" | "agent" | "devdoc";
   title: string;
   snippet?: string;
-  /** For devdoc hits: routes the user to the entity's docs tab + page slug. */
+  // For devdoc hits, routes to the entity's docs tab and page slug.
   href?: string;
 }
 

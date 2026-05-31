@@ -10,7 +10,7 @@ import type {
 } from "@internal/shared-types";
 import { RequestMaintainerDialog } from "./RequestMaintainerDialog";
 
-/** Self-service initiate page for "Request maintainership", lists every team I'm a member of*/
+// Self-service page to request maintainership on a team where I'm a member but not lead.
 export function RequestMaintainerPickerPage() {
   const api = useApi();
   const navigate = useNavigate();
@@ -32,9 +32,7 @@ export function RequestMaintainerPickerPage() {
       setMe(meRes);
       setTeams(teamsRes.items);
       setPending(mineRes.items.filter((r) => r.status === "pending"));
-      // For each team, we need to know whether *I* am a member and what role
-      // I hold. The list endpoint only returns lead summaries, not full
-      // memberships, so fetch details for the candidates in parallel.
+      // The list endpoint omits full memberships, so fetch each team's detail to learn my role.
       const detailEntries = await Promise.all(
         teamsRes.items.map(async (t) => {
           try {

@@ -1,9 +1,7 @@
+// Reconciles a user's UserOrgMembership rows against the GitHub orgs just confirmed at sign-in.
 import { prisma } from "@internal/db";
 
-// Reconcile a user's UserOrgMembership rows with the set of GitHub org logins
-// GitHub just confirmed they are an active member of. Rows for logins they no
-// longer belong to are removed. current logins get their lastVerifiedAt
-// refreshed. Called from the OAuth callback after a successful org check.
+// Drops rows for orgs no longer active and refreshes lastVerifiedAt for current ones.
 export async function syncUserOrgMemberships(
   userId: string,
   activeLogins: string[],

@@ -1,18 +1,5 @@
-// GitHub App install lifecycle. Two HTTP entry points:
-//
-// GET /api/integrations/github/install
-// Admin-initiated. Sets a signed cookie identifying the initiator
-// redirects to GitHub's install URL.
-//
-// GET /api/integrations/github/callback
-// GitHub redirects here after the admin completes installation.
-// Verifies the cookie, fetches installation metadata, upserts an
-// Integration row, redirects back to the web app.
-//
-// The webhook receiver lives separately at /integrations/github/app-webhook
-// because it must be mounted before express.json(), it's wired in
-// createServer.ts.
-
+// GitHub App install/callback/resync/disconnect lifecycle endpoints (admin only).
+// Webhook receiver lives separately in createServer.ts (must mount before express.json()).
 import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { prisma } from "@internal/db";
@@ -53,10 +40,7 @@ githubIntegrationRouter.get("/install", (req, res) => {
   }
 
   const env = loadEnv();
-  // The cookie is the only flow-state we need: it proves the initiator was
-  // an authenticated admin in this session. GitHub doesn't reliably forward
-  // a `state` query param through the App install flow (it's an OAuth
-  // concern, not an App concern), so we don't bother with one.
+  // Cookie is the only flow-state; GitHub doesn't forward `state` through the App install flow.
   const nonce = randomBytes(16).toString("base64url");
   res.cookie(INITIATOR_COOKIE, `${req.user.id}.${nonce}`, {
     httpOnly: true,
@@ -96,8 +80,7 @@ githubIntegrationRouter.get("/callback", async (req, res, next) => {
     }
 
     if (setupAction !== "install" && setupAction !== "update") {
-      // "request" means an org member asked an org admin to install, nothing
-      // to record on our side.
+      // "request" means an org member asked an admin to install; nothing to record.
       res.redirect(`${env.webOrigin}/integrations?info=github_install_pending`);
       return;
     }
@@ -113,8 +96,7 @@ githubIntegrationRouter.get("/callback", async (req, res, next) => {
       throw err;
     }
 
-    // Stamp the installer user id on the integration config so auto-provisioned
-    // projects for unowned repos can fall back to this user as ADMIN.
+    // Stamp installer id so auto-provisioned projects for unowned repos can fall back to this user as ADMIN.
     const integrationRow = await prisma.integration.findUnique({
       where: { id: result.integrationId },
       select: { config: true },
@@ -137,11 +119,7 @@ githubIntegrationRouter.get("/callback", async (req, res, next) => {
       { kind: "integration", id: result.integrationId },
     );
 
-    // Fire-and-forget: bulk sync iterates every accessible repo and can take
-    // minutes for large orgs. We respond to the admin immediately and let
-    // the sync run in the background. Errors are logged. the admin can
-    // re-trigger via /api/integrations/github/sync (Phase 3) if anything
-    // didn't make it.
+    // Fire-and-forget: bulk sync can take minutes for large orgs, so respond immediately.
     void syncInstallation(installationId).then(
       (summary) => {
         logger.info(
@@ -173,10 +151,7 @@ githubIntegrationRouter.get("/callback", async (req, res, next) => {
   }
 });
 
-// Manually trigger a differential reconciliation. Used by the admin "Resync"
-// button on the integrations page and by post-incident recovery scripts.
-// Always re-fetches from GitHub and applies the diff, never a full
-// re-import. Idempotent and safe to run while webhooks are firing.
+// Differential reconciliation; idempotent and safe to run while webhooks are firing.
 githubIntegrationRouter.post("/:integrationId/resync", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -221,9 +196,7 @@ githubIntegrationRouter.post("/:integrationId/resync", async (req, res, next) =>
   }
 });
 
-// Manually re-provision PM Projects for every repo owned by this installation.
-// Idempotent; safe to call repeatedly to backfill or refresh ACL after team
-// membership changes.
+// Re-provision PM Projects for every repo in this installation; idempotent.
 githubIntegrationRouter.post("/:integrationId/provision-projects", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -260,9 +233,7 @@ githubIntegrationRouter.post("/:integrationId/provision-projects", async (req, r
   }
 });
 
-// Drift summary for the inline integrations-page badge. Returns just enough
-// for "is there drift?" + a short stale-team list. Detection itself is
-// backend-driven (webhook + weekly cron). this endpoint is read-only.
+// Read-only drift summary for the integrations-page badge.
 githubIntegrationRouter.get("/:integrationId/drift", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -339,13 +310,7 @@ githubIntegrationRouter.get("/:integrationId/drift", async (req, res, next) => {
   }
 });
 
-// Platform-side disconnect. Single endpoint that converges on the same end
-// state as the installation.deleted webhook:
-// 1. Revoke the App on GitHub (apps.deleteInstallation), tolerating 404.
-// 2. recordUninstallation → Integration.enabled = false.
-// 3. Stale every entity tied to the installation.
-// 4. Hard-delete the Integration row IFF no entities remain pointing at it
-// (otherwise keep it, disabled, so audit lineage stays intact).
+// Platform-side disconnect; converges on the same end state as the installation.deleted webhook.
 githubIntegrationRouter.delete("/:integrationId", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -383,9 +348,7 @@ githubIntegrationRouter.delete("/:integrationId", async (req, res, next) => {
       return;
     }
 
-    // 1. Revoke on GitHub. Tolerate 404 (already uninstalled externally) and
-    // 422 (some installations are already gone) so the platform-side cleanup
-    // still proceeds.
+    // Tolerate 404/422 (already uninstalled externally) so platform-side cleanup still proceeds.
     let githubRevoked = false;
     try {
       const appOcto = await octokitAsApp();
@@ -396,9 +359,7 @@ githubIntegrationRouter.delete("/:integrationId", async (req, res, next) => {
       if (status === 404 || status === 422) {
         githubRevoked = false;
       } else if (err instanceof GitHubAppNotConfiguredError) {
-        // App credentials are missing, we can't talk to GitHub. Still
-        // proceed with the platform-side cleanup since the user explicitly
-        // asked to disconnect.
+        // Credentials missing; still proceed with platform-side cleanup since disconnect was requested.
         logger.warn(
           { installationId, integrationId },
           "github-app: cannot revoke installation, App credentials missing — proceeding with platform-side cleanup only",
@@ -408,22 +369,15 @@ githubIntegrationRouter.delete("/:integrationId", async (req, res, next) => {
       }
     }
 
-    // 2. Mark Integration disabled.
     await recordUninstallation(installationId);
 
-    // 3. Revoke sessions of users whose only org coverage was this one, so
-    // they don't keep using a stale session. user.status is left untouched
-    // verifyAnyOrgMembership at next sign-in is the authoritative gate.
+    // Revoke sessions for users whose only org coverage was this installation.
     const accountLogin = typeof cfg.accountLogin === "string" ? cfg.accountLogin : "";
     const { affectedUserIds } = await revokeStrandedUserSessions(accountLogin);
 
-    // 4. Stale every entity tied to the installation.
     const staledCount = await staleEntitiesForInstallation(installationId);
 
-    // 5. Drop the Integration row only if no entities point at it. Keeping
-    // the row preserves audit lineage. once all entities are hard-deleted
-    // (e.g. via a future cleanup), the next disconnect attempt removes the
-    // row too.
+    // Drop the Integration row only if no entities point at it, to preserve audit lineage.
     const remaining = await prisma.catalogEntity.count({ where: { installationId } });
     let integrationRemoved = false;
     if (remaining === 0) {

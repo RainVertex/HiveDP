@@ -1,8 +1,8 @@
+// Resolves a scaffolder Actor from req.user plus the user's team memberships.
 import type { Request } from "express";
 import { prisma } from "@internal/db";
 import type { Actor } from "@internal/scaffolder-core";
 
-/** Resolves the Actor for a request, mapping the existing req.user (set by the platform's */
 export async function actorFromRequest(req: Request): Promise<Actor | null> {
   const user = req.user;
   if (!user) return null;

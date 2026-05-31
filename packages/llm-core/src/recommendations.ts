@@ -1,8 +1,4 @@
-// Recommended models per agent "kind", plus whether the kind needs tool
-// support. Not every model fits every task, so the UI highlights these and
-// the backend enforces requiresTools as a capability guardrail. Slugs must
-// match the seeded LlmModel slugs; callers resolve slugs to ids and skip any
-// that are not registered/enabled.
+// Recommended models and tool requirement per agent kind; slugs must match seeded LlmModel slugs.
 
 export interface KindRecommendation {
   recommendedModelSlugs: string[];

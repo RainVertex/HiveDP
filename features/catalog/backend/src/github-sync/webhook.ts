@@ -1,16 +1,5 @@
-// GitHub App webhook receiver. The App is configured with ONE webhook URL
-// (this one). all event types, installation, repository, push
-// installation_repositories, etc., funnel here. We verify the App-wide HMAC
-// secret, then dispatch by `x-github-event`.
-//
-// Lives in catalog-backend (not integrations-backend) so it can call into the
-// sync orchestrator + stale helpers without creating a cycle. The HMAC
-// verifier and recordInstallation/Uninstallation business logic stay in
-// integrations-backend. we import them here.
-//
-// IMPORTANT: this router applies its own express.raw() middleware. It MUST be
-// mounted in createServer.ts BEFORE express.json() consumes the body, since
-// HMAC verification needs the exact byte stream GitHub signed.
+// GitHub App webhook receiver: verifies the App-wide HMAC secret, then dispatches by x-github-event.
+// MUST be mounted before express.json() since HMAC verification needs the exact byte stream GitHub signed.
 
 import express, { Router, type Request, type Response } from "express";
 import { prisma } from "@internal/db";
@@ -91,8 +80,7 @@ githubAppWebhookRouter.post(
       return;
     }
 
-    // Ack fast, GitHub fails deliveries that take >10s. Heavy work runs
-    // in the background. errors are logged via the .catch() below.
+    // Ack fast, GitHub fails deliveries that take >10s; heavy work runs in the background.
     res.status(202).json({ accepted: true, event, deliveryId });
 
     void dispatch(event, payload).catch((err: unknown) => {
@@ -124,17 +112,12 @@ async function dispatch(event: string, payload: Record<string, unknown>): Promis
     await handlePush(payload);
     return;
   }
-  // Team / membership / organization events all converge on a single
-  // differential reconciliation. The diff is computed from current GitHub +
-  // DB state, so it doesn't matter which event fired, we always end at
-  // the right end state. Idempotent under concurrent webhook delivery.
+  // Team/membership/organization events all converge on one differential reconciliation, idempotent under concurrent delivery.
   if (event === "team" || event === "membership" || event === "organization") {
     await handleOrgReconciliation(event, action, payload);
     return;
   }
-  // Pipeline visibility, CI/CD runs and deployments. The handlers tolerate
-  // unknown repos (catalog entity not yet imported) by no-op'ing. per-event
-  // errors are swallowed so a bad payload can't poison the dispatcher.
+  // Per-event errors are swallowed so a bad payload can't poison the dispatcher.
   if (event === "workflow_run") {
     try {
       await upsertWorkflowRun(payload);
@@ -155,7 +138,6 @@ async function dispatch(event: string, payload: Record<string, unknown>): Promis
     }
     return;
   }
-  // Other events (pull_request, etc.) ignored for now.
 }
 
 async function handleInstallation(action: string, payload: Record<string, unknown>): Promise<void> {
@@ -164,7 +146,6 @@ async function handleInstallation(action: string, payload: Record<string, unknow
 
   if (action === "created") {
     await recordInstallation(installationId);
-    // Bulk sync runs in the background. the webhook ack already returned.
     void syncInstallation(installationId).catch((err: unknown) => {
       console.error("[github-app webhook] bulk sync after install failed", {
         installationId,
@@ -178,8 +159,7 @@ async function handleInstallation(action: string, payload: Record<string, unknow
     const result = await recordUninstallation(installationId);
     await staleEntitiesForInstallation(installationId);
 
-    // Revoke sessions of users whose only org coverage was this one, mirroring
-    // the admin-side disconnect flow. user.status is left untouched.
+    // Revoke sessions of users whose only org coverage was this one; user.status is left untouched.
     const accountLogin = readAccountLogin(payload);
     const { affectedUserIds } = await revokeStrandedUserSessions(accountLogin);
 
@@ -205,9 +185,7 @@ async function handleInstallation(action: string, payload: Record<string, unknow
     return;
   }
 
-  // "suspend" and "unsuspend" leave the installation in place but pause/resume
-  // event delivery. We mirror the catalog state by stale/un-staling, a
-  // suspend acts like a soft uninstall.
+  // suspend/unsuspend pause/resume event delivery; mirror it by stale/un-staling the catalog.
   if (action === "suspend") {
     await staleEntitiesForInstallation(installationId);
     return;
@@ -242,7 +220,7 @@ async function handleInstallationRepositories(
         await syncRepoByName(octo, owner, name, installationId);
         await provisionForRepoId(r.id, installationId);
       } catch {
-        // Per-repo failure shouldn't block the whole webhook batch.
+        // Per-repo failure shouldn't block the whole batch.
       }
     }
     return;
@@ -315,13 +293,10 @@ async function handlePush(payload: Record<string, unknown>): Promise<void> {
   const ref = typeof payload.ref === "string" ? payload.ref : null;
   if (!fullName || !defaultBranch || !ref) return;
 
-  // Only act on pushes to the default branch. Feature-branch pushes don't
-  // change the catalog-info.yaml the platform considers authoritative.
+  // Only the default branch is authoritative for catalog-info.yaml.
   if (ref !== `refs/heads/${defaultBranch}`) return;
 
-  // Consider only pushes that actually touch catalog-info.yaml or CODEOWNERS.
-  // GitHub gives us per-commit added/modified/removed arrays. the union of
-  // all of them is what we need to inspect.
+  // Union of per-commit added/modified/removed paths, to check for catalog-info.yaml or CODEOWNERS.
   const commits = Array.isArray(payload.commits) ? payload.commits : [];
   const touchedPaths = new Set<string>();
   for (const c of commits) {
@@ -357,9 +332,7 @@ async function handlePush(payload: Record<string, unknown>): Promise<void> {
   await syncRepoByName(octo, owner, name, installationId);
 }
 
-// Subset of `team` / `membership` / `organization` actions we care about.
-// For everything else we skip, notably `team.added_to_repository` and
-// `team.removed_from_repository`, which don't change membership/structure.
+// Actions that change membership/structure; others (e.g. team.added_to_repository) are skipped.
 const RELEVANT_TEAM_ACTIONS = new Set(["created", "deleted", "edited"]);
 const RELEVANT_MEMBERSHIP_ACTIONS = new Set(["added", "removed"]);
 const RELEVANT_ORG_ACTIONS = new Set(["member_added", "member_removed", "member_invited"]);
@@ -373,8 +346,6 @@ async function handleOrgReconciliation(
   if (event === "membership" && !RELEVANT_MEMBERSHIP_ACTIONS.has(action)) return;
   if (event === "organization" && !RELEVANT_ORG_ACTIONS.has(action)) return;
 
-  // `team` and `membership` events carry the installation. `organization`
-  // events do too, when delivered to a GitHub App.
   const installationId = readInstallationId(payload);
   if (installationId == null) return;
 
@@ -382,7 +353,7 @@ async function handleOrgReconciliation(
   try {
     await reconcileProjectMembersForInstallation(installationId);
   } catch {
-    // Member reconciliation failure shouldn't bubble up; team-sync already succeeded.
+    // Shouldn't bubble up; team-sync already succeeded.
   }
 }
 

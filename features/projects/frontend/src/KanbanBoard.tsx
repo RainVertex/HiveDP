@@ -1,3 +1,4 @@
+// Drag-and-drop kanban board: maps tasks into bucket columns and persists moves.
 import { useEffect, useState } from "react";
 import {
   DndContext,

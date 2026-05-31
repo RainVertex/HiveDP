@@ -1,3 +1,5 @@
+// Evaluates scorecard rules against catalog entities and rolls results up into tiers.
+
 import { Prisma, prisma } from "@internal/db";
 import type {
   ScorecardRuleKind,
@@ -15,7 +17,7 @@ const THRESHOLD_ORDER: Array<"red" | "orange" | "yellow" | "green"> = [
   "green",
 ];
 
-/** Tier rollup: highest tier achieved is the highest tier T such that (a) at least one rule is */
+/** Achieved tier is the highest tier with a rule where all rules at or below it pass. */
 export function rollupTier(
   tierStyle: ScorecardTierStyle,
   ruleResults: Array<{ tier: string; passed: boolean }>,

@@ -1,3 +1,4 @@
+// DTOs for webhook subscriptions and their delivery attempts.
 import type { ID, ISODateString } from "./common";
 
 export interface WebhookSubscriptionDto {
@@ -5,7 +6,7 @@ export interface WebhookSubscriptionDto {
   ownerUserId?: ID | null;
   ownerTeamId?: ID | null;
   url: string;
-  /** Only returned at create time. */
+  // Only returned at create time.
   secret?: string;
   eventKinds: string[];
   active: boolean;

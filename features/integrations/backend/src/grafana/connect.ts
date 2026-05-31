@@ -1,7 +1,4 @@
-// Grafana connect flow. Two-step: probe to discover candidate datasources
-// then commit with the admin's chosen UIDs. Mirrors the validate→encrypt→
-// persist→return-webhook-url shape used by other providers so the
-// integration surface stays uniform across providers.
+// Grafana connect flow: probe to discover datasources, then commit with admin-chosen UIDs, plus secret rotation.
 
 import { randomBytes } from "node:crypto";
 import { Router } from "express";
@@ -14,11 +11,7 @@ export const grafanaConnectRouter: Router = Router();
 
 const DEFAULT_ALERT_REFIRE_SUPPRESSION_MS = 3_600_000;
 
-/**
- * Reject http:// baseUrls in production. Dev / docker-compose-lgtm need
- * http://localhost:3000 to work, so we only enforce when NODE_ENV is
- * production. Returns null when allowed. an error string when not.
- */
+// Reject http:// baseUrls only in production; dev/docker-compose-lgtm need http://localhost.
 function rejectInsecureBaseUrl(baseUrl: string): string | null {
   if (process.env.NODE_ENV !== "production") return null;
   if (!baseUrl.startsWith("https://")) {
@@ -75,9 +68,6 @@ function normalizeBaseUrl(raw: unknown): string {
   return trimmedString(raw).replace(/\/+$/, "");
 }
 
-// POST /api/integrations/grafana/probe
-// Validates credentials and surfaces candidates so the dialog can render
-// a per-type picker when more than one datasource of a given kind exists.
 grafanaConnectRouter.post("/probe", async (req, res) => {
   if (!req.user || req.user.role !== "admin") {
     res.status(403).json({ error: "Admin only" });
@@ -127,10 +117,6 @@ grafanaConnectRouter.post("/probe", async (req, res) => {
   });
 });
 
-// POST /api/integrations/grafana
-// Commits the integration with admin-chosen UIDs. Re-runs listDataSources to
-// catch the case where the token or datasource set changed between probe and
-// submit (token rotation, datasource deleted, ...).
 grafanaConnectRouter.post("/", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -175,9 +161,7 @@ grafanaConnectRouter.post("/", async (req, res, next) => {
       return;
     }
 
-    // Re-probe to confirm the chosen UIDs still resolve. Reject if any of the
-    // supplied UIDs is no longer present, better than persisting a config
-    // that will fail at scrape time.
+    // Re-probe to reject chosen UIDs that no longer resolve, rather than persisting a config that fails at scrape time.
     const client = createGrafanaClient({ baseUrl, apiToken });
     let datasources: GrafanaDataSource[];
     try {
@@ -244,8 +228,7 @@ grafanaConnectRouter.post("/", async (req, res, next) => {
       },
       dsUid: storedDsUid,
       imageRendererAvailable,
-      // Plaintext webhookSecret is returned exactly once, admin pastes it
-      // into Grafana's Contact Point as the static Authorization header.
+      // Plaintext webhookSecret is returned exactly once for the admin to paste into Grafana's Contact Point.
       webhookSecret,
       webhookUrl: `/integrations/grafana/webhook/${integration.id}`,
     });
@@ -254,21 +237,13 @@ grafanaConnectRouter.post("/", async (req, res, next) => {
   }
 });
 
-// Rotation endpoints
-// Without these, the only way to rotate either secret is to delete the
-// integration, which cascades to EntityObservabilityConfig and
-// AlertDeliveryState. Operators avoid rotating, which is worse than the bug.
-
+// Rotation endpoints exist so secrets can rotate without deleting the integration (which would cascade-delete config and alert state).
 function readGrafanaIntegrationConfig(config: unknown): Record<string, unknown> {
   return config && typeof config === "object" && !Array.isArray(config)
     ? (config as Record<string, unknown>)
     : {};
 }
 
-// PATCH /api/integrations/grafana/:id/credentials { apiToken }
-// Admin only. Validates the new token by calling listDataSources(). Re-checks
-// that the persisted dsUid.* still exist (same Grafana, different token, they
-// should). Updates ONLY config.apiToken. webhookSecret and dsUid are untouched.
 grafanaConnectRouter.patch("/:id/credentials", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -319,9 +294,7 @@ grafanaConnectRouter.patch("/:id/credentials", async (req, res, next) => {
       return;
     }
 
-    // Belt-and-braces: confirm the previously chosen UIDs are still present.
-    // A new token usually has the same datasource visibility, but if the
-    // admin rotates with a more-scoped token we want to surface that early.
+    // Confirm stored UIDs are still visible early, in case the new token is more narrowly scoped.
     const validUids = new Set(datasources.map((d) => d.uid));
     const storedDs = readGrafanaIntegrationConfig(cfg.dsUid);
     const missing: string[] = [];
@@ -360,10 +333,7 @@ grafanaConnectRouter.patch("/:id/credentials", async (req, res, next) => {
   }
 });
 
-// GET /api/integrations/grafana/:id/probe
-// Re-probe using the *stored* token. Lets the configure UI render the
-// datasource picker without making the admin re-enter credentials. Same
-// response shape as POST /probe.
+// Re-probe with the stored token so the configure UI can render the picker without re-entering credentials.
 grafanaConnectRouter.get("/:id/probe", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -418,11 +388,7 @@ grafanaConnectRouter.get("/:id/probe", async (req, res, next) => {
   }
 });
 
-// PATCH /api/integrations/grafana/:id/config
-// Updates non-secret Grafana config: dsUid map and alertRefireSuppressionMs.
-// Token and webhook secret are untouched. dsUid (when provided) is re-validated
-// against listDataSources() using the stored token so we never persist a UID
-// that will fail at scrape time.
+// Updates non-secret config (dsUid, suppression); re-validates any new dsUid so we never persist a UID that fails at scrape time.
 grafanaConnectRouter.patch("/:id/config", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -526,11 +492,7 @@ grafanaConnectRouter.patch("/:id/config", async (req, res, next) => {
   }
 });
 
-// POST /api/integrations/grafana/:id/rotate-webhook-secret
-// Admin only. Generates a fresh 32-byte hex secret, persists it encrypted
-// returns the plaintext exactly once, the admin must paste it into Grafana's
-// Contact Point Authorization header. The old secret stops working as soon as
-// this returns. alerts delivered with the old bearer will 401.
+// Rotates the webhook secret; plaintext is returned once and the old secret stops working immediately (old bearer 401s).
 grafanaConnectRouter.post("/:id/rotate-webhook-secret", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {

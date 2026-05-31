@@ -1,10 +1,10 @@
+// Card chrome wrapping a single widget: title bar, drag handle, and edit-mode configure/remove buttons.
 import type { PropsWithChildren } from "react";
 
 interface WidgetFrameProps extends PropsWithChildren {
   title: string;
   editMode: boolean;
   onRemove?: () => void;
-  /** When set, a gear icon appears next to the trash icon in edit mode. */
   onConfigure?: () => void;
 }
 

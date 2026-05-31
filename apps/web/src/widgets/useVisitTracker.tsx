@@ -1,3 +1,4 @@
+// Tracks page-visit counts in localStorage and exposes recent/top-visited hooks.
 import {
   createContext,
   useCallback,
@@ -62,7 +63,7 @@ export function VisitTrackerProvider({ children }: PropsWithChildren) {
     try {
       window.localStorage.setItem(VISITS_STORAGE_KEY, JSON.stringify(visits));
     } catch {
-      // ignore
+      /* ignore */
     }
   }, [visits]);
 

@@ -1,9 +1,5 @@
+// Toolbar popover with multi-select status filters (stale, orphaned) plus an all-orgs scope toggle.
 import { useEffect, useRef, useState } from "react";
-
-// Two-checkbox status filter. Mirrors ColumnsPopover's popover styling and
-// GroupBySelect's leading "Filter by:" label so the toolbar reads as a row of
-// matching controls. Stale and orphaned are independent (an entity can be
-// neither, either, or both) so this is multi-select, not radio.
 
 interface Props {
   hideStale: boolean;

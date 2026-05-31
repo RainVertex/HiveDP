@@ -8,9 +8,7 @@ export interface EntityDriftBadgeProps {
   reload: () => void;
 }
 
-// Inline open-drift indicator for a catalog entity. Reads drifts from the
-// already-loaded entity overview (no extra fetch). Expand panel exposes Apply
-// and Ignore per open drift.
+// Open-drift indicator for an entity; reads drifts from the already-loaded overview (no extra fetch).
 export function EntityDriftBadge({ data, reload }: EntityDriftBadgeProps) {
   const api = useApi();
   const [busy, setBusy] = useState<string | null>(null);

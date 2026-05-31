@@ -1,10 +1,10 @@
+// Compact per-field diff between a team request's original submission and its current values.
 import type { TeamRequestDto } from "@internal/shared-types";
 
 interface RequestDiffProps {
   request: TeamRequestDto;
 }
 
-/** Renders a compact per-field diff between the original submission and the request's current */
 export function RequestDiff({ request }: RequestDiffProps) {
   const rows = buildRows(request);
   if (rows.length === 0) return null;

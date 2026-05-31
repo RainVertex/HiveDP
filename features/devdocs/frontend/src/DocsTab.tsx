@@ -1,3 +1,4 @@
+// DevDocs entity tab: loads pages, resolves the active slug, and renders sidebar plus page view.
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useApi } from "@internal/api-client/react";
@@ -36,8 +37,7 @@ export function DocsTab() {
         if (!cancelled) setCurrentUser(me);
       })
       .catch(() => {
-        // 401 means we're not signed in. the page guard will redirect, but
-        // failing silently here keeps the docs view from crashing.
+        // Swallow 401, the page guard redirects, this keeps the docs view from crashing.
       });
     return () => {
       cancelled = true;

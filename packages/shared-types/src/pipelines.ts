@@ -1,8 +1,4 @@
-// Wire shapes for CI/CD pipeline visibility. Mirrors WorkflowRun and Deployment
-// rows from packages/db/prisma/schema/pipelines.prisma, but with BigInt fields
-// dropped (the client never needs GitHub's numeric ids) and Date fields
-// serialized as ISO strings.
-
+// Wire shapes for CI/CD pipeline rows, mirroring pipelines.prisma with BigInt ids dropped and Dates as ISO strings.
 import type { ISODateString } from "./common";
 
 export type WorkflowRunStatus = "queued" | "in_progress" | "completed";

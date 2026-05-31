@@ -13,11 +13,9 @@ import { Composer } from "./Composer";
 import { useChatStream } from "./chatStream";
 import { MenuIcon } from "./icons";
 
-// Below `md` (Tailwind's 768px) we ditch the resizable two-column layout and
-// fall back to a single pane + slide-in drawer. The resizable panels crush the
-// message area on phones, so the breakpoint flip is a hard switch in JS rather
-// than CSS, we only want one MessageList mounted at a time (the autoscroll
-// ref + scrollIntoView would fight itself with two copies).
+// Full-page chat surface: resizable two-column layout on desktop, single pane + drawer below md.
+
+// JS breakpoint flip (not CSS) so only one MessageList mounts; two would fight over the autoscroll ref.
 function useIsMobile(): boolean {
   const query = "(max-width: 767px)";
   const [matches, setMatches] = useState(() =>
@@ -33,21 +31,11 @@ function useIsMobile(): boolean {
 }
 
 interface ChatPageProps {
-  /** Apps-web resolves auth and passes the current user in so feature code stays decoupled. */
   userName?: string;
   userAvatarUrl?: string | null;
 }
 
-// Full-page chat surface. Three columns visually but two functionally:
-// left rail with conversation list, main pane with messages + composer.
-//
-// Streaming + abort: useChatStream owns the SSE consumer. When a message is
-// in flight, the Composer renders a Stop button. while a *_submit is running
-// Stop is disabled (stream.submitInFlight) so we don't orphan a GitHub team
-// mid-runApproval. Confirmation of *_prepare actions happens in prose, the
-// user replies "confirm"/"cancel" as the next message and the backend's
-// looksLikeConfirmation() routes the pending preview to its *_submit.
-
+// Stop is disabled during a *_submit (stream.submitInFlight) so we don't orphan a GitHub team mid-approval.
 export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
   const api = useApi();
   const navigate = useNavigate();
@@ -55,11 +43,7 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Persist the panel split across reloads. v4 of react-resizable-panels
-  // replaced the legacy `autoSaveId` prop with this hook + manual layout
-  // wiring. The `v2` suffix is intentional: an earlier integration passed
-  // pixel-numeric sizes by mistake, and bumping the id discards those
-  // broken stored values.
+  // The `v2` id suffix is intentional: it discards stored pixel-numeric sizes an earlier integration saved by mistake.
   const persistedLayout = useDefaultLayout({
     id: "chat-page-layout-v2",
     panelIds: ["conversations", "main"],
@@ -70,46 +54,22 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
   const [active, setActive] = useState<ChatConversationDetailDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  // Optimistic user message kept OUTSIDE `active` so that any transient
-  // setActive(null), from a 404/race in the conv-load effect, or React
-  // rendering the navigate before setActive applies, can't make it
-  // disappear. Keyed by conversationId so a fast send-then-switch doesn't
-  // leak the previous turn's pending bubble onto another conversation.
+  // Kept outside `active` so a transient setActive(null) can't drop it; keyed by conversationId to avoid leaking across threads.
   const [pendingUserMessage, setPendingUserMessage] = useState<{
     conversationId: string;
     message: ChatMessageDto;
   } | null>(null);
 
-  // When handleSend creates a conversation on the fly, it sets this ref to the
-  // new conv's id BEFORE calling navigate(). The conv-load effect checks this
-  // ref and skips its fetch for the matching id. Without this, React may render
-  // the URL change (conversationId updated) before the optimistic setActive has
-  // applied, so the effect would see active?.id === null !== conversationId and
-  // fire a getConversation that overwrites the optimistic state mid-stream.
+  // Set before navigate() on a new conv so the conv-load effect skips its fetch and doesn't clobber optimistic state mid-stream.
   const skipNextLoadRef = useRef<string | null>(null);
 
   const { state: stream, send, abort, reset } = useChatStream(conversationId ?? null);
 
-  // Load conversation list whenever we land on the page.
   useEffect(() => {
     api.chat.listConversations().then(setConversations).catch(console.error);
   }, [api]);
 
-  // Load the active conversation's messages on navigation. Skip the fetch
-  // when we already have this conversation loaded locally, handleSend
-  // optimistically seeds active for a freshly-created conversation, and
-  // re-fetching would clobber the user's just-sent message.
-  //
-  // CRITICAL: also skip when a stream is in flight. The first send of a new
-  // conversation does setActive(...) + navigate(...) + send(...) in quick
-  // succession. React may render the URL change in a transient state where
-  // `active` hasn't applied yet, that interleaved render would otherwise
-  // see active?.id !== conversationId, fire setLoading(true) (hiding the
-  // streaming bubble), then on resolve overwrite the optimistic state with a
-  // server snapshot that doesn't yet contain the in-flight assistant message.
-  // The previous reset() call here was even worse: it wiped useChatStream's
-  // state mid-stream, so subsequent SSE tokens landed on status === "idle"
-  // and never re-rendered the live bubble.
+  // Load messages on navigation, but skip when already loaded or a stream is in flight so we don't clobber optimistic/live state.
   useEffect(() => {
     if (!conversationId) {
       setActive(null);
@@ -134,19 +94,13 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
       .finally(() => setLoading(false));
   }, [api, conversationId, active?.id, stream.status]);
 
-  // When a stream finishes, refresh the conversation so the new assistant
-  // message + final tool calls land in persisted history, then reset the
-  // stream. Without the reset, status stays "done" and stream.text keeps
-  // rendering a live bubble on top of the now-persisted assistant message
-  // making it appear twice.
+  // On stream end, refresh persisted history then reset the stream; without the reset the live bubble double-renders.
   useEffect(() => {
     if (stream.status !== "done" || !conversationId) return;
     Promise.all([api.chat.getConversation(conversationId), api.chat.listConversations()])
       .then(([detail, list]) => {
         setActive(detail);
         setConversations(list);
-        // The persisted user message is now in `detail.messages`, so drop the
-        // optimistic copy to avoid double-rendering the same content.
         setPendingUserMessage(null);
         reset();
       })
@@ -180,12 +134,7 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
     async (text: string) => {
       let convId = conversationId;
       if (!convId) {
-        // Auto-create a conversation if one isn't selected. Seed `active`
-        // ourselves so the load-on-navigate effect skips its refetch and
-        // our optimistic user message survives the route change. The ref is
-        // the load-bearing piece: React may render the URL change before
-        // setActive applies, and only the ref reliably tells the effect "we
-        // just made this conv, don't fetch it".
+        // Auto-create when none selected; the ref (not setActive) reliably tells the load effect to skip refetching this new conv.
         const conv = await api.chat.createConversation();
         skipNextLoadRef.current = conv.id;
         setConversations((prev) => [conv, ...prev]);
@@ -193,11 +142,7 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
         navigate(`/chat/${conv.id}`, { replace: true });
         convId = conv.id;
       }
-      // Show the user's message immediately. Kept in its own state (not
-      // merged into `active.messages`) so a transient setActive(null) from
-      // the conv-load effect or a 404 can't make it disappear mid-stream.
-      // Cleared in the post-stream refresh below once the persisted row from
-      // the server takes over.
+      // Optimistic bubble in its own state so a transient setActive(null) can't drop it mid-stream; cleared after the post-stream refresh.
       const optimistic: ChatMessageDto = {
         id: `optimistic-${Date.now()}`,
         role: "user",
@@ -263,8 +208,7 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
     return (
       <div className="relative flex h-[calc(100vh-3.5rem)] flex-col">
         {mainPane}
-        {/* Slide-in drawer for the conversation list. Backdrop dismisses on tap.
-         * ConversationList's onSelect closes us when a conv is chosen. */}
+        {/* Slide-in drawer for the conversation list; backdrop tap dismisses. */}
         <div
           className={`fixed inset-0 z-40 transition-opacity ${
             drawerOpen ? "opacity-100" : "pointer-events-none opacity-0"

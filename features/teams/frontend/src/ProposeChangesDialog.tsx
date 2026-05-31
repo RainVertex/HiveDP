@@ -1,3 +1,4 @@
+// Admin dialog to edit a team request and send it back to the requester for confirmation.
 import { useState } from "react";
 import { useApi } from "@internal/api-client/react";
 import type { TeamRequestDto } from "@internal/shared-types";
@@ -9,7 +10,6 @@ interface ProposeChangesDialogProps {
   onProposed: (next: TeamRequestDto) => void;
 }
 
-/** Admin-side proposal dialog. */
 export function ProposeChangesDialog({ request, onClose, onProposed }: ProposeChangesDialogProps) {
   const api = useApi();
   const [busy, setBusy] = useState(false);

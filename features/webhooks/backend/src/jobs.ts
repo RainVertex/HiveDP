@@ -1,3 +1,4 @@
+// Scheduled job definitions that periodically retry due webhook deliveries.
 import { attemptDelivery, findDueDeliveryIds } from "./delivery";
 import { prisma } from "@internal/db";
 
@@ -17,7 +18,7 @@ export interface WebhookJobDefinition {
   handler: (ctx: WebhookJobContext) => Promise<void>;
 }
 
-/** Every 5 min: drain pending + due-failed webhook deliveries. */
+// Drains pending and due-failed deliveries on each run.
 export function webhookDeliveryRetryJob(): WebhookJobDefinition {
   return {
     name: "webhooks.deliveryRetry",

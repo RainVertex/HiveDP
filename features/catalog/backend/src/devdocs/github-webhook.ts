@@ -1,3 +1,4 @@
+// GitHub push webhook: verifies the signature and triggers devdocs resync for matching entities.
 import express, { Router, type Request, type Response } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@internal/db";
@@ -24,7 +25,7 @@ function verifySignature(secret: string, body: Buffer, headerSig: string | undef
   return timingSafeEqual(a, b);
 }
 
-/** GitHub presents the same repo through several URL shapes (html, clone, ssh, with/without */
+// GitHub presents the same repo through several URL shapes, so we match against all of them.
 function candidateUrls(repo: WebhookRepository | undefined): string[] {
   if (!repo) return [];
   const out = new Set<string>();
@@ -47,8 +48,7 @@ function candidateUrls(repo: WebhookRepository | undefined): string[] {
 
 export const githubWebhookRouter: Router = Router();
 
-// express.raw is scoped to this route so the global express.json() in
-// createServer doesn't consume the body before we can verify the signature.
+// express.raw is scoped here so global express.json() doesn't consume the body before signature check.
 githubWebhookRouter.post(
   "/",
   express.raw({ type: "*/*", limit: "5mb" }),
@@ -73,7 +73,6 @@ githubWebhookRouter.post(
       return res.json({ ok: true, pong: true });
     }
     if (event !== "push") {
-      // Acknowledge but don't act on non-push events.
       return res.status(202).json({ skipped: event || "unknown" });
     }
 
@@ -95,9 +94,7 @@ githubWebhookRouter.post(
     });
 
     for (const e of entities) {
-      // Fire-and-forget: respond fast so GitHub doesn't time the delivery out.
-      // Errors are swallowed because syncDevDocsForEntity already records them
-      // on DocSyncState.lastError for the UI to surface.
+      // Fire-and-forget so GitHub doesn't time out; errors are already recorded on DocSyncState.lastError.
       void syncDevDocsForEntity(e.id).catch(() => {});
     }
 

@@ -1,3 +1,4 @@
+// Admin queue to approve, reject, or propose changes to pending team-creation requests.
 import { useCallback, useEffect, useState } from "react";
 import { PageLayout } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
@@ -18,8 +19,7 @@ export function AdminTeamRequestsPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      // Fetch both states the queue should display: pending (admin's turn)
-      // and awaiting_user_confirmation (waiting on requester to confirm).
+      // Queue shows both pending (admin's turn) and awaiting_user_confirmation.
       const [pending, awaiting] = await Promise.all([
         api.teamRequests.list({ status: "pending" }),
         api.teamRequests.list({ status: "awaiting_user_confirmation" }),

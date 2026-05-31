@@ -1,12 +1,7 @@
+// Header-cell facet filter; portals the dropdown so the table's overflow-x-auto does not clip it.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { COLUMN_META, type CatalogColumnId } from "./columns";
-
-// Header-cell facet filter (Kind, Lifecycle, Owner, Tags). The dropdown is
-// rendered via a portal because the table wrapper uses `overflow-x-auto`
-// without the portal the popover gets clipped on the right edge and visually
-// "disappears" under the next column. Position is recomputed against the
-// trigger's bounding rect on open and on window resize/scroll while open.
 
 interface Props {
   column: CatalogColumnId;
@@ -16,7 +11,7 @@ interface Props {
   onClear: () => void;
 }
 
-const POPOVER_WIDTH = 208; // matches w-52 (Tailwind 13rem)
+const POPOVER_WIDTH = 208; // matches Tailwind w-52
 
 export function HeaderFilter({ column, options, selected, onToggle, onClear }: Props) {
   const [open, setOpen] = useState(false);
@@ -91,9 +86,7 @@ export function HeaderFilter({ column, options, selected, onToggle, onClear }: P
         createPortal(
           <div
             ref={popoverRef}
-            // The wrapper uses `position: absolute` with viewport-aware
-            // top/left from getBoundingClientRect. z-50 keeps it above the
-            // sticky page header used by PageLayout.
+            // z-50 keeps it above PageLayout's sticky page header.
             style={{ top: pos.top, left: pos.left, width: POPOVER_WIDTH }}
             className="absolute z-50 rounded-md border border-app-border bg-app-surface p-2 text-left shadow-lg"
             onClick={(e) => e.stopPropagation()}

@@ -1,3 +1,4 @@
+// Single project view: list/kanban tasks, sharing, edit, and task creation.
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";
@@ -505,12 +506,7 @@ export function ProjectDetailPage() {
         <p className="text-sm text-app-text-muted">Loading...</p>
       ) : view === "kanban" ? (
         <ErrorBoundary fallbackTitle="Kanban board failed to render">
-          <KanbanBoard
-            projectId={id}
-            tasks={visibleTasks}
-            onUpdate={refetch}
-            canEdit={canEdit}
-          />
+          <KanbanBoard projectId={id} tasks={visibleTasks} onUpdate={refetch} canEdit={canEdit} />
         </ErrorBoundary>
       ) : (
         <TaskListView

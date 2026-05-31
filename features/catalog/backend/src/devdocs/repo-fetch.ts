@@ -1,7 +1,7 @@
+// GitHub repo reader used by devdocs sync to list/read Markdown and look up last commits.
 import type { Octokit as OctokitClient } from "octokit";
 
-// `octokit` v5 ships ESM-only and the api backend is CJS. Mirror the deferred
-// import dance from features/scaffolder so module load doesn't blow up.
+// octokit v5 is ESM-only and this backend is CJS, so defer the import to avoid a load-time crash.
 async function loadOctokit(): Promise<typeof OctokitClient> {
   const mod = await import("octokit");
   return mod.Octokit;
@@ -10,9 +10,8 @@ async function loadOctokit(): Promise<typeof OctokitClient> {
 export interface RepoTarget {
   owner: string;
   repo: string;
-  /** Git ref. */
   ref?: string;
-  /** Optional auth token (reads from env if omitted). */
+  // Falls back to GITHUB_TOKEN when omitted.
   token?: string;
 }
 
@@ -56,7 +55,6 @@ export class RepoFetchClient {
     return this.resolvedRef;
   }
 
-  /** Returns true if the path exists at the resolved ref (file or directory). */
   async exists(path: string): Promise<boolean> {
     const octo = await this.getOcto();
     const ref = await this.ref();
@@ -74,7 +72,6 @@ export class RepoFetchClient {
     }
   }
 
-  /** Returns the raw text content for a file path, or null if missing/non-file. */
   async getFile(path: string): Promise<string | null> {
     const octo = await this.getOcto();
     const ref = await this.ref();
@@ -94,7 +91,6 @@ export class RepoFetchClient {
     }
   }
 
-  /** Walk a directory recursively and yield every Markdown file (.md / .mdx) with its content. */
   async listMarkdown(rootPath: string, maxFiles = 200): Promise<RepoFile[]> {
     const out: RepoFile[] = [];
     const queue: string[] = [rootPath];
@@ -130,7 +126,6 @@ export class RepoFetchClient {
     return out;
   }
 
-  /** Most recent commit that touched `path` at the resolved ref. */
   async lastCommitFor(path: string): Promise<CommitInfo> {
     const octo = await this.getOcto();
     const ref = await this.ref();

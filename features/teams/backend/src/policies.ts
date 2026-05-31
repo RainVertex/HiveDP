@@ -2,14 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { Prisma, prisma, type TeamPolicyKind } from "@internal/db";
 import type { TeamPolicyDto, TeamPolicyViolation } from "@internal/shared-types";
+// Team naming/policy registry plus admin CRUD routes; validators live in code (no DB-driven eval/JSON-DSL).
 import { audit } from "./helpers";
-
-// Policy registry
-//
-// Each kind in the TeamPolicyKind enum has exactly one entry here. The DB row
-// stores per-kind enable + config. the validator and the field/format
-// definitions live in code so adding a new kind is: enum migration + new
-// registry entry. No DB-driven validator code path means no eval, no JSON-DSL.
 
 export interface PolicyContext {
   slug: string;
@@ -47,9 +41,7 @@ const namePatternPolicy: PolicyDefinition<NamePatternConfig> = {
       };
     }
     if (config.requireHyphenSeparation) {
-      // At least one hyphen, hyphens between word chunks, no leading/trailing
-      // hyphen, no consecutive hyphens. The base slugSchema already enforces
-      // [a-z0-9-]. this layers on multi-word + hyphen separation.
+      // Requires multi-word with hyphen separation: no leading, trailing, or consecutive hyphens.
       const ok = /^[a-z0-9]+(-[a-z0-9]+)+$/.test(slug);
       if (!ok) {
         return {
@@ -70,7 +62,6 @@ const REGISTRY: Record<TeamPolicyKind, PolicyDefinition<unknown>> = {
 
 const ALL_KINDS = Object.keys(REGISTRY) as TeamPolicyKind[];
 
-/** Run every enabled policy against the input. */
 export async function runPolicies(ctx: PolicyContext): Promise<TeamPolicyViolation | null> {
   const rows = await prisma.teamPolicy.findMany({ where: { enabled: true } });
   for (const row of rows) {
@@ -89,8 +80,6 @@ function mergeConfig<C>(def: PolicyDefinition<C>, raw: Prisma.JsonValue): C {
   }
   return def.defaultConfig;
 }
-
-// /api/teams/policies
 
 export const teamPoliciesRouter: Router = Router();
 

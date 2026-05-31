@@ -3,10 +3,7 @@ import { useApi } from "@internal/api-client/react";
 import type { DeploymentRow, WorkflowRunRow } from "@internal/shared-types";
 import { useEntityContext } from "../outletContext";
 
-// Pipelines tab, recent GitHub Actions workflow runs + recent deployments for
-// the entity's mapped repo. Data is populated by webhooks + a 15-min cron
-// sweep (catalog.pipelinesSync). The "Refresh now" button forces an immediate
-// sync for this one entity.
+// Pipelines tab: workflow runs and deployments, populated by webhooks plus a 15-min cron sweep.
 
 const CONCLUSION_COLOR: Record<string, string> = {
   success: "text-app-success",

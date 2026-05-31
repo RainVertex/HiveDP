@@ -1,7 +1,4 @@
-// Recent Loki log lines for a catalog entity. Backend reads the configured
-// LogQL selector for the entity and proxies to Loki via Grafana. Lines that
-// contain a trace ID (extracted server-side) are clickable and open a Tempo
-// trace drawer.
+// Panel of recent Loki log lines for an entity; lines with a trace ID open a Tempo trace drawer.
 
 import { useEffect, useState } from "react";
 import type { LokiLogLine } from "@internal/shared-types";

@@ -1,3 +1,4 @@
+// Vite config for apps/web: React plugin, shared env dir, and API dev proxy.
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 

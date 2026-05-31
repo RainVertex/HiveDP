@@ -13,6 +13,7 @@ import type { ActionRegistry } from "./actions/registry";
 import type { ReadCtx } from "./actions/types";
 import type { CapabilityPolicy } from "./policy";
 import { computeApprovalRequirements } from "./policy";
+// Walks a template's plan(), resolves each step, and assembles an immutable Plan artifact.
 import { paramsHash } from "./fingerprint";
 
 export interface BuildPlanInput<TParams> {
@@ -20,25 +21,22 @@ export interface BuildPlanInput<TParams> {
   rawParams: unknown;
   actor: Actor;
   ctx: ReadCtx;
-  /** Pre-computed content hash for the template module + skeleton. */
   templateContentHash: string;
-  /** Resolved sandbox target. */
   target: SandboxTarget;
   bindingId?: string | null;
   policy: CapabilityPolicy;
   actions: ActionRegistry;
-  /** Plan id. caller supplies so it can be persisted alongside the artifact. */
+  // Caller supplies so it can be persisted alongside the artifact.
   planId?: string;
   now?: Date;
 }
 
 export interface BuiltPlan {
   plan: Plan;
-  /** Steps with their original action input, used at apply time. */
+  // Steps with their original action input, used at apply time.
   resolvedSteps: Array<{ stepId: string; action: string; input: unknown }>;
 }
 
-/** Walks the template's plan(), runs each step's match() + diff(), and assembles a Plan */
 export async function buildPlan<TParams>(input: BuildPlanInput<TParams>): Promise<BuiltPlan> {
   const {
     template,
@@ -61,8 +59,7 @@ export async function buildPlan<TParams>(input: BuildPlanInput<TParams>): Promis
   const resolvedSteps: BuiltPlan["resolvedSteps"] = [];
   const allCapabilities = new Set<Capability>();
   let irreversible = false;
-  // mode: "no-op" if every step matches. "update" if any drifts and a
-  // binding exists. "create" otherwise.
+  // mode: no-op if every step matches, update if any drifts with a binding, else create.
   let anyAbsent = false;
   let anyDrift = false;
 

@@ -1,8 +1,8 @@
+// Converts a Zod schema into an Anthropic tool definition.
 import type { ZodType } from "zod";
 import { toJsonSchema } from "./zod-to-jsonschema";
 
-// Anthropic.Tool shape (kept minimal to avoid a hard dep on @anthropic-ai/sdk
-// from this package. the agents feature consumes the same struct).
+// Kept minimal to avoid a hard dep on @anthropic-ai/sdk from this package.
 export interface AnthropicToolDef {
   name: string;
   description: string;

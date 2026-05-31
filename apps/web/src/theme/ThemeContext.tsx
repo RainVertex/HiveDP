@@ -1,3 +1,4 @@
+// Theme context: reads/persists the active theme and applies it to <html>.
 import {
   createContext,
   useContext,

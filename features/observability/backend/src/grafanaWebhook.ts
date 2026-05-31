@@ -1,19 +1,5 @@
-// Grafana Alertmanager webhook receiver. Grafana Alertmanager doesn't HMAC
-// payloads natively, but its Webhook contact point lets you set a static
-// `Authorization` header, we generate a per-integration bearer at connect
-// time and require it here. The header is compared in constant time.
-//
-// Per-request flow:
-// 1. Bearer auth against decrypted integration.config.webhookSecret.
-// 2. Replay protection: reject 400 if max(startsAt) is older than 10min.
-// 3. For each alert, upsert AlertDeliveryState by (integrationId, fingerprint)
-// and run the dedup state machine (see steps below).
-// 4. Recipient resolver: entity owners → team members → org admins.
-// 5. notify(tx, ...) per recipient inside a transaction.
-//
-// MUST be mounted with express.raw() and BEFORE express.json(), same
-// constraint as the GitHub webhook receiver in apps/api/src/createServer.ts.
-
+// Grafana Alertmanager webhook receiver: per-integration bearer auth, replay guard, dedup, fan-out.
+// MUST be mounted with express.raw() BEFORE express.json() (same as the GitHub webhook receiver).
 import { Router } from "express";
 import express from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
@@ -70,7 +56,7 @@ async function resolveRecipients(
 ): Promise<{ recipientUserIds: string[]; teamId: string | null }> {
   const labels = alert.labels ?? {};
 
-  // 1. Entity owners → members of every owning team.
+  // 1. Entity owners -> members of every owning team.
   const entityName = labels.entity;
   if (entityName) {
     const entity = await prisma.catalogEntity.findFirst({
@@ -95,7 +81,7 @@ async function resolveRecipients(
     }
   }
 
-  // 2. labels.team → Team.slug
+  // 2. labels.team -> Team.slug
   const teamSlug = labels.team;
   if (teamSlug) {
     const team = await prisma.team.findFirst({
@@ -118,12 +104,7 @@ async function resolveRecipients(
   return { recipientUserIds: admins.map((a) => a.id), teamId: null };
 }
 
-// Webhook receiver is mounted outside /api/* (see apps/api/src/createServer.ts)
-// so the global apiLimiter does not apply. Even with the bearer requirement
-// an attacker with the secret could flood the receiver with unique-fingerprint
-// alerts and bypass dedup, so we cap per (integrationId, IP) at 300/min.
-// Burst-friendly enough for a normal grouped Alertmanager batch, restrictive
-// enough that a flood gets back-pressure.
+// Mounted outside /api/* so the global apiLimiter does not apply; cap per (integrationId, IP).
 const webhookLimiter = rateLimit({
   windowMs: 60_000,
   limit: 300,
@@ -151,8 +132,7 @@ grafanaWebhookRouter.post(
       return;
     }
     if (!integration.enabled) {
-      // 200 so Grafana doesn't retry indefinitely while the integration is
-      // intentionally disabled.
+      // 200 so Grafana doesn't retry indefinitely while intentionally disabled.
       res.status(200).json({ status: "ignored", reason: "integration disabled" });
       return;
     }
@@ -184,8 +164,7 @@ grafanaWebhookRouter.post(
       return;
     }
 
-    // Replay protection. Reject the whole batch, partial acceptance is
-    // harder to reason about than refusing.
+    // Replay protection: reject the whole batch, partial acceptance is hard to reason about.
     let maxStartsAt = -Infinity;
     for (const a of alerts) {
       if (a.startsAt) {
@@ -213,7 +192,7 @@ grafanaWebhookRouter.post(
       const status: AlertStatus = alert.status === "resolved" ? "resolved" : "firing";
       const fingerprint = alert.fingerprint;
       if (!fingerprint) {
-        // Without a fingerprint we can't dedup. Skip, Grafana always sends one.
+        // Without a fingerprint we can't dedup; Grafana always sends one.
         continue;
       }
 
@@ -230,9 +209,7 @@ grafanaWebhookRouter.post(
         const withinWindow =
           existing?.lastFiringAt && now.getTime() - existing.lastFiringAt.getTime() < suppression;
         if (withinWindow) {
-          // Bump updatedAt only so we can see we observed the repeat. Don't
-          // alter lastFiringAt that would extend the suppression window
-          // every time Grafana repeats.
+          // Bump updatedAt only; touching lastFiringAt would extend the suppression window on every repeat.
           shouldNotify = false;
           updateData = { updatedAt: now };
           createData = {
@@ -250,10 +227,8 @@ grafanaWebhookRouter.post(
           };
         }
       } else {
-        // resolved
         shouldNotify = true;
-        // CRITICAL: clear lastFiringAt so the next genuine firing isn't
-        // suppressed against a stale timestamp.
+        // CRITICAL: clear lastFiringAt so the next firing isn't suppressed against a stale timestamp.
         updateData = { lastResolvedAt: now, lastFiringAt: null };
         createData = {
           integrationId,
@@ -291,8 +266,7 @@ grafanaWebhookRouter.post(
         fingerprint,
       };
 
-      // One transaction per recipient, notify() fans out webhook deliveries
-      // and must run inside a tx.
+      // One transaction per recipient since notify() fans out webhook deliveries inside a tx.
       for (const recipientUserId of recipientUserIds) {
         await prisma.$transaction(async (tx) => {
           await notify(tx, {

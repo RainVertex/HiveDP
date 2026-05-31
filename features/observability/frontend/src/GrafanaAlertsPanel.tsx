@@ -1,7 +1,4 @@
-// Recent Grafana Alertmanager notifications for the current user. Reads
-// the notifications feed and filters to grafana.alert / grafana.alert.resolved
-// kinds. Used both on the /observability Alerts tab and the home-page
-// grafana-alerts widget.
+// Lists recent Grafana alert notifications from the notifications feed.
 
 import { useEffect, useState } from "react";
 import type { NotificationDto } from "@internal/shared-types";

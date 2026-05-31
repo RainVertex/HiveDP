@@ -1,3 +1,4 @@
+// Scrollable message log: persisted messages, optimistic/live turn, errors, and autoscroll.
 import { useEffect, useRef } from "react";
 import type { ChatMessageDto } from "@internal/shared-types";
 import { MessageBubble } from "./MessageBubble";
@@ -5,10 +6,9 @@ import type { ChatStreamState } from "./chatStream";
 
 interface Props {
   messages: ChatMessageDto[];
-  /** Optimistic user message rendered while the current turn is streaming. */
+  // Optimistic user message rendered while the current turn is streaming.
   pendingUserMessage?: ChatMessageDto | null;
   stream: ChatStreamState;
-  /** Current user, used by MessageBubble to render the right-side avatar. */
   userName?: string;
   userAvatarUrl?: string | null;
 }

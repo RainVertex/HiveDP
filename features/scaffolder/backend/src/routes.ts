@@ -23,6 +23,8 @@ import { getScaffolderTools } from "./services/agent-tools";
 import { loadEnvSecrets } from "./services/secrets";
 import { filterByTemplateAcl } from "./services/acl";
 
+// Express router for the scaffolder HTTP API: templates, plans, apply, approvals, tasks, bindings, drift.
+
 export interface ScaffolderRouterDeps {
   /** Absolute path to the live monorepo root, used by plan ctx + sandbox. */
   liveRepoRoot: string;
@@ -440,9 +442,7 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
     }
   });
 
-  // POST /approvals/:planId, admin grants approval for one or more capabilities.
-  // Body: { capabilities: Capability[] }. Returns the updated plan with new
-  // approvalsGranted and refreshed expiresAt.
+  // POST /approvals/:planId, admin grants capability approvals and refreshes expiresAt.
   router.post("/approvals/:planId", async (req, res, next) => {
     try {
       const actor = await actorFromRequest(req);
@@ -590,7 +590,7 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
           res.end();
         }
       });
-      // If the task already finished, replay terminal state once and close.
+      // Already-finished task: replay terminal state once and close.
       if (task.finishedAt) {
         const event: Extract<StepEvent, { kind: "task.finished" }> = {
           kind: "task.finished",
@@ -608,9 +608,7 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
     }
   });
 
-  // GET /agent-tools, Anthropic SDK tool definitions for templates the actor
-  // can run as an agent. Consumed by features/agents when an agent run wants
-  // to call into the scaffolder.
+  // GET /agent-tools, Anthropic SDK tool definitions for agent-runnable templates.
   router.get("/agent-tools", async (req, res, next) => {
     try {
       const actor = await actorFromRequest(req);
@@ -619,9 +617,7 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
         return;
       }
       const isAdmin = req.user?.role === "admin";
-      // Caller can ask for the agent view explicitly (?as=agent), useful when
-      // a human admin is fetching the same tool list a back-end agent would
-      // see for debugging.
+      // ?as=agent lets an admin fetch the same tool list a back-end agent would see.
       const agentActor: typeof actor =
         req.query.as === "agent" ? { ...actor, kind: "agent" } : actor;
       const tools = await getScaffolderTools(agentActor, isAdmin);
@@ -650,9 +646,7 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
     }
   });
 
-  // POST /bindings/:id/replan, manual drift trigger. Re-runs the template
-  // module against the binding's stored params and returns an applyable Plan.
-  // Caller is the binding owner or an admin.
+  // POST /bindings/:id/replan, re-runs the template against stored params and returns an applyable Plan.
   router.post("/bindings/:id/replan", async (req, res, next) => {
     try {
       const actor = await actorFromRequest(req);
@@ -733,10 +727,7 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
     }
   });
 
-  // GET /drift/summary, open drift counts grouped by binding, for inline
-  // badges on TemplatePage / BindingsPage. Members see only their own bindings
-  // (via appliedByUserId). admins see everything. Optional ?bindingId=
-  // narrows the result to a single binding.
+  // GET /drift/summary, open drift counts grouped by binding (members see own, admins see all).
   router.get("/drift/summary", async (req, res, next) => {
     try {
       const actor = await actorFromRequest(req);
@@ -815,8 +806,7 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
     }
   });
 
-  // PATCH /drift/:id, update drift status (mark as ignored, applied, or
-  // superseded). Caller is the binding owner or an admin.
+  // PATCH /drift/:id, update drift status (binding owner or admin).
   router.patch("/drift/:id", async (req, res, next) => {
     try {
       const actor = await actorFromRequest(req);

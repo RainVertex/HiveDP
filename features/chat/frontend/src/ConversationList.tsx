@@ -1,3 +1,4 @@
+// Sidebar list of conversations with inline new-chat and delete-confirm controls.
 import { NavLink } from "react-router-dom";
 import type { ChatConversationSummaryDto } from "@internal/shared-types";
 import { TrashIcon, PlusIcon, CheckIcon, CrossIcon } from "./icons";
@@ -10,8 +11,7 @@ interface Props {
   onRequestDelete: (id: string) => void;
   onConfirmDelete: (id: string) => void;
   onCancelDelete: () => void;
-  /** Fired after picking a conversation or starting a new one, used by the
-   * mobile drawer to close itself once the user makes a selection. */
+  // Lets the mobile drawer close itself once the user makes a selection.
   onSelect?: () => void;
 }
 

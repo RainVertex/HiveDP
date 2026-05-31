@@ -19,11 +19,7 @@ import {
 import { requireAuth, requireRole } from "../../middleware/requireAuth";
 import { adminLimiter } from "../../middleware/rateLimit";
 
-// Admin "AI / Models" settings. Lists every provider + model with readiness
-// (is the API key present) and enabled state, lets an admin enable/disable a
-// model, and selects the active chat model. The chat feature reads the active
-// model from the SystemSetting "chat.activeModelId"; until one is selected the
-// assistant shows the not-configured state.
+// Admin "AI / Models" routes: provider/model readiness, enable/disable, active chat model selection, and provider key management.
 
 export const adminAiRouter = Router();
 
@@ -162,9 +158,7 @@ adminAiRouter.put("/active-chat-model", async (req, res, next) => {
   }
 });
 
-// Provider API key management. Keys are encrypted at rest and never returned
-// to clients (GET /models only exposes hasStoredKey). Setting a key here takes
-// precedence over the provider's env var.
+// Keys are encrypted at rest, never returned to clients, and take precedence over the provider env var.
 
 const putKeySchema = z.object({ apiKey: z.string().min(1).max(500) });
 

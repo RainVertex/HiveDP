@@ -1,7 +1,4 @@
-// Cron sweep for pipeline visibility. Backfills new entities and reconciles
-// anything the webhook path missed (downtime, dropped events, retries).
-// Per-entity progress lives in PipelineSyncCursor rows so this job stays
-// stateless, JobState.cursor is unused.
+// Cron sweep that backfills pipeline data the webhook path missed; per-entity progress lives in PipelineSyncCursor rows.
 
 import type { CatalogJobDefinition } from "../jobs";
 import { syncAllPipelines } from "./sync";

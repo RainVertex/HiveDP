@@ -1,7 +1,4 @@
-// Business logic for the GitHub App install lifecycle. The HTTP install /
-// callback routes live in apps/api because they need session middleware and
-// audit access, this module owns the side effects (Integration upsert
-// metadata fetch, sync trigger seam) that those routes call into.
+// Side effects for the GitHub App install lifecycle (Integration upsert, metadata fetch, sync seam).
 
 import { Prisma, prisma } from "@internal/db";
 import { octokitAsApp } from "./octokit";
@@ -14,7 +11,6 @@ export interface InstallationMetadata {
   repositorySelection: "all" | "selected";
 }
 
-/** Read installation metadata from GitHub using App-level (non-installation) auth. */
 export async function fetchInstallationMetadata(
   installationId: number,
 ): Promise<InstallationMetadata> {
@@ -40,7 +36,6 @@ export interface RecordInstallationResult {
   meta: InstallationMetadata;
 }
 
-/** Upsert an Integration row for a GitHub App installation. */
 export async function recordInstallation(
   installationId: number,
 ): Promise<RecordInstallationResult> {
@@ -58,7 +53,6 @@ export async function recordInstallation(
     const updated = await prisma.integration.update({
       where: { id: existing.id },
       data: {
-        // Re-enable on re-install. account or repositorySelection may also change.
         enabled: true,
         config,
       },
@@ -78,7 +72,6 @@ export async function recordInstallation(
   return { integrationId: created.id, created: true, meta };
 }
 
-/** Disable the Integration when the App is uninstalled via GitHub's UI (installation.deleted */
 export async function recordUninstallation(installationId: number): Promise<{
   integrationId: string | null;
   entitiesStaled: number;
@@ -93,7 +86,6 @@ export async function recordUninstallation(installationId: number): Promise<{
   return { integrationId: existing.id, entitiesStaled: cascade.count };
 }
 
-/** Mark every CatalogEntity tied to an installation as stale. */
 export async function cascadeStaleByInstallationId(
   installationId: number,
 ): Promise<{ count: number }> {
@@ -104,7 +96,6 @@ export async function cascadeStaleByInstallationId(
   return { count: result.count };
 }
 
-/** Revoke the App on GitHub so it stops sending webhooks. */
 export async function revokeAppInstallation(
   installationId: number,
 ): Promise<{ revoked: boolean; reason?: string }> {
@@ -130,8 +121,6 @@ export interface DisconnectResult {
   affectedUserIds: string[];
 }
 
-/** End-to-end disconnect: cascade-stale entities, revoke the App on GitHub*/
-/** revoke sessions of users whose only org was this one, then delete the Integration row. */
 export async function disconnectGitHubInstallation(
   integrationId: string,
 ): Promise<DisconnectResult> {
@@ -170,10 +159,7 @@ export async function disconnectGitHubInstallation(
 
   const { affectedUserIds } = await revokeStrandedUserSessions(accountLogin);
 
-  // Concurrent disconnect (e.g. user double-clicks the button, or the
-  // installation.deleted webhook races us after revokeAppInstallation) can
-  // leave the row already gone by the time we get here. Swallow P2025 so the
-  // caller still gets a clean result. everything else still ran.
+  // Concurrent disconnect can race the row away; swallow P2025 so the caller still gets a clean result.
   try {
     await prisma.integration.delete({ where: { id: integ.id } });
   } catch (err) {
@@ -185,9 +171,7 @@ export async function disconnectGitHubInstallation(
 }
 
 async function findExistingByInstallationId(installationId: number) {
-  // Integration.config is JSON. Postgres can index/query JSON paths but the
-  // existing Integration table has no GIN index. Filtering by kind first
-  // narrows the candidates to a handful, fine to scan in JS.
+  // Integration.config JSON has no GIN index; filter by kind then scan in JS.
   const rows = await prisma.integration.findMany({
     where: { kind: "github" },
     select: { id: true, config: true },

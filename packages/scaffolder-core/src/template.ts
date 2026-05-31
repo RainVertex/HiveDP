@@ -1,3 +1,4 @@
+// Template definition, compilation, and registry for scaffolder templates.
 import type { ZodType } from "zod";
 import type { Audience, Capability, SandboxTarget } from "./types";
 import type { PlanCtx } from "./plan-ctx";
@@ -23,7 +24,6 @@ export interface TemplateMetadata {
 export interface Step {
   action: string;
   input: unknown;
-  /** Optional override of the auto-generated step id. */
   id?: string;
 }
 
@@ -33,9 +33,7 @@ export interface TemplateDefinition<TParams = unknown> {
   metadata: TemplateMetadata;
   parameters: ZodType<TParams>;
   capabilities: Capability[];
-  // Method-shorthand (not property) so the position is bivariant under
-  // strictFunctionTypes, lets the registry hold heterogeneous templates as
-  // CompiledTemplate<unknown> without per-template casts at registration.
+  // Method-shorthand (not property) keeps plan() bivariant so the registry can hold CompiledTemplate<unknown>.
   plan(params: TParams, ctx: PlanCtx): Step[] | Promise<Step[]>;
 }
 
@@ -69,7 +67,6 @@ export function defineTemplate<TParams>(
   };
 }
 
-/** Resolves the sandbox target for a given actor, honoring template-declared defaults and an */
 export function resolveTarget(
   template: CompiledTemplate,
   actorKind: Audience,
@@ -79,10 +76,7 @@ export function resolveTarget(
   return template.resolvedDefaultTarget[actorKind];
 }
 
-// AnyTemplate erases TParams via a cast through `unknown`, sidestepping
-// invariance on plan(): the registry is inherently heterogeneous and only
-// reads `metadata` / `resolvedVisibility`, never re-invokes plan() with a
-// typed param.
+// Erases TParams so the heterogeneous registry can store templates without per-template casts.
 type AnyTemplate = CompiledTemplate<unknown>;
 
 class TemplateRegistry {

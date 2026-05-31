@@ -1,3 +1,4 @@
+// Overview widget that renders an entity's catalog relations as an SVG star graph.
 import { useEffect, useState } from "react";
 import { useApi } from "@internal/api-client/react";
 import type { CatalogRelation, CatalogRelationsResponse } from "@internal/shared-types";

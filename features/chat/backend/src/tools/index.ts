@@ -12,13 +12,8 @@ import {
   MAINTAINER_REQUEST_WRITE_TOOL_IDS,
 } from "./maintainerRequestWrites";
 
-// Aggregator for chatbot tools. Imported by the API server entry point at
-// startup so resolveTools() can find every chat tool by id when the seeded
-// Platform Assistant agent boots.
-//
-// Reads + chat-core tools always register. Write tools register only when
-// CHAT_WRITE_TOOLS_ENABLED is unset or "true", flip to "false" during
-// rollout if local-model write quality is poor.
+// Aggregator registering chat tools so resolveTools() finds them when the Platform Assistant agent boots.
+// Write tools register only when CHAT_WRITE_TOOLS_ENABLED is unset or "true" (flip off if write quality is poor).
 
 export const CHAT_READ_TOOLS: RegisteredTool[] = [
   ...CHAT_CORE_TOOLS,
@@ -50,13 +45,11 @@ export const CHAT_WRITE_TOOL_IDS: string[] = [
   ...MAINTAINER_REQUEST_WRITE_TOOL_IDS,
 ];
 
-/** Compute the toolId list the seed should attach to the Platform Assistant agent. */
 export function platformAssistantToolIds(): string[] {
   const writesEnabled = process.env.CHAT_WRITE_TOOLS_ENABLED !== "false";
   return writesEnabled ? [...CHAT_READ_TOOL_IDS, ...CHAT_WRITE_TOOL_IDS] : [...CHAT_READ_TOOL_IDS];
 }
 
-/** Register all chat tools into the global registry. */
 export function registerChatTools(): void {
   const writesEnabled = process.env.CHAT_WRITE_TOOLS_ENABLED !== "false";
   registerTools(CHAT_READ_TOOLS);

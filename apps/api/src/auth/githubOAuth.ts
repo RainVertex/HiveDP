@@ -1,3 +1,4 @@
+// GitHub OAuth helpers: authorize URL, token exchange, user/org lookups, and org-denial IP throttling.
 import { prisma } from "@internal/db";
 import { loadEnv } from "../config/env";
 import { logger } from "../logger/logger";
@@ -136,9 +137,7 @@ export async function verifyAnyOrgMembership(token: string): Promise<string[]> {
 
   if (activeLogins.length > 0) return activeLogins;
   if (!anyFulfilled) {
-    // Treat a total API failure the same as "not a member" so the user lands
-    // on the same friendly sign-in screen instead of a stack trace. The
-    // logger.warn calls above carry the real cause for ops.
+    // Total API failure is treated as "not a member" so the user gets the friendly screen, not a stack trace.
     logger.error("All GitHub org membership checks failed; denying sign-in");
   }
   return [];

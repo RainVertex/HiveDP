@@ -1,3 +1,4 @@
+// Builds the PlanCtx that scaffolder plans use to read repo, DB, and identity state.
 import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { prisma } from "@internal/db";
@@ -13,7 +14,7 @@ export interface BuildPlanCtxInput {
   actor: Actor;
   target: SandboxTarget;
   liveRepoRoot: string;
-  /** Frozen wall-clock for the plan. defaults to new Date(). */
+  // Frozen wall-clock for the plan, defaults to new Date().
   now?: Date;
 }
 

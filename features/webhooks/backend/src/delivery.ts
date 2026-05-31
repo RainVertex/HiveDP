@@ -1,14 +1,9 @@
+// Webhook delivery: signing, HTTP dispatch, retry/backoff scheduling, and due-row queries.
 import { createHmac, randomBytes } from "node:crypto";
 import { Prisma, prisma } from "@internal/db";
 
-/** Retry delays in milliseconds, indexed by zero-based attempt count after the first failure. */
-const RETRY_DELAYS_MS = [
-  60_000, // 1 min
-  5 * 60_000, // 5 min
-  30 * 60_000, // 30 min
-  2 * 60 * 60_000, // 2 h
-  12 * 60 * 60_000, // 12 h
-];
+// Retry delays in ms, indexed by zero-based attempt count after the first failure.
+const RETRY_DELAYS_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 12 * 60 * 60_000];
 
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 
@@ -30,9 +25,7 @@ function isSlackUrl(url: string): boolean {
 }
 
 function asSlackPayload(eventKind: string, payload: Record<string, unknown>): SlackPayload {
-  // Compact human-readable rendering. Webhook receivers can post to a Slack
-  // channel verbatim. native receivers can still parse the same JSON because
-  // Slack's payload is plain JSON.
+  // Slack's plain-JSON shape stays parseable by native receivers too.
   return {
     text: `[${eventKind}] ${JSON.stringify(payload)}`,
   };
@@ -42,7 +35,6 @@ export function signBody(secret: string, body: string): string {
   return "sha256=" + createHmac("sha256", secret).update(body).digest("hex");
 }
 
-/** Attempt a single delivery and update the row's status / next attempt. */
 export async function attemptDelivery(
   deliveryId: string,
   fetchImpl: typeof fetch = fetch,
@@ -137,7 +129,6 @@ async function markFailureOrDead(
   return { status: "failed" };
 }
 
-/** Find rows due for delivery (pending, or failed and past their nextAttemptAt). */
 export async function findDueDeliveryIds(now: Date, limit = 50): Promise<string[]> {
   const rows = await prisma.webhookDelivery.findMany({
     where: {
@@ -151,7 +142,6 @@ export async function findDueDeliveryIds(now: Date, limit = 50): Promise<string[
   return rows.map((r) => r.id);
 }
 
-/** Used by `POST /webhooks/:id/test` to enqueue a synthetic ping delivery. */
 export async function enqueuePing(
   subscriptionId: string,
   payload: Record<string, unknown>,

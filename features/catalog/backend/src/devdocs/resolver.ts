@@ -1,3 +1,4 @@
+// Pure logic for deciding where an entity's docs live (spec override, /docs dir, README, or none).
 import type { DocResolvedSource } from "@internal/shared-types";
 
 interface EntityForResolve {
@@ -5,7 +6,6 @@ interface EntityForResolve {
   yamlSpec: unknown;
 }
 
-/** Decide where this entity's docs live. */
 export function readSpecDocs(entity: EntityForResolve): DocResolvedSource | null {
   const yaml = entity.yamlSpec as Record<string, unknown> | null | undefined;
   const spec = yaml?.spec as Record<string, unknown> | undefined;
@@ -33,7 +33,6 @@ export function normalizePath(input: string): string {
   return p;
 }
 
-/** Pure-data resolution: given the `spec.docs` outcome plus probes ("does /docs exist?", "does */
 export interface ResolveProbes {
   hasDocsDir: boolean;
   hasReadme: boolean;
@@ -51,7 +50,6 @@ export function resolveDocSource(
   return { kind: "none" };
 }
 
-/** "https://github.com/org/repo[.git]" → { owner, repo }. */
 export function parseGithubUrl(url: string): { owner: string; repo: string } | null {
   const match = url.match(/^https?:\/\/(?:www\.)?github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/);
   if (!match) return null;

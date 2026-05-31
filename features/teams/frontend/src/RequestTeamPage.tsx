@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";
 import { RequestTeamForm } from "./RequestTeamForm";
 
-/** Self-service initiate page: the team-request form rendered as a full page (no modal). */
+// Full-page (non-modal) wrapper that renders the team-request form.
 export function RequestTeamPage() {
   const navigate = useNavigate();
   return (

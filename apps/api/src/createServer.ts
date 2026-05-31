@@ -1,3 +1,4 @@
+// Builds the Express app: tool registration, CORS, body parsing, and all route mounts.
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -48,9 +49,7 @@ import { webhooksRouter } from "@feature/webhooks-backend";
 
 export function createServer() {
   const env = loadEnv();
-  // Register every tool into the shared llm-core registry once at boot so
-  // resolveTools() can find them. Catalog tools power the Catalog Enricher
-  // agent; chat tools power the seeded Platform Assistant.
+  // Register tools into the shared llm-core registry at boot so resolveTools() can find them.
   registerAgentTools();
   registerChatTools();
   const app = express();
@@ -64,19 +63,13 @@ export function createServer() {
     }),
   );
 
-  // GitHub webhook needs the raw body for HMAC signature verification, so it
-  // must be mounted before express.json() consumes the stream. The router
-  // applies its own express.raw() middleware scoped to this path.
+  // Mounted before express.json() because HMAC signature verification needs the raw body.
   app.use("/integrations/github/webhook", githubWebhookRouter);
 
-  // Same constraint applies to the GitHub App webhook (separate path so the
-  // App-wide secret is verified independently of any legacy per-repo webhook
-  // configured under the path above).
+  // Separate path so the App-wide secret is verified independently of the per-repo webhook above.
   app.use("/integrations/github/app-webhook", githubAppWebhookRouter);
 
-  // Grafana Alertmanager webhook: needs the raw body for the Bearer-token
-  // header check (the body is parsed AFTER auth) and replay protection
-  // matching the constraint above.
+  // Raw body needed for the Bearer-token check and replay protection (body parsed after auth).
   app.use("/integrations/grafana/webhook", grafanaWebhookRouter);
 
   app.use(express.json());
@@ -86,10 +79,7 @@ export function createServer() {
 
   app.use("/auth", authRouter);
 
-  // /mcp uses bearer-token auth (ScaffolderMcpToken), not the session cookie
-  // so it sits outside the /api requireAuth chain. The MCP transport handles
-  // its own request lifecycle, so apiLimiter is intentionally not applied
-  // a dedicated MCP-aware rate limiter slots in here once we have abuse data.
+  // Bearer-token auth (not session cookie), so it sits outside the /api requireAuth and apiLimiter chain.
   app.use(
     "/mcp/scaffolder",
     createScaffolderMcpRouter({ liveRepoRoot: resolve(__dirname, "../../..") }),
@@ -112,13 +102,11 @@ export function createServer() {
   app.use("/api/devdocs", devdocsRouter);
   app.use("/api/scorecards", scorecardsRouter);
   app.use("/api/dora-metrics", doraMetricsRouter);
-  // Mount the GitHub App install/callback router before the catch-all
-  // integrations router so its routes aren't shadowed.
+  // Mounted before the catch-all integrations router so its routes aren't shadowed.
   app.use("/api/integrations/github", githubIntegrationRouter);
   app.use("/api/integrations", integrationsRouter);
   app.use("/api/observability", observabilityRouter);
-  // Mount the more-specific scaffolder access-requests router before the
-  // catch-all `/api/scaffolder` so it isn't shadowed.
+  // Mounted before the catch-all `/api/scaffolder` so it isn't shadowed.
   app.use("/api/scaffolder/access-requests", scaffolderAccessRequestsRouter);
   app.use(
     "/api/scaffolder",
@@ -130,9 +118,7 @@ export function createServer() {
   app.use("/api/pages", pagesRouter);
   app.use("/api/projects", projectsRouter);
   app.use("/api/search", searchRouter);
-  // Mount more-specific team subrouters before the catch-all `/api/teams` so
-  // requests to `/api/teams/requests` and `/api/teams/policies` are not
-  // matched by the `/:slug` route in teamsRouter.
+  // Team subrouters mounted before catch-all `/api/teams` so the `/:slug` route doesn't match them.
   app.use("/api/requests", requestsRouter);
   app.use("/api/teams/requests", teamRequestsRouter);
   app.use("/api/teams/maintainer-requests", maintainerRequestsRouter);

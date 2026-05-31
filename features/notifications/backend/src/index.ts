@@ -1,3 +1,4 @@
+// Notifications REST API plus the transactional notify() fan-out helper.
 import { Router } from "express";
 import { Prisma, prisma } from "@internal/db";
 import type { NotificationDto } from "@internal/shared-types";
@@ -63,7 +64,7 @@ notificationsRouter.post("/:id/read", async (req, res, next) => {
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
-    // Scoped update: only the recipient can mark their own notification read.
+    // Scoped so only the recipient can mark their own notification read.
     const result = await prisma.notification.updateMany({
       where: { id: req.params.id, recipientUserId: req.user.id, readAt: null },
       data: { readAt: new Date() },
@@ -94,14 +95,14 @@ notificationsRouter.post("/read-all", async (req, res, next) => {
   }
 });
 
-/** Transactional helper used by team-request, membership, and webhook flows. */
+// Creates a notification and fans out matching webhook deliveries; must run in a tx.
 export async function notify(
   tx: Prisma.TransactionClient,
   args: {
     recipientUserId: string;
     kind: string;
     payload: Record<string, unknown>;
-    /** Optional team scope so team-scoped webhooks fire on team events. */
+    // Optional team scope so team-scoped webhooks fire on team events.
     teamId?: string | null;
   },
 ): Promise<void> {

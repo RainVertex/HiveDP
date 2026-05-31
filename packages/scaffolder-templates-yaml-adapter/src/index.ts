@@ -9,18 +9,7 @@ import {
   type Step,
 } from "@internal/scaffolder-core";
 
-// Loads a Backstage-style template.yaml file and returns a CompiledTemplate
-// that the same registry / executor consumes. Supports the subset of
-// scaffolder.backstage.io/v1beta3 the platform actually exercises:
-// - metadata.{name, title, description, tags, annotations}
-// - spec.{owner, type, parameters, steps, output}
-// - parameters: a single page or an array of pages, each with JSON Schema
-// - steps[]: { id, name, action, input } where input is a Nunjucks-tagged
-// map (kept as-is. the executor's render pass handles ${{ }} substitution)
-//
-// Anything outside this surface is preserved verbatim in the compiled
-// template's metadata for callers that want to reach in and read it, but
-// isn't otherwise interpreted.
+// Loads a Backstage-style template.yaml into a CompiledTemplate for the shared registry/executor.
 
 const stringOrSchema = z.union([z.string(), z.record(z.string(), z.unknown())]);
 
@@ -59,13 +48,9 @@ const yamlTemplateSchema = z.object({
 export type YamlTemplate = z.infer<typeof yamlTemplateSchema>;
 
 export interface YamlAdapterOptions {
-  /** Override id (defaults to metadata.name). */
   templateIdOverride?: string;
-  /** Defaults to "1.0.0" if the YAML doesn't specify a version under */
   version?: string;
-  /** Defaults to ["human"]. */
   audience?: Audience[];
-  /** Capabilities the template will use. defaults to []. */
   capabilities?: Capability[];
 }
 
@@ -74,11 +59,7 @@ const VERSION_ANNOTATION = "scaffolder.platform/version";
 function buildPermissiveSchema(
   parameters: YamlTemplate["spec"]["parameters"],
 ): z.ZodType<Record<string, unknown>> {
-  // Build a Zod object that mirrors the JSON-Schema's required-vs-optional
-  // shape. Required fields refine z.unknown() to reject undefined so a
-  // missing key fails parse. optional fields stay optional. Precise type
-  // validation is deferred to the JSON Schema consumed by the wizard, so
-  // there is no need for a JSON-Schema-to-Zod compiler here.
+  // Mirror only required-vs-optional; precise type validation is deferred to the wizard's JSON Schema.
   const pages = parameters ? (Array.isArray(parameters) ? parameters : [parameters]) : [];
   const shape: Record<string, z.ZodTypeAny> = {};
   for (const page of pages) {

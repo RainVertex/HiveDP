@@ -1,3 +1,4 @@
+// Teams backend helpers: Prisma include shapes, DTO mappers, and shared utilities for team/request routes.
 import { Prisma, prisma } from "@internal/db";
 import type { Request } from "express";
 import type {

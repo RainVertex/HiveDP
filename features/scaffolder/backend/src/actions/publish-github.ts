@@ -5,19 +5,13 @@ import simpleGit, { type SimpleGit } from "simple-git";
 import type { Octokit as OctokitClient } from "octokit";
 import type { Action, ReadCtx, WriteCtx } from "@internal/scaffolder-core";
 
-// `octokit` v5 ships ESM-only. The api backend is CJS (uses __dirname), so a
-// static `import { Octokit }` blows up Node's CJS loader at module load. We
-// only need it inside apply(), so defer the load.
+// publish:github action: creates a GitHub repo and pushes the workspace as an irreversible initial commit.
+
+// octokit v5 is ESM-only and breaks the CJS loader on static import, so defer it to apply().
 async function loadOctokit(): Promise<typeof OctokitClient> {
   const mod = await import("octokit");
   return mod.Octokit;
 }
-
-// publish:github creates a GitHub repo via Octokit, then pushes the apply
-// workspace's contents as the initial commit via simple-git. Both mutations
-// are flagged irreversible, the platform never auto-deletes a repo, so
-// rollback is "noop + report" and the apply gate refuses to run without an
-// approval token covering repo:public + network:external.
 
 const publishGithubInput = z.object({
   org: z.string().min(1),
@@ -28,8 +22,6 @@ const publishGithubInput = z.object({
   visibility: z.enum(["public", "private"]).default("private"),
   description: z.string().max(350).optional(),
   defaultBranch: z.string().default("main"),
-  // Name of the secret in the SecretAccessor whose value is the GitHub token.
-  // Defaults to GITHUB_TOKEN. templates can override per-environment.
   tokenSecret: z.string().default("GITHUB_TOKEN"),
 });
 
@@ -58,10 +50,7 @@ async function createRepo(
   octo: OctokitClient,
   input: PublishGithubInput,
 ): Promise<{ fullName: string; cloneUrl: string }> {
-  // Try the org-creation endpoint first. if the org turns out to be a user
-  // login, fall back to the authenticated-user endpoint. We can't tell ahead
-  // of time without a Get-org call, so trial-then-fallback is simpler than a
-  // pre-flight type check.
+  // Try the org endpoint first; on 404 the org is actually a user login, so fall back.
   try {
     const { data } = await octo.rest.repos.createInOrg({
       org: input.org,
@@ -91,16 +80,14 @@ async function pushInitialCommit(
   token: string,
   authoredBy: string,
 ): Promise<string> {
-  // The clone URL embeds the token via x-access-token, the conventional
-  // form GitHub recommends for fine-scoped tokens used over HTTPS.
+  // GitHub's recommended x-access-token form for fine-scoped tokens over HTTPS.
   const authedUrl = remoteUrl.replace(/^https:\/\//, `https://x-access-token:${token}@`);
   const git: SimpleGit = simpleGit(workspacePath);
   await git.init();
   await git.addConfig("user.email", `${authoredBy}@scaffolder.platform`);
   await git.addConfig("user.name", "Scaffolder");
   await git.add(".");
-  // --allow-empty in case the workspace ended up with zero files (a misconfigured
-  // template). the user still gets a real repo with a sensible head.
+  // --allow-empty so a misconfigured (zero-file) template still yields a real repo head.
   const commit = await git.commit("Initial scaffold", { "--allow-empty": null });
   await git.branch(["-M", defaultBranch]);
   await git.addRemote("origin", authedUrl);
@@ -115,8 +102,7 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
   capabilities: ["network:external", "repo:public", "secrets:read:GITHUB_TOKEN"],
   irreversible: true,
   async match(_input, _ctx: ReadCtx) {
-    // Without a token we can't probe. treat as absent. The action's apply
-    // step will refuse if the repo already exists.
+    // Without a token we cannot probe, so treat as absent; apply refuses if the repo exists.
     return "absent";
   },
   async diff(input) {
@@ -131,16 +117,13 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
         kind: "github.push",
         remoteUrl: `https://github.com/${input.org}/${input.name}.git`,
         branch: input.defaultBranch,
-        // file count is computed at apply time. the plan-time mutation is
-        // illustrative only.
+        // Real file count is computed at apply time; this plan-time value is illustrative.
         fileCount: 0,
       },
     ];
   },
   async apply(input, ctx: WriteCtx) {
     const token = ctx.secrets.read(input.tokenSecret);
-    // ctx.secrets.read auto-registers with the redactor, but be explicit too
-    // protects against a future SecretAccessor that doesn't.
     if (token.length >= 4) {
       ctx.logger.info(`publish:github authenticating as token "${token.slice(0, 4)}***"`);
     }
@@ -171,7 +154,7 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
     const { fullName, cloneUrl } = await createRepo(octo, input);
     ctx.logger.info(`publish:github created ${fullName}`);
 
-    // Snapshot file list for the audit trail. intentionally no contents in logs.
+    // Count only for the audit trail; never log file contents.
     const fileCount = await countWorkspaceFiles(ctx.workspacePath);
 
     const sha = await pushInitialCommit(
@@ -191,10 +174,7 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
         repoFullName: fullName,
         initialCommitSha: sha,
       },
-      // Irreversible: rolling back a public push is not safe automatically.
-      // The executor records the noop and surfaces a "manual cleanup" report
-      // via the audit trail. the operator must decide whether to delete the
-      // repo by hand.
+      // Irreversible: a public push cannot be auto-rolled-back, so cleanup is left to the operator.
       compensation: {
         kind: "noop",
         reason: `irreversible: github repo ${fullName} created and pushed; manual cleanup required if rollback is needed`,

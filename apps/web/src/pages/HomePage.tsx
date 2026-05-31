@@ -1,6 +1,6 @@
 import { PageLayout, WidgetEditToolbar, WidgetGrid, useGridLayout } from "@internal/shared-ui";
 import { useCurrentUser } from "../auth";
-import { DEFAULT_WIDGETS, WIDGETS, WIDGET_LIST } from "../widgets";
+import { DEFAULT_WIDGETS, WIDGETS, HOME_WIDGET_LIST } from "../widgets";
 import { HOME_LAYOUT_STORAGE_KEY } from "../widgets/types";
 
 export function HomePage() {
@@ -16,7 +16,7 @@ export function HomePage() {
     <PageLayout
       title={`Welcome back, ${firstName}`}
       description="Your Vexana dashboard at a glance."
-      actions={<WidgetEditToolbar layout={layout} availableWidgets={WIDGET_LIST} />}
+      actions={<WidgetEditToolbar layout={layout} availableWidgets={HOME_WIDGET_LIST} />}
     >
       <WidgetGrid
         widgets={layout.widgets}

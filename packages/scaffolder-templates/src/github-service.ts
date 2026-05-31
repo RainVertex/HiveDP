@@ -1,3 +1,4 @@
+// Scaffolder template that creates a GitHub repo, pushes a starter scaffold, and registers it in the catalog.
 import { z } from "zod";
 import { defineTemplate } from "@internal/scaffolder-core";
 import { skeletonPath } from "./paths";
@@ -30,9 +31,7 @@ export const githubServiceTemplate = defineTemplate({
     icon: "rocket",
     audience: ["human", "agent"],
     requiredRole: "member",
-    // The default-target distinction (main vs branch) is in-repo. for an
-    // out-of-repo target this collapses to a single value but we keep the
-    // shape consistent so admin overrides remain available.
+    // Out-of-repo target collapses to one value; shape kept consistent so admin overrides stay available.
     defaultTarget: { agent: "worktree", human: "worktree" },
   },
   parameters: Params,

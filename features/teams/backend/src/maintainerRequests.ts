@@ -15,6 +15,7 @@ import {
 } from "./helpers";
 import { GithubMirrorError, addGithubTeamMaintainer } from "./mirror";
 
+// HTTP routes for maintainer (team lead) promotion requests: submit, list, approve, reject, cancel.
 export const maintainerRequestsRouter: Router = Router();
 
 const submitSchema = z.object({
@@ -22,7 +23,6 @@ const submitSchema = z.object({
   reason: z.string().max(1000).optional(),
 });
 
-// POST /, submit a maintainer request
 maintainerRequestsRouter.post("/", async (req, res, next) => {
   try {
     if (!req.user) {
@@ -93,7 +93,6 @@ maintainerRequestsRouter.post("/", async (req, res, next) => {
   }
 });
 
-// GET /, list current user's own requests
 maintainerRequestsRouter.get("/", async (req, res, next) => {
   try {
     if (!req.user) {
@@ -112,7 +111,6 @@ maintainerRequestsRouter.get("/", async (req, res, next) => {
   }
 });
 
-// GET /pending-for-me, approver inbox: rows the actor can act on
 maintainerRequestsRouter.get("/pending-for-me", async (req, res, next) => {
   try {
     if (!req.user) {
@@ -120,9 +118,7 @@ maintainerRequestsRouter.get("/pending-for-me", async (req, res, next) => {
       return;
     }
     const isAdmin = req.user.role === "admin";
-    // Admins see every pending row. non-admins only see rows for teams where
-    // they're currently a lead. The requester's own rows are always excluded
-    // a user can never approve their own promotion.
+    // Requester's own rows are always excluded: nobody can approve their own promotion.
     const where: Prisma.MaintainerRequestWhereInput = isAdmin
       ? {
           status: "pending",
@@ -149,10 +145,7 @@ maintainerRequestsRouter.get("/pending-for-me", async (req, res, next) => {
   }
 });
 
-// GET /for-me-as-approver, approver-side history *and* pending
-// Same access predicate as /pending-for-me, but returns all statuses. resolved
-// rows are scoped to ones I personally reviewed (reviewedByUserId = me) so I
-// see my own approval history rather than every team's.
+// Resolved rows scoped to ones I reviewed (reviewedByUserId = me), not every team's.
 maintainerRequestsRouter.get("/for-me-as-approver", async (req, res, next) => {
   try {
     if (!req.user) {
@@ -161,9 +154,6 @@ maintainerRequestsRouter.get("/for-me-as-approver", async (req, res, next) => {
     }
     const isAdmin = req.user.role === "admin";
     const myId = req.user.id;
-    // Pending rows: every pending one for an admin. for leads, only those on
-    // teams I currently lead. History rows: only ones I reviewed myself.
-    // Either condition qualifies, never my own request as requester.
     const pendingScope: Prisma.MaintainerRequestWhereInput = isAdmin
       ? { status: "pending" }
       : {
@@ -187,7 +177,6 @@ maintainerRequestsRouter.get("/for-me-as-approver", async (req, res, next) => {
   }
 });
 
-// GET /:id, single request (requester, admin, or any lead of the team)
 maintainerRequestsRouter.get("/:id", async (req, res, next) => {
   try {
     if (!req.user) {
@@ -213,7 +202,6 @@ maintainerRequestsRouter.get("/:id", async (req, res, next) => {
   }
 });
 
-// POST /:id/approve, admin OR any current lead of the team
 maintainerRequestsRouter.post("/:id/approve", async (req, res, next) => {
   try {
     if (!req.user) {
@@ -237,8 +225,7 @@ maintainerRequestsRouter.post("/:id/approve", async (req, res, next) => {
       return;
     }
     if (existing.requestedByUserId === req.user.id) {
-      // Belt-and-braces: prevent self-approval if the requester somehow
-      // became a lead between submit and approve.
+      // Guards self-approval if the requester became a lead between submit and approve.
       res.status(403).json({ error: "Cannot approve your own request" });
       return;
     }
@@ -313,10 +300,7 @@ maintainerRequestsRouter.post("/:id/approve", async (req, res, next) => {
       return next;
     });
 
-    // Best-effort GitHub mirror after the platform write commits. Unlike team
-    // creation, the artifact here is the membership row that already exists.
-    // the periodic GitHub reconciler will eventually converge if this fails
-    // so we audit the failure and keep the approval.
+    // Best-effort GitHub mirror; the reconciler converges later, so we audit failures and keep the approval.
     if (
       updated.team.source === "github" &&
       updated.team.installationId &&
@@ -335,7 +319,6 @@ maintainerRequestsRouter.post("/:id/approve", async (req, res, next) => {
   }
 });
 
-// POST /:id/reject, same auth as approve, requires a reason
 const rejectSchema = z.object({ reason: z.string().min(1).max(1000) });
 
 maintainerRequestsRouter.post("/:id/reject", async (req, res, next) => {
@@ -413,7 +396,6 @@ maintainerRequestsRouter.post("/:id/reject", async (req, res, next) => {
   }
 });
 
-// POST /:id/cancel, requester only
 maintainerRequestsRouter.post("/:id/cancel", async (req, res, next) => {
   try {
     if (!req.user) {
@@ -460,8 +442,6 @@ maintainerRequestsRouter.post("/:id/cancel", async (req, res, next) => {
     next(err);
   }
 });
-
-// Helpers
 
 class RaceError extends Error {
   constructor(public readonly observedStatus: string) {
@@ -518,9 +498,7 @@ async function mirrorMaintainerToGithub(
   ) {
     return;
   }
-  // installationId lives in Integration.config (Json) so we can't filter
-  // declaratively, scan enabled github rows and match in JS. Same pattern
-  // used by github-sync/bulk-sync.ts:stampSyncedAt.
+  // installationId lives in Integration.config (Json), so scan enabled github rows and match in JS.
   const candidates = await prisma.integration.findMany({
     where: { kind: "github", enabled: true },
   });

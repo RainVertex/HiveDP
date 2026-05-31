@@ -1,3 +1,4 @@
+// Onboarding checklist widget: lists tasks with complete/dismiss actions.
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useApi } from "@internal/api-client/react";
@@ -11,7 +12,6 @@ interface TaskPresenter {
   autoCompletes: boolean;
 }
 
-/** Map a task `kind` to its UI presentation. */
 const PRESENTERS: Record<string, TaskPresenter> = {
   "request-tool-access": {
     title: "Request access to your tools",

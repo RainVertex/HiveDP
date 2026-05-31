@@ -1,3 +1,4 @@
+// TanStack-based catalog table with status filtering, tag-group fan-out, and facet header filters.
 import { useMemo } from "react";
 import {
   flexRender,
@@ -39,10 +40,7 @@ function globalFilterFn(row: Row<CatalogRow>, _columnId: string, filterValue: st
 export function CatalogTable({ data, view, onFilteredCountChange }: Props) {
   const columns = useMemo(() => buildColumns(), []);
 
-  // Status filters (hide stale / hide orphaned) apply before tag fan-out so a
-  // hidden entity doesn't ghost into multiple groups. Stale and orphaned are
-  // independent: stale = staleSince set. orphaned = installationId set but no
-  // matching live Integration. An entity can be one, both, or neither.
+  // Status filters run before tag fan-out so a hidden entity does not ghost into multiple groups.
   const statusFiltered = useMemo<CatalogRow[]>(() => {
     if (!view.hideStale && !view.hideOrphaned) return data;
     return data.filter((r) => {
@@ -52,8 +50,7 @@ export function CatalogTable({ data, view, onFilteredCountChange }: Props) {
     });
   }, [data, view.hideStale, view.hideOrphaned]);
 
-  // Tag-grouping fan-out: when grouping by tags, explode each entity into one row per tag
-  // so that the same entity can appear in multiple groups (Port.io behavior).
+  // When grouping by tags, explode each entity into one row per tag so it can appear in multiple groups.
   const tableData = useMemo<CatalogRow[]>(() => {
     if (view.groupBy !== "tags") return statusFiltered;
     const out: CatalogRow[] = [];
@@ -184,7 +181,7 @@ export function CatalogTable({ data, view, onFilteredCountChange }: Props) {
               <tr key={row.id} className="border-t border-app-border hover:bg-app-surface-hover/50">
                 {row.getVisibleCells().map((cell) => {
                   const isPlaceholder = cell.getIsPlaceholder();
-                  // For grouped column on a leaf row, render an indent spacer.
+                  // Grouped column on a leaf row renders an indent spacer.
                   if (isPlaceholder && cell.column.id === view.groupBy) {
                     return <td key={cell.id} className="px-4 py-3" />;
                   }

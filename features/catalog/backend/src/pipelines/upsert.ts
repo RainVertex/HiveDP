@@ -1,17 +1,4 @@
-// Webhook-driven ingestion for GitHub Actions runs and deployments.
-//
-// Both `workflow_run` and `deployment` / `deployment_status` events arrive at
-// the existing /integrations/github/app-webhook receiver and fan out from
-// dispatch() in ../github-sync/webhook.ts. Each handler:
-// 1. Resolves the repository back to a CatalogEntity via githubRepoId
-// (the same join key bulk-sync uses).
-// 2. Upserts on the GitHub-stable id (run_id / deployment_id), so re-deliveries
-// and reconciliation from the cron sweep converge on the same row.
-// 3. Touches PipelineSyncCursor.lastWebhookAt so operators can see when
-// events last flowed.
-//
-// Unknown repos are silently no-op'd, that's expected for installations whose
-// catalog entries haven't been created yet, and for repos outside our catalog.
+// Webhook-driven ingestion for GitHub Actions runs and deployments; upserts on the GitHub-stable id so re-deliveries and the cron sweep converge.
 
 import { prisma } from "@internal/db";
 
@@ -44,17 +31,6 @@ async function touchWebhookCursor(entityId: string): Promise<void> {
   });
 }
 
-// workflow_run
-//
-// Payload shape (subset):
-// action: "requested" | "in_progress" | "completed"
-// workflow_run: {
-// id, name, path, run_number, event, status, conclusion
-// head_branch, head_sha, html_url, run_started_at, updated_at
-// actor: { login }, ...
-// }
-// repository: { id, ... }
-
 interface WorkflowRunPayload {
   id: number;
   name?: string | null;
@@ -86,9 +62,7 @@ export async function upsertWorkflowRun(payload: Record<string, unknown>): Promi
 
   const entityId = await findEntityIdByRepoId(repo.id);
   if (!entityId) {
-    // Repo isn't registered as a catalog entity. Common for installations
-    // whose catalog import hasn't run yet, or repos outside our catalog
-    // silently drop.
+    // Repo not registered as a catalog entity; silently drop.
     return;
   }
 
@@ -116,16 +90,7 @@ export async function upsertWorkflowRun(payload: Record<string, unknown>): Promi
   await touchWebhookCursor(entityId);
 }
 
-// deployment / deployment_status
-//
-// The two events overlap intentionally:
-// - `deployment` carries the canonical Deployment fields (env, ref, sha, ...)
-// but no state. new deployments arrive as `state: "pending"`.
-// - `deployment_status` carries the latest status for an existing deployment
-// id. this is what flips state to success/failure/inactive.
-// We upsert on `deployment.id` from either event. For deployment_status we
-// also overwrite state + deployedAt. for deployment we set state only on
-// create (don't clobber a status that already landed).
+// `deployment` carries the canonical fields but no state; `deployment_status` flips state, so update state only when a status is present.
 
 interface DeploymentPayload {
   id: number;
@@ -165,7 +130,7 @@ function readDeploymentStatus(payload: Record<string, unknown>): DeploymentStatu
 
 function htmlUrlFromDeploymentUrl(apiUrl: string | null): string | null {
   if (!apiUrl) return null;
-  // Convert /repos/<owner>/<repo>/deployments/<id> → /<owner>/<repo>/deployments/<id>
+  // Rewrites the api.github.com deployments URL to its github.com html form.
   const m = /^https:\/\/api\.github\.com\/repos\/(.+?)\/deployments\/(\d+)/.exec(apiUrl);
   if (!m) return null;
   return `https://github.com/${m[1]}/deployments/${m[2]}`;
@@ -200,9 +165,7 @@ export async function upsertDeployment(payload: Record<string, unknown>): Promis
         : null,
   };
 
-  // On update we only overwrite fields the new event actually carries.
-  // A `deployment` event without a deployment_status block must not clobber a
-  // state already advanced by an earlier deployment_status delivery.
+  // Only overwrite fields the event carries so a bare `deployment` never clobbers an advanced state.
   const update: Partial<typeof create> = {
     environment: create.environment,
     ref: create.ref,

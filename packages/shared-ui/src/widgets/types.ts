@@ -20,6 +20,8 @@ export interface WidgetConfigEditorProps {
   onChange: (next: Record<string, unknown>) => void;
 }
 
+export type WidgetSurface = "home" | "dashboard";
+
 export interface WidgetDefinition<TId extends string = string> {
   id: TId;
   title: string;
@@ -31,6 +33,10 @@ export interface WidgetDefinition<TId extends string = string> {
   defaultConfig?: Record<string, unknown>;
   /** When set, the widget exposes a gear icon in edit mode that opens this editor. */
   configEditor?: ComponentType<WidgetConfigEditorProps>;
+  /** Surfaces this widget can be added to. Omitted means available on both. */
+  surfaces?: WidgetSurface[];
+  /** Grouping label shown in the widget picker. Omitted falls under "General". */
+  category?: string;
 }
 
 export type WidgetRegistry<TId extends string = string> = Record<TId, WidgetDefinition<TId>>;

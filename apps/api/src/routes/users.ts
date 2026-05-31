@@ -1,3 +1,4 @@
+// User search endpoint for pickers (mention/assignee autocomplete).
 import { Router } from "express";
 import { prisma } from "@internal/db";
 
@@ -10,7 +11,6 @@ interface UserSummary {
   avatarUrl: string | null;
 }
 
-/** GET /api/users?query=&limit=, search active users by displayName or email. */
 usersRouter.get("/", async (req, res, next) => {
   try {
     if (!req.user) {

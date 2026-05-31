@@ -1,9 +1,10 @@
+// Trivial echo action used for plan-shape tests, dry-run smoke tests, and as a default fallback.
+
 import { z } from "zod";
 import type { Action, WriteCtx } from "./types";
 
 const debugInput = z.object({ message: z.string() });
 
-/** Trivial action used for plan-shape tests, dry-run smoke tests, and the default fallback in */
 export const debugLogAction: Action<z.infer<typeof debugInput>, { message: string }> = {
   id: "debug:log",
   description: "Echoes a message to the task log.",

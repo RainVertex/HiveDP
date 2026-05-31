@@ -6,11 +6,7 @@ import {
 } from "@feature/scaffolder-backend";
 import { registerTools, type RegisteredTool } from "@internal/llm-core";
 
-// Catalog tools for the Catalog Enricher agent (lookup / discover /
-// propose-drift). Registered into the shared llm-core registry at server
-// startup via registerAgentTools(). Kept in the agent domain rather than in
-// llm-core so the shared package carries no feature-specific dependencies.
-
+// Kept in the agent domain so llm-core carries no feature-specific dependencies.
 export const CATALOG_TOOLS: RegisteredTool[] = [
   {
     id: "catalog_lookup",
@@ -126,7 +122,6 @@ export const CATALOG_TOOLS: RegisteredTool[] = [
   },
 ];
 
-/** Register the catalog tools into the shared registry at server startup. */
 export function registerAgentTools(): void {
   registerTools(CATALOG_TOOLS);
 }

@@ -4,9 +4,7 @@ import { useApi } from "@internal/api-client/react";
 import type { DeploymentRow, WorkflowRunRow } from "@internal/shared-types";
 import { useEntityOverviewContext } from "../EntityOverviewContext";
 
-// Compact CI/CD widget for the Overview. Shows the five most recent workflow
-// runs and the current state of each environment (latest deploy per env).
-// Click-through goes to the CI/CD tab for the full view.
+// Compact Overview CI/CD widget: recent workflow runs plus latest deploy per environment.
 
 const CONCLUSION_COLOR: Record<string, string> = {
   success: "text-app-success",
@@ -38,7 +36,7 @@ function fmtAge(iso: string | null): string {
 }
 
 function latestPerEnvironment(deploys: DeploymentRow[]): DeploymentRow[] {
-  // Backend returns newest-first. Take the first occurrence of each env name.
+  // Backend returns newest-first, so first occurrence per env name is the latest.
   const seen = new Set<string>();
   const out: DeploymentRow[] = [];
   for (const d of deploys) {

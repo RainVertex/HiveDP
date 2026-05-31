@@ -1,3 +1,4 @@
+// Admin API for listing, role/status patching, and deleting users.
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "@internal/db";
@@ -11,7 +12,7 @@ export const adminUsersRouter = Router();
 
 adminUsersRouter.use(adminLimiter, requireAuth, requireRole("admin"));
 
-/** Synthetic user that owns org-level resources like the default sidebar pages. */
+// Synthetic user that owns org-level resources like the default sidebar pages.
 const SYSTEM_USER_ID = "__system__";
 
 function toRow(u: User): AdminUserRow {
@@ -60,8 +61,7 @@ adminUsersRouter.patch("/:id", async (req, res, next) => {
       return;
     }
     if (id === SYSTEM_USER_ID) {
-      // Treat as nonexistent rather than 403, keeps the system row invisible
-      // to admins probing the API directly.
+      // 404 not 403 keeps the system row invisible to admins probing the API.
       res.status(404).json({ error: "User not found" });
       return;
     }

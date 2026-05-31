@@ -1,3 +1,5 @@
+// Resolves Backstage-style catalog relations (outgoing and incoming) for an entity.
+
 import { prisma } from "@internal/db";
 import type { CatalogEntityKind } from "@internal/db";
 import type {
@@ -41,7 +43,6 @@ function readOutgoing(yamlSpec: unknown): Array<{ type: CatalogRelationType; raw
   if (!yaml) return [];
   const out: Array<{ type: CatalogRelationType; rawRef: string }> = [];
 
-  // Backstage shape: spec.{dependsOn, consumesApis, providesApis, partOf, system}
   const spec = yaml.spec as Record<string, unknown> | undefined;
   if (spec) {
     pushRefs(out, "dependsOn", spec.dependsOn);
@@ -52,7 +53,6 @@ function readOutgoing(yamlSpec: unknown): Array<{ type: CatalogRelationType; raw
     if (typeof spec.owner === "string") out.push({ type: "ownedBy", rawRef: spec.owner });
   }
 
-  // Backstage shape: metadata.relations: [{ type, target }]
   const metadata = yaml.metadata as Record<string, unknown> | undefined;
   const rels = metadata?.relations;
   if (Array.isArray(rels)) {
@@ -107,9 +107,7 @@ export async function getRelationsFor(entityId: string): Promise<CatalogRelation
   const entity = await prisma.catalogEntity.findUnique({ where: { id: entityId } });
   if (!entity) return { outgoing: [], incoming: [] };
 
-  // Pull every entity once. <500 entities is the design budget. We need yamlSpec
-  // for incoming-edge scanning anyway, and indexed lookup-per-ref would be N
-  // queries per outgoing. One findMany + Map is cheaper.
+  // One findMany + Map beats per-ref lookups; incoming-edge scanning needs every yamlSpec anyway (<500 entities by design).
   const all = await prisma.catalogEntity.findMany({
     select: { id: true, name: true, kind: true, lifecycle: true, yamlSpec: true },
   });
@@ -129,7 +127,7 @@ export async function getRelationsFor(entityId: string): Promise<CatalogRelation
       if (hit) return { id: hit.id, name: hit.name, kind: hit.kind, lifecycle: hit.lifecycle };
       return null;
     }
-    // No kind → ambiguous. If exactly one entity has this name, use it.
+    // No kind is ambiguous; resolve only when exactly one entity has this name.
     const candidates = byName.get(name) ?? [];
     if (candidates.length === 1) {
       const c = candidates[0]!;

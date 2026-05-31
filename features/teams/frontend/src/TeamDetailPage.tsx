@@ -1,3 +1,4 @@
+// Team detail page: member management, role changes, ownership transfer, and maintainer requests.
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";
@@ -83,8 +84,7 @@ export function TeamDetailPage() {
   const myMembership = team.members.find((m) => m.userId === me.id) ?? null;
   const isLead = myMembership?.role === "lead";
   const canManage = isAdmin || isLead;
-  // Admins can promote directly via the role-picker, so they don't need to
-  // self-request. Leads are already maintainers. Non-members can't request.
+  // Admins promote via the role-picker, leads are already maintainers, non-members cannot request.
   const canRequestMaintainer = !!myMembership && !isLead && !isAdmin;
 
   async function addMember(user: UserSummary) {

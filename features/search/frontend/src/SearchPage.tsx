@@ -1,3 +1,4 @@
+// Global search page: runs queries against the search API and renders linked hits by kind.
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";

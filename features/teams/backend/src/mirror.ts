@@ -1,11 +1,5 @@
+// GitHub team mirror helpers. createGithubTeam runs BEFORE platform writes; orphans are cleaned via bestEffortDeleteGithubTeam.
 import { octokitForInstallation } from "@feature/integrations-backend";
-
-// GitHub mirror
-//
-// Approve flow uses createGithubTeam BEFORE writing any platform-side rows.
-// On failure the approval returns a 502 and no DB writes happen. If the
-// platform-side transaction throws AFTER GH succeeded (extremely rare), the
-// approve handler calls bestEffortDeleteGithubTeam to clean up the orphan.
 
 export class GithubMirrorError extends Error {
   constructor(
@@ -53,7 +47,6 @@ export async function createGithubTeam(
     return { nodeId: data.node_id, githubSlug: data.slug };
   } catch (err) {
     if (err instanceof GithubMirrorError) throw err;
-    // Octokit RequestError shape: { status, message, response?.data?.message }.
     const e = err as { status?: number; message?: string };
     const status = typeof e.status === "number" ? e.status : 502;
     const message = e.message ?? "Unknown GitHub error";
@@ -74,7 +67,6 @@ export interface AddGithubTeamMemberResult {
   state: "active" | "pending";
 }
 
-/** Add a user to a GH team with the given role. */
 export async function addGithubTeamMember(
   input: AddGithubTeamMemberInput,
 ): Promise<AddGithubTeamMemberResult> {
@@ -97,14 +89,13 @@ export async function addGithubTeamMember(
   }
 }
 
-/** Adds the requester to the just-created GH team as maintainer. */
 export async function addGithubTeamMaintainer(
   input: Omit<AddGithubTeamMemberInput, "role">,
 ): Promise<AddGithubTeamMemberResult> {
   return addGithubTeamMember({ ...input, role: "maintainer" });
 }
 
-/** Used only on the rare orphan-recovery path when the platform-side tx fails after GitHub */
+// Orphan-recovery path when the platform-side tx fails after GitHub team-create succeeded.
 export async function bestEffortDeleteGithubTeam(
   installationId: number,
   orgLogin: string,

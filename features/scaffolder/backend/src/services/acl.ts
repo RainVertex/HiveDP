@@ -1,7 +1,7 @@
+// Filters templates by the actor's TemplateAcl entries (view or execute).
 import { prisma } from "@internal/db";
 import type { CompiledTemplate, Actor } from "@internal/scaffolder-core";
 
-/** Returns templates from the given list that the actor has an ACL entry for. */
 export async function filterByTemplateAcl<T extends CompiledTemplate<unknown>>(
   templates: readonly T[],
   actor: Actor,

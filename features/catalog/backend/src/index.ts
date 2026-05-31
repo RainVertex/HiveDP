@@ -1,3 +1,5 @@
+// Catalog-backend public exports and the catalogRouter REST surface for catalog entities.
+
 import { Router } from "express";
 import { z } from "zod";
 import { prisma, type CatalogEntity } from "@internal/db";
@@ -83,8 +85,7 @@ const createInput = z.object({
   ownerTeamIds: z.array(z.string().min(1)).optional(),
   repoUrl: z.url().optional(),
   tags: z.array(z.string()).optional(),
-  // GitHub org login of the kind=github integration this entity belongs to.
-  // Required: every catalog entity must belong to exactly one org.
+  // Required: every catalog entity must belong to exactly one github org.
   accountLogin: z.string().min(1),
 });
 
@@ -126,7 +127,6 @@ function shapeEntity(
 
 const EMPTY_SET: ReadonlySet<number> = new Set();
 
-/** Read every live github Integration once and return the set of installationIds. */
 async function loadLiveInstallationIds(): Promise<ReadonlySet<number>> {
   const rows = await prisma.integration.findMany({
     where: { kind: "github" },
@@ -144,10 +144,7 @@ async function loadLiveInstallationIds(): Promise<ReadonlySet<number>> {
 export const catalogRouter: Router = Router();
 
 catalogRouter.get("/", async (req, res) => {
-  // Visibility: by default, non-admin users only see entities whose
-  // accountLogin matches one of their UserOrgMembership rows. Admins and
-  // ?allOrgs=1 bypass the filter. An empty membership set yields zero rows
-  // (intentional, the user has no org coverage).
+  // Non-admins see only entities in their org memberships; admins and ?allOrgs bypass. Empty memberships yields zero rows by design.
   const allOrgs = req.query.allOrgs === "1" || req.query.allOrgs === "true";
   let whereClause: { accountLogin?: { in: string[] } } = {};
   if (!allOrgs && req.user && req.user.role !== "admin") {
@@ -181,9 +178,7 @@ catalogRouter.post("/", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.message });
   }
-  // Reject if the caller picked an accountLogin that doesn't match any
-  // enabled GitHub integration. Without this, anyone could create entities
-  // under fake orgs and bypass the visibility filter.
+  // Reject unknown accountLogins, else callers could create entities under fake orgs and bypass the visibility filter.
   const githubIntegrations = await prisma.integration.findMany({
     where: { kind: "github", enabled: true },
     select: { config: true },
@@ -365,12 +360,9 @@ catalogRouter.post("/:id/scorecards/recompute", async (req, res) => {
   res.json({ items: summaries });
 });
 
-// DevDocs: entity-scoped reader/sync routes live under /api/catalog/:id/docs.
-// Standalone routes (comments, verify, stale-reports, search) are mounted at
-// /api/devdocs by apps/api/createServer.ts.
+// Standalone devdocs routes are mounted separately at /api/devdocs by createServer.ts.
 catalogRouter.use("/:id/docs", devdocsEntityRouter);
 
-// Pipelines: GET /:id/pipeline-runs, GET /:id/deployments, POST /:id/pipelines/refresh.
 catalogRouter.use("/", pipelinesRouter);
 
 catalogRouter.get("/:id/audit", async (req, res) => {
@@ -466,7 +458,7 @@ catalogRouter.patch("/:id", async (req, res) => {
     },
   );
 
-  // autoApply lives outside the shared-service contract. patch separately if provided.
+  // autoApply lives outside the shared-service contract, patch it separately.
   if (parsed.data.autoApply !== undefined) {
     await prisma.catalogEntity.update({
       where: { id: existing.id },

@@ -1,3 +1,4 @@
+// App shell layout: header, sidebar rail, and a resizable Pages/main split.
 import type { PropsWithChildren } from "react";
 import { Group, Panel, Separator, useDefaultLayout } from "react-resizable-panels";
 import { Header } from "./Header";
@@ -10,10 +11,7 @@ export function AppLayout({ children }: PropsWithChildren) {
   const { activeSection } = useSidebar();
   const showPages = sectionHasTree(activeSection);
 
-  // Persisted Pages-column width. Lives at the shell level so every page that
-  // has a tree (catalog, chat, agents, …) shares the same remembered width.
-  // `v2` suffix is intentional: an earlier integration passed pixel-numeric
-  // sizes by mistake, and bumping the id discards those broken stored values.
+  // `v2` id suffix is intentional: it discards earlier broken pixel-numeric stored sizes.
   const persistedLayout = useDefaultLayout({
     id: "app-layout-pages-v2",
     panelIds: ["pages", "main"],

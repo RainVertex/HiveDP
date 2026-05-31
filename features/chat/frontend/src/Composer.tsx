@@ -1,11 +1,10 @@
+// Message input box: auto-growing textarea with a Send button that toggles to Stop while streaming.
 import { useEffect, useRef, useState } from "react";
 
 interface Props {
   onSend: (text: string) => void;
   onStop?: () => void;
-  /** True while a turn is in flight. the send button toggles to Stop. */
   streaming: boolean;
-  /** Disables the Stop button. */
   stopDisabled?: boolean;
   placeholder?: string;
 }
@@ -14,7 +13,6 @@ export function Composer({ onSend, onStop, streaming, stopDisabled, placeholder 
   const [text, setText] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-grow up to a max height.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -46,8 +44,7 @@ export function Composer({ onSend, onStop, streaming, stopDisabled, placeholder 
           rows={1}
           disabled={streaming}
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          // text-base on mobile prevents iOS Safari's zoom-on-focus. we drop
-          // back to text-sm at sm+ so the desktop visual is unchanged.
+          // text-base on mobile prevents iOS Safari's zoom-on-focus; text-sm at sm+ keeps desktop unchanged.
           className="flex-1 resize-none rounded-app-md border border-app-border bg-app-bg-sunken px-3 py-2 text-base text-app-text placeholder:text-app-text-subtle focus:outline-none focus:ring-2 focus:ring-app-primary disabled:opacity-60 sm:text-sm [&::-webkit-scrollbar]:hidden"
         />
         {streaming ? (

@@ -1,3 +1,4 @@
+// Inline open-drift indicator for scaffolder bindings, expandable per binding with Replan and Ignore actions.
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DriftBadge } from "@internal/shared-ui";
@@ -11,9 +12,6 @@ export interface TemplateDriftBadgeProps {
   templateId?: string;
 }
 
-// Inline open-drift indicator for scaffolder bindings. Click to expand a list
-// of open drifts per binding. each row exposes Replan (navigates to the
-// resulting plan) and Ignore.
 export function TemplateDriftBadge({ bindingId, templateId }: TemplateDriftBadgeProps) {
   const api = useApi();
   const navigate = useNavigate();

@@ -2,18 +2,8 @@ import { prisma } from "@internal/db";
 import type { RegisteredTool } from "@internal/llm-core";
 import { requireUserId } from "./core";
 
-// Read-only chat tool that lists enabled GitHub App installations so the
-// assistant can map a human-meaningful identifier (org login like
-// "m-engineering-platform" or installation display name) to the cuid
-// Integration.id that team_request_prepare requires for githubIntegrationId.
-//
-// Without this tool the model has no way to discover that id and either asks
-// the user for it (nobody knows it by heart) or hallucinates the org login as
-// the id, which then fails with a foreign-key violation at submit time.
-//
-// Auth: any authenticated user can list, the org login is public (mirrors
-// /api/integrations/github/installations). Config blob is never returned.
-// only id, display name, and accountLogin.
+// Read-only chat tool listing enabled GitHub App installations so the model can resolve an org login to the
+// cuid Integration.id team_request_prepare needs (without it the model hallucinates the id and submit fails).
 
 const listGithub: RegisteredTool = {
   id: "integrations_list_github",

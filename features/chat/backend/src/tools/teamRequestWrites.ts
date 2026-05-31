@@ -6,11 +6,7 @@ import type { ChatPolicyCheck } from "@internal/shared-types";
 import { createPreview, resolveForSubmit, markConsumed } from "../preview";
 import { requireUserId } from "./core";
 
-// team_request_*, chat write tools wrapping createTeamRequest() (the
-// extracted service function in features/teams/backend/src/requests.ts).
-// Both phases enforce the same hard-rule policies the UI route enforces.
-// the prepare/submit split exists so the user can confirm before any DB
-// state changes.
+// Chat write tools wrapping createTeamRequest(); prepare/submit split lets the user confirm before any DB change.
 
 const slugRule = /^[a-z0-9][a-z0-9-]*-team$/;
 
@@ -88,13 +84,7 @@ const prepare: RegisteredTool = {
 
     const policyChecks: ChatPolicyCheck[] = [];
 
-    // Resolve githubIntegrationId leniently: accept either the Integration row
-    // id (a cuid) or the GitHub accountLogin (e.g. "m-engineering-platform").
-    // Without this, when the model passes the org login as the id (because
-    // that's what the user said and the model skipped integrations_list_github)
-    // the submit step fails much later with a cryptic foreign-key violation
-    // from Prisma. Resolving here turns it into a clean policy-check failure
-    // the model can recover from in the same turn.
+    // Accept either Integration.id or the GitHub accountLogin so a wrong id becomes a clean policy failure, not a late FK violation.
     let resolvedIntegrationId = input.githubIntegrationId;
     let resolvedAccountLogin: string | null = null;
     if (input.mirrorToGithub) {
@@ -107,13 +97,10 @@ const prepare: RegisteredTool = {
         });
       } else {
         const provided = input.githubIntegrationId.trim();
-        // Try the literal value as Integration.id first (the happy path).
         let match = await prisma.integration.findFirst({
           where: { id: provided, kind: "github", enabled: true },
           select: { id: true, config: true },
         });
-        // Fall back to matching by accountLogin (case-insensitive) so an
-        // org-name input still resolves cleanly.
         if (!match) {
           const candidates = await prisma.integration.findMany({
             where: { kind: "github", enabled: true },
@@ -148,8 +135,7 @@ const prepare: RegisteredTool = {
               : "GitHub installation found",
           });
         } else {
-          // Surface the available options so the model can recover by asking
-          // the user to pick one, rather than blindly retrying.
+          // Surface the available options so the model can ask the user to pick one rather than retrying.
           const all = await prisma.integration.findMany({
             where: { kind: "github", enabled: true },
             select: { config: true },
@@ -174,7 +160,6 @@ const prepare: RegisteredTool = {
       }
     }
 
-    // Slug-availability check (live teams).
     const liveTeam = await prisma.team.findFirst({
       where: { slug: input.slug, deletedAt: null },
       select: { id: true },
@@ -185,12 +170,7 @@ const prepare: RegisteredTool = {
       message: liveTeam ? "A team with this slug already exists" : "Slug is available",
     });
 
-    // Pending-request availability check. The DB-level partial unique index
-    // (team_request_unique_pending_slug) blocks duplicates at submit time
-    // but a chat user has already gone through slot-filling + confirmation by
-    // then. Surface the conflict here so the model can warn the user before
-    // they confirm. The status filter mirrors the partial unique index in
-    // 20260507120000_team_request_policies_and_mirror.sql.
+    // Surface duplicate pending requests now so the model can warn before the late partial-unique-index conflict at submit.
     const pendingConflict = await prisma.teamRequest.findFirst({
       where: {
         slug: input.slug,
@@ -244,8 +224,7 @@ const prepare: RegisteredTool = {
     ].filter(Boolean);
     const serverSummary = summaryParts.join(" • ");
 
-    // Persist the *resolved* integrationId (not the user's raw input) so the
-    // submit step uses a real cuid and never re-runs the FK gauntlet.
+    // Persist the resolved integrationId so submit uses a real cuid and skips FK resolution.
     const persistedParams: Input = {
       ...input,
       githubIntegrationId: resolvedIntegrationId,

@@ -23,6 +23,8 @@ import { StalePlanError, TargetLockBusyError } from "./services/locks";
 import { createApprovalSigner, type ApprovalGrant } from "./services/approvals";
 import { loadEnvSecrets } from "./services/secrets";
 
+// MCP HTTP router exposing scaffolder templates as tools for external agents over bearer-token auth.
+
 export interface ScaffolderMcpDeps {
   liveRepoRoot: string;
 }
@@ -34,9 +36,7 @@ interface McpAuthContext {
   actor: Actor;
 }
 
-// Bearer-token middleware: parses Authorization: Bearer <token>, verifies via
-// ScaffolderMcpToken, attaches an MCP auth context to res.locals. Rejects
-// 401 if the header is missing/invalid.
+// Bearer-token middleware: verifies the token, attaches the MCP auth context, else 401.
 const requireMcpToken: RequestHandler = async (req, res, next) => {
   try {
     const header = req.get("authorization") ?? "";
@@ -93,8 +93,7 @@ function auditFor(req: Request, kind: string, payload: Record<string, unknown>):
     .catch(() => {});
 }
 
-// Helper that lifts res() out of req, needed for the audit helper since the
-// closures below only have req in scope.
+// Lifts res off req for closures below that only capture req.
 function res(req: Request): { locals: { mcp?: McpAuthContext } } {
   return (req as Request & { res?: Response }).res ?? { locals: {} };
 }
@@ -105,14 +104,11 @@ async function buildMcpServer(req: Request, deps: ScaffolderMcpDeps): Promise<Mc
   const templates = getTemplateRegistry().list();
   const visible = await filterByTemplateAcl(templates, auth.actor, false);
 
-  // One tool per agent-audience template. Tool id maps a template id like
-  // `in-repo-feature` to `scaffolder_in_repo_feature` so MCP clients see
-  // valid tool identifiers.
+  // One tool per agent-audience template; template id is sanitized to a valid MCP tool identifier.
   for (const template of visible) {
     if (!template.metadata.audience.includes("agent" as Audience)) continue;
     if (!templateAllowedForToken(template.metadata.id, auth.scopes)) continue;
-    // Pull the raw shape off z.object() so the SDK can wire validation.
-    // non-object schemas (rare) fall back to undefined.
+    // Pull the raw shape off z.object() for the SDK; non-object schemas fall back to undefined.
     const params = template.parameters as unknown as {
       shape?: Record<string, z.ZodTypeAny>;
     };
@@ -142,7 +138,6 @@ async function buildMcpServer(req: Request, deps: ScaffolderMcpDeps): Promise<Mc
     );
   }
 
-  // Meta-tool: get an existing plan by id.
   server.registerTool(
     "get_plan",
     {
@@ -163,7 +158,6 @@ async function buildMcpServer(req: Request, deps: ScaffolderMcpDeps): Promise<Mc
     },
   );
 
-  // Meta-tool: apply a plan.
   server.registerTool(
     "apply_plan",
     {
@@ -180,7 +174,6 @@ async function buildMcpServer(req: Request, deps: ScaffolderMcpDeps): Promise<Mc
     },
   );
 
-  // Meta-tool: list bindings for the caller.
   server.registerTool(
     "list_bindings",
     {
@@ -371,9 +364,7 @@ async function runApplyPlan(
   }
 }
 
-// Suppress the "createApprovalSigner imported but unused" warning by referencing
-// it. it's needed transitively to keep the approvals module imported here so
-// the bundler resolves all paths used by applyPlan.
+// Referenced to keep the approvals module imported so the bundler resolves applyPlan's paths.
 void createApprovalSigner;
 void randomUUID;
 
@@ -388,15 +379,14 @@ export function createScaffolderMcpRouter(deps: ScaffolderMcpDeps): Router {
         sessionIdGenerator: undefined,
       });
       await server.connect(transport);
-      // Express has already parsed JSON. pass it through so the SDK doesn't
-      // try to re-read the request body.
+      // Pass the already-parsed body so the SDK does not re-read the request stream.
       await transport.handleRequest(req, res, req.body);
     } catch (err) {
       next(err);
     }
   });
 
-  // GET / returns 405. this MCP transport is POST-only in stateless mode.
+  // Stateless MCP transport is POST-only.
   router.get("/", (_req, res) => {
     res.status(405).json({ error: "Method Not Allowed; use POST" });
   });

@@ -1,10 +1,10 @@
+// Read-only chips for the maintainers and members chosen on a team request.
 import type { TeamRequestDto } from "@internal/shared-types";
 
 interface ProposedMembersListProps {
   request: Pick<TeamRequestDto, "proposedMaintainers" | "proposedMembers">;
 }
 
-/** Read-only display of the maintainers/members the requester picked at submit time. */
 export function ProposedMembersList({ request }: ProposedMembersListProps) {
   const hasMaintainers = request.proposedMaintainers.length > 0;
   const hasMembers = request.proposedMembers.length > 0;

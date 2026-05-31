@@ -8,12 +8,11 @@ import type {
 } from "@internal/shared-types";
 import { UserPicker } from "./UserPicker";
 
+// Shared "Request a team" form body, used by both the dialog and the full page.
 export interface RequestTeamFormProps {
-  /** Called with the createdTeamSlug from the response (almost always null since approval is */
+  // createdTeamSlug is almost always null since requests need approval first.
   onSubmitted: (createdTeamSlug: string | null) => void;
-  /** Optional secondary action, drives a "Cancel" button when present. */
   onCancel?: () => void;
-  /** Layout: in a modal we want minimal padding. on a page we want larger. */
   variant?: "dialog" | "page";
 }
 
@@ -22,7 +21,6 @@ interface SubmitError {
   policyViolation: TeamPolicyViolation | null;
 }
 
-/** Shared form body for "Request a team", used by both the in-context RequestTeamDialog and */
 export function RequestTeamForm({
   onSubmitted,
   onCancel,
@@ -81,10 +79,7 @@ export function RequestTeamForm({
     }
   }
 
-  // Picker exclusion: a user can only appear once across both lists. Both
-  // pickers exclude every already-picked id. if the user clicks a name in
-  // the maintainer picker that's currently in the members list, we move
-  // them (handled via the addMaintainer/addMember handlers below).
+  // A user appears once across both lists; picking in one moves them out of the other.
   const excludeIds = useMemo(
     () => [...pickedMaintainers.map((u) => u.id), ...pickedMembers.map((u) => u.id)],
     [pickedMaintainers, pickedMembers],
@@ -299,9 +294,7 @@ function UserChip({ user, onRemove, disabled }: UserChipProps) {
 }
 
 function readPolicyViolationFromApiError(err: ApiError): TeamPolicyViolation | null {
-  // The api-client's request() helper currently surfaces only `error`, so we
-  // recognize the policy validator's "Slug must …" message shape and treat it
-  // as a slug-field violation. (Mirrors the heuristic in RequestTeamDialog.)
+  // api-client surfaces only `error`, so match the validator's slug message shape.
   if (err.status === 422 && /slug must/i.test(err.message)) {
     return { policyKind: "name_pattern", field: "slug", message: err.message };
   }

@@ -1,3 +1,4 @@
+// Shared edit form body for team-request proposals plus its API error mapper.
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@internal/api-client";
 import { useApi } from "@internal/api-client/react";
@@ -18,16 +19,14 @@ export type RequestEdit = {
 interface RequestEditFormProps {
   request: TeamRequestDto;
   busy: boolean;
-  /** Round number this submission would land on. >3 indicates the next edit will trigger */
+  // Round this submission lands on; >3 means the next edit auto-cancels.
   nextRound: number;
   onSubmit: (edit: RequestEdit) => Promise<void>;
   onCancel: () => void;
   submitLabel: string;
-  /** Side-channel so the wrapper can render shared error UI. null means no error currently. */
   error: { message: string; policyViolation: TeamPolicyViolation | null } | null;
 }
 
-/** Shared form body used by both ProposeChangesDialog (admin) and RespondToProposalDialog */
 export function RequestEditForm(props: RequestEditFormProps) {
   const { request, busy, nextRound, onSubmit, onCancel, submitLabel, error } = props;
   const api = useApi();

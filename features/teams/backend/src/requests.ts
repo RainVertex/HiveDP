@@ -21,6 +21,7 @@ import {
   createGithubTeam,
 } from "./mirror";
 
+// Team creation request lifecycle: submit, negotiate (propose/counter), approve/reject/cancel, with optional GitHub mirror.
 export const teamRequestsRouter: Router = Router();
 
 const slugSchema = z
@@ -34,8 +35,6 @@ const MAX_ROUNDS = 3;
 
 /** Statuses a request occupies while it's still under review or negotiation. */
 const ACTIVE_STATUSES = ["pending", "awaiting_user_confirmation"] as const;
-
-// /api/teams/requests, submit
 
 const mirrorTargetSchema = z
   .object({
@@ -113,9 +112,7 @@ teamRequestsRouter.post("/", async (req, res, next) => {
       if (!ok) return;
     }
 
-    // Strip out the requester themselves from either list, they're seeded
-    // as `lead` automatically and including them would be confusing in the
-    // diff/UI even though the upsert in runApproval is idempotent.
+    // Strip the requester from either list; they are seeded as `lead` automatically.
     const cleanedMaintainers = proposedMaintainerUserIds.filter((id) => id !== req.user!.id);
     const cleanedMembers = proposedMemberUserIds.filter((id) => id !== req.user!.id);
 
@@ -155,12 +152,7 @@ teamRequestsRouter.post("/", async (req, res, next) => {
   }
 });
 
-// createTeamRequest, service function shared by the HTTP route above and the
-// chatbot's team_request_submit tool. Same input shape, same Zod schema, same
-// audit calls. The chatbot path passes additional `extraAuditPayload` (e.g.
-// source: "chat", conversationId, agentRunId, previewId) which is merged into
-// the audit row's payload.
-
+// Shared by the HTTP route above and the chatbot's team_request_submit tool; chatbot passes extraAuditPayload.
 export interface CreateTeamRequestInput {
   slug: string;
   name: string;
@@ -221,8 +213,7 @@ export async function createTeamRequest(
     };
   }
 
-  // Verify all picked users exist before opening the transaction. Any later
-  // delete is handled at approval time (we just skip missing users).
+  // Verify picked users exist before the transaction; later deletes are handled at approval time.
   const allProposedIds = [...proposedMaintainerUserIds, ...proposedMemberUserIds];
   if (allProposedIds.length > 0) {
     const found = await prisma.user.findMany({
@@ -298,8 +289,6 @@ export async function createTeamRequest(
   }
 }
 
-// /api/teams/requests, list & detail
-
 teamRequestsRouter.get("/", async (req, res, next) => {
   try {
     if (!req.user) {
@@ -325,8 +314,7 @@ teamRequestsRouter.get("/", async (req, res, next) => {
   }
 });
 
-// Admin-only approver view: pending team requests + history I reviewed.
-// Powers the "Team creation requests" group on /approvals/team for admins.
+// Admin-only approver view: pending team requests plus history I reviewed.
 teamRequestsRouter.get("/for-me-as-approver", async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -377,8 +365,6 @@ teamRequestsRouter.get("/:id", async (req, res, next) => {
     next(err);
   }
 });
-
-// Negotiation, propose (admin) and respond (requester)
 
 const proposeSchema = z.object({
   slug: slugSchema.optional(),
@@ -446,8 +432,7 @@ teamRequestsRouter.post("/:id/respond", async (req, res, next) => {
     }
 
     if (parsed.data.action === "confirm") {
-      // The admin's prior propose represents the approval. Use that admin
-      // (lastEditedByUserId) as the reviewer.
+      // The admin's prior propose is the approval; that admin (lastEditedByUserId) is the reviewer.
       await runApproval(req, res, existing.id, {
         confirmedByRequester: true,
       });
@@ -462,7 +447,7 @@ teamRequestsRouter.post("/:id/respond", async (req, res, next) => {
   }
 });
 
-/** Applies a propose (admin) or counter-propose (user) edit: - If applying would raise */
+// Applies a propose (admin) or counter-propose (user) edit, enforcing the round cap.
 async function applyEdit(
   req: Request,
   res: import("express").Response,
@@ -499,7 +484,6 @@ async function applyEdit(
 
   const nextRound = existing.roundCount + 1;
 
-  // Round-cap auto-cancel: this would be the 4th edit/proposal.
   if (nextRound > MAX_ROUNDS) {
     const cancelled = await prisma.$transaction(async (tx) => {
       const updated = await tx.teamRequest.update({
@@ -518,7 +502,6 @@ async function applyEdit(
         { requestId: existing.id, slug: existing.slug, reason: "round_limit" },
         { kind: "teamRequest", id: existing.id },
       );
-      // Notify both the requester and the most recent admin reviewer.
       await notify(tx, {
         recipientUserId: existing.requestedByUserId,
         kind: "team.request.auto_cancelled",
@@ -556,7 +539,6 @@ async function applyEdit(
     return;
   }
 
-  // Compute the post-edit values, then validate.
   const merged = {
     slug: edit.slug ?? existing.slug,
     name: edit.name ?? existing.name,
@@ -588,7 +570,6 @@ async function applyEdit(
     return;
   }
 
-  // Slug change collision against an existing live team.
   if (merged.slug !== existing.slug) {
     const liveCollision = await prisma.team.findFirst({
       where: { slug: merged.slug, deletedAt: null },
@@ -613,8 +594,7 @@ async function applyEdit(
           roundCount: nextRound,
           lastEditedByUserId: req.user!.id,
           status: by === "admin" ? "awaiting_user_confirmation" : "pending",
-          // Counter-proposal extends the TTL window, both sides still need
-          // time to react. Propose does NOT extend. admins should keep moving.
+          // Counter-proposal (user) extends the TTL; admin propose does not.
           ...(by === "user" ? { expiresAt: requestExpiresAt() } : {}),
         },
         include: TEAM_REQUEST_INCLUDE,
@@ -684,8 +664,6 @@ async function applyEdit(
     throw err;
   }
 }
-
-// Approve / reject / cancel
 
 teamRequestsRouter.post("/:id/approve", async (req, res, next) => {
   try {
@@ -808,10 +786,8 @@ teamRequestsRouter.post("/:id/cancel", async (req, res, next) => {
   }
 });
 
-// Helpers, approval / mirror / fanout
-
 interface RunApprovalOptions {
-  /** True when the requester confirmed the admin's proposed values. the reviewer-of-record is */
+  // True when the requester confirmed the admin's proposed values.
   confirmedByRequester: boolean;
 }
 
@@ -877,11 +853,7 @@ async function runApproval(
       return;
     }
 
-    // GitHub's POST /orgs/:org/teams does NOT auto-add the actor, so without
-    // this step the team lands empty in GitHub. Reconciliation reads GH as
-    // source-of-truth. an empty GH team would wipe the platform-side lead
-    // we're about to insert. Adding the requester as maintainer (which the
-    // reconciler maps to platform `lead`) keeps the two sides consistent.
+    // GitHub does not auto-add the actor; seat the requester as maintainer so the GH-source-of-truth reconciler does not wipe the platform lead.
     let maintainerState: "active" | "pending";
     try {
       const result = await addGithubTeamMaintainer({
@@ -892,9 +864,7 @@ async function runApproval(
       });
       maintainerState = result.state;
     } catch (err) {
-      // We created a GH team but couldn't seat the requester as maintainer.
-      // Roll back the GH-side team so the request stays approve-able once
-      // the underlying issue (permissions, SSO enforcement, etc.) is fixed.
+      // Couldn't seat the requester; roll back the GH team so the request stays approve-able after a fix.
       await bestEffortDeleteGithubTeam(installationId, orgLogin, created.githubSlug);
       const message =
         err instanceof GithubMirrorError
@@ -915,18 +885,8 @@ async function runApproval(
     ? (request.lastEditedByUserId ?? req.user!.id)
     : req.user!.id;
 
-  // -- Pre-staged maintainers + members (set by the requester at submit) -----
-  // Strategy:
-  // * Strip the requester (already seated as `lead` below) and dedup.
-  // * Resolve each id to a User row (skip if deleted between submit/now).
-  // * For mirrored teams: push to GH first via best-effort
-  // addGithubTeamMember. only seat platform-side if GH succeeds, since
-  // GH is source-of-truth and the reconciler would otherwise wipe a
-  // platform-only row. For non-mirrored teams: skip GH and seat
-  // platform-side directly.
-  // * Failures are reported in the approve response as `partialFailures`
-  // and do NOT roll back the approval, the team and the requester's
-  // lead seat still get committed.
+  // Pre-staged maintainers/members: for mirrored teams push to GH first (source-of-truth) and only then seat platform-side.
+  // Per-user failures become partialFailures and do not roll back the approval.
   const dedupedProposedIds = Array.from(
     new Set([...request.proposedMaintainerUserIds, ...request.proposedMemberUserIds]),
   ).filter((id) => id !== request.requestedByUserId);
@@ -985,16 +945,8 @@ async function runApproval(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // For mirrored teams the org-wide reconciler may have raced ahead of
-      // us via the team.created/membership webhook and already inserted the
-      // platform Team row. Upsert by (source, externalId) so we never hit
-      // a duplicate-key, and the row ends up with our request-derived
-      // metadata regardless of who got there first.
-      // Resolve the org binding for the new team. For mirrored teams the
-      // accountLogin is the GitHub org the App is installed on. For non-mirror
-      // (admin-side manual) teams we fall back to the requester's first known
-      // UserOrgMembership. if that returns nothing we abort the approval
-      // since a team must always belong to exactly one org.
+      // Mirrored teams upsert by (source, externalId) since the reconciler webhook may have raced us.
+      // Org binding: mirror uses the GH org; non-mirror falls back to the requester's first UserOrgMembership, else abort.
       let accountLogin: string;
       if (mirror) {
         accountLogin = mirror.orgLogin;
@@ -1046,8 +998,7 @@ async function runApproval(
               source: "manual",
             },
           });
-      // Same race story for the lead membership: the membership webhook
-      // may have already inserted it. Upsert keeps role=lead authoritative.
+      // Upsert the lead membership; the membership webhook may have raced and inserted it already.
       await tx.teamMembership.upsert({
         where: {
           teamId_userId: { teamId: team.id, userId: request.requestedByUserId },
@@ -1055,10 +1006,7 @@ async function runApproval(
         create: { teamId: team.id, userId: request.requestedByUserId, role: "lead" },
         update: { role: "lead" },
       });
-      // Seat pre-staged maintainers + members. For mirrored teams these
-      // were already added on the GH side above. partialFailures users
-      // were filtered out so we never write platform rows the reconciler
-      // would wipe.
+      // Seat pre-staged users; partialFailures were filtered out so we never write rows the reconciler would wipe.
       for (const u of usersToSeed) {
         await tx.teamMembership.upsert({
           where: { teamId_userId: { teamId: team.id, userId: u.userId } },
@@ -1126,12 +1074,8 @@ async function runApproval(
           slug: team.slug,
           mirroredToGithub: !!mirror,
           githubOrgLogin: mirror?.orgLogin ?? null,
-          // "pending" = the requester wasn't yet an org member. GitHub sent
-          // them an org invitation. Until they accept, they won't see the
-          // team in GitHub even though the platform-side membership is live.
+          // "pending" means the requester has an unaccepted GitHub org invite and won't see the team yet.
           githubMaintainerState: mirror?.maintainerState ?? null,
-          // Fields renamed by negotiation, so the requester sees what changed
-          // vs. their original submission.
           changedFromOriginal: summarizeDiff(request),
         },
         teamId: team.id,
@@ -1142,8 +1086,7 @@ async function runApproval(
     const dto = shapeTeamRequest(result, userMap);
     res.json({ ...dto, partialFailures: partialFailures.length > 0 ? partialFailures : undefined });
   } catch (err) {
-    // The platform-side write failed AFTER GitHub team-create succeeded.
-    // Best-effort cleanup of the orphaned GH team so a retry isn't blocked.
+    // Platform write failed after GH team-create; clean up the orphan so a retry isn't blocked.
     if (mirror) {
       await bestEffortDeleteGithubTeam(mirror.installationId, mirror.orgLogin, mirror.githubSlug);
     }

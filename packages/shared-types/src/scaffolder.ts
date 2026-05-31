@@ -1,3 +1,4 @@
+// Wire shapes for the scaffolder: templates, plans, tasks, bindings, and drift reports.
 import type { ID, ISODateString } from "./common";
 import type { CatalogEntity } from "./catalog";
 import type { UserRole } from "./user";
@@ -157,9 +158,7 @@ export interface ScaffolderDriftReport {
   resolvedAt: ISODateString | null;
 }
 
-// Inline-badge summary of open scaffolder drifts. Replaces the previous
-// /drift?status= list endpoint. Members see only their own bindings. admins
-// see everything.
+// Members see only their own bindings; admins see everything.
 export interface ScaffolderDriftSummaryDto {
   openCount: number;
   byBinding: Array<{

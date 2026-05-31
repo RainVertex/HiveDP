@@ -1,3 +1,4 @@
+// Header notification bell: polls unread count and renders a dropdown inbox.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useApi } from "@internal/api-client/react";
@@ -7,11 +8,7 @@ const POLL_INTERVAL_MS = 30_000;
 
 function notificationHref(n: NotificationDto): string | null {
   const p = n.payload as Record<string, unknown>;
-  // Both request kinds resolve into the unified Requests section now:
-  // *.submitted → /approvals/team (the approver inbox)
-  // everything else → /requests/team (the requester's status)
-  // The legacy /teams/maintainer-{requests, approvals} URLs still resolve via
-  // the redirect routes, so older notification rows keep working.
+  // *.submitted routes to the approver inbox, everything else to requester status.
   if (n.kind === "team.request.submitted" || n.kind === "team.maintainer_request.submitted") {
     return "/approvals/team";
   }
@@ -106,7 +103,6 @@ export function NotificationBell() {
     return () => clearInterval(t);
   }, [refreshCount]);
 
-  // Click-outside to close.
   useEffect(() => {
     if (!open) return;
     function handler(e: MouseEvent) {

@@ -1,13 +1,5 @@
-// AES-256-GCM helper for encrypting Integration.config fields (API
-// tokens, webhook secrets, etc.) at rest. The key comes from the
-// INTEGRATION_SECRET_KEY env var, 32 bytes encoded as hex (64 chars).
-//
-// On-disk format: `v1:<iv-base64>:<authTag-base64>:<ciphertext-base64>`.
-// The version prefix lets us migrate algorithms in future without scanning
-// every encrypted field to guess what they are. Keep the format stable
-// rotating the key invalidates every stored secret, so any change here is
-// effectively a breaking change and must be coordinated with operators.
-
+// AES-256-GCM at-rest encryption for Integration.config secrets, keyed by INTEGRATION_SECRET_KEY (hex, 32 bytes).
+// Format/key changes are breaking: rotating the key invalidates every stored secret, so coordinate with operators.
 import {
   createCipheriv,
   createDecipheriv,
@@ -81,8 +73,7 @@ export function decryptSecret(encoded: string): string {
   return plaintext.toString("utf8");
 }
 
-// Test seam, clears the cached key so a test can swap INTEGRATION_SECRET_KEY
-// mid-process. Production code never calls this.
+// Test seam to swap INTEGRATION_SECRET_KEY mid-process; production never calls this.
 export function _resetSecretsCache(): void {
   cachedKey = null;
 }

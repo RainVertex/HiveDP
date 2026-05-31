@@ -1,7 +1,4 @@
-// Unified per-integration manage page. Loads the detail (with per-kind safe
-// config view) and renders the provider's ManagePanel. Generic actions
-// (enable/disable, disconnect, back to list) live in this shell so each
-// panel only owns its provider-specific controls.
+// Per-integration manage shell: generic enable/disable/disconnect plus the provider's ManagePanel.
 
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";

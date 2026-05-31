@@ -1,3 +1,5 @@
+// Action that renders a skeleton directory into the workspace via Nunjucks.
+
 import { promises as fs } from "node:fs";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { z } from "zod";
@@ -7,19 +9,12 @@ import { makeUnifiedDiff } from "../diff";
 import type { Action, ReadCtx, WriteCtx } from "./types";
 
 const fetchTemplateInput = z.object({
-  // Absolute path to the skeleton directory on disk. The backend resolves
-  // template skeletons against the registered template's package and passes
-  // the absolute path here so this action stays filesystem-agnostic.
+  // Absolute path so this action stays filesystem-agnostic.
   skeletonPath: z.string().min(1),
-  // The {{ values.* }} object passed to Nunjucks.
   values: z.record(z.string(), z.unknown()),
-  // Files matching any of these (substring match) are copied verbatim
-  // skipping the Nunjucks pass. Useful for binary fixtures.
+  // Substring-matched files copied verbatim (skip Nunjucks); useful for binary fixtures.
   skipRender: z.array(z.string()).optional(),
-  // Filename token substitutions applied before rendering. Skeleton authors
-  // use markers like __PASCAL__ in paths because filenames cannot contain
-  // Nunjucks expressions on Windows. Example:
-  // { "__PASCAL__": "Payments", "__NAME__": "payments" }
+  // Filename markers like __PASCAL__ since filenames cannot hold Nunjucks expressions on Windows.
   pathSubstitutions: z.record(z.string(), z.string()).optional(),
 });
 
@@ -126,8 +121,7 @@ export const fetchTemplateAction: Action<FetchInput, { files: string[] }> = {
     }
     return {
       output: { files: written },
-      // The workspace itself is disposed by the executor on completion or
-      // failure, so fetch:template doesn't need a per-file compensation.
+      // Executor disposes the whole workspace, so no per-file compensation is needed.
       compensation: { kind: "noop", reason: "workspace cleared by executor" },
     };
   },

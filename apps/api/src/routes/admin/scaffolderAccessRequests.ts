@@ -1,3 +1,4 @@
+// Admin routes to list, approve, and reject scaffolder template access requests, granting ACLs and notifying requesters.
 import { Router } from "express";
 import { z } from "zod";
 import { Prisma, prisma } from "@internal/db";

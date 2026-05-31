@@ -1,3 +1,4 @@
+// Renders a dashboard page (/p/:id) and its editable widget grid.
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
@@ -78,8 +79,7 @@ function DashboardView({
   const api = useApi();
   const { setRouteSection } = useSidebar();
 
-  // Tell the sidebar which section's tree to show. Without this, deep-links to
-  // /p/:id would land with the default tree (or no tree at all).
+  // Without this, deep-links to /p/:id would land with the default tree (or none).
   useEffect(() => {
     setRouteSection(page.section);
     return () => setRouteSection(null);
@@ -88,10 +88,7 @@ function DashboardView({
   const canEdit =
     page.scope === "SHARED" ? currentUserRole === "admin" : page.ownerUserId === currentUserId;
 
-  // Stabilize the widget array across DashboardView re-renders. Without `useMemo`
-  // the inline `.filter` produced a new array reference on every render, which made
-  // the effect inside `useRemoteGridLayout` reset edit mode after every state
-  // change, Customize would appear to do nothing.
+  // Stable reference required, else useRemoteGridLayout resets edit mode every render and Customize appears broken.
   const initialWidgets = useMemo(
     () =>
       (page.layout ?? []).filter((w) =>

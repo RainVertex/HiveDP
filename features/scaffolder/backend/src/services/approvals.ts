@@ -1,11 +1,6 @@
+// Short-lived HMAC approval tokens scoped to (planId, capability, approverUserId).
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { ApprovalRequirement, Capability } from "@internal/scaffolder-core";
-
-// Approval tokens are short-lived HMACs scoped to (planId, capability
-// approverUserId). Persisted in ScaffoldPlan.approvalsGranted as JSON. verified
-// at apply time before that capability counts as "approved". The signing
-// secret comes from SCAFFOLDER_APPROVAL_SECRET, falling back to SESSION_SECRET
-// so dev/test environments don't need a separate env var.
 
 export interface ApprovalGrant {
   capability: Capability;
@@ -13,7 +8,6 @@ export interface ApprovalGrant {
   approverIsAdmin: boolean;
   issuedAt: string;
   expiresAt: string;
-  // HMAC over the canonical body, base64-encoded.
   signature: string;
 }
 
@@ -28,6 +22,7 @@ export interface ApprovalSigner {
   verify(planId: string, grant: ApprovalGrant): { ok: true } | { ok: false; reason: string };
 }
 
+// Falls back to SESSION_SECRET so dev/test need no separate env var.
 function approvalSecret(): string {
   return (
     process.env.SCAFFOLDER_APPROVAL_SECRET ?? process.env.SESSION_SECRET ?? "dev-only-fallback"
@@ -84,8 +79,7 @@ export function createApprovalSigner(): ApprovalSigner {
   };
 }
 
-// Subtracts verified, unexpired approvals from the original requiresApproval
-// list and returns the residual capabilities still needing approval.
+// Returns required capabilities not covered by a verified, unexpired grant.
 export function residualMissingApprovals(
   required: ApprovalRequirement[],
   granted: ApprovalGrant[],

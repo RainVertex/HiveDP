@@ -1,3 +1,4 @@
+// Overview details panel: renders entity metadata, links, health, and DORA tier from the yamlSpec.
 import { Link } from "react-router-dom";
 import type { DoraMetricsSnapshot, ServiceHealthSample } from "@internal/shared-types";
 import { DateCell, KindBadge, LifecycleBadge, TagsCell } from "../../catalog-table/cells";
@@ -52,11 +53,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 interface IconDef {
-  /** Inline SVG path / element. */
   svg: React.ReactNode;
-  /** Hover/title label. */
   label: string;
-  /** Tailwind background tint when rendered as a chip. */
   tint: string;
 }
 
@@ -182,7 +180,7 @@ function LanguageChip({ value }: { value: string }) {
   );
 }
 
-/** DORA tier rollup using Google's published thresholds. */
+// DORA tier rollup using Google's published thresholds.
 function computeDoraTier(
   snapshot: DoraMetricsSnapshot | null,
 ): "red" | "orange" | "yellow" | "green" | "none" {

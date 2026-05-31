@@ -1,7 +1,4 @@
-// Renders a single Grafana panel as a PNG sourced from our backend's
-// dashboard-image proxy. The SA token stays server-side, the browser only
-// sees the proxy URL. Falls back to a placeholder if the renderer plugin is
-// missing (backend returns 404).
+// Renders a single Grafana panel PNG via the backend proxy (keeps the SA token server-side).
 
 import { useApi } from "@internal/api-client/react";
 
@@ -13,11 +10,7 @@ export interface GrafanaDashboardEmbedProps {
   width?: number;
   height?: number;
   title?: string;
-  /**
-   * Required for non-admin callers, the backend gates dashboard rendering
-   * on the user being a member of an owning team of an entity that has this
-   * dashboardUid pinned. Admins can render any UID. for them this is optional.
-   */
+  // Required for non-admin callers, the backend gates rendering on team membership of an owning entity.
   entityId?: string;
 }
 

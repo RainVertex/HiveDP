@@ -1,3 +1,4 @@
+// Collapsible primary navigation rail with hover-peek overlay and a Requests badge.
 import { useMemo, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useCurrentUser } from "../../auth";
@@ -26,7 +27,6 @@ interface SectionDef {
   to: string;
   label: string;
   icon: () => ReactNode;
-  /** Always show even for non-admins. */
   adminOnly?: boolean;
 }
 
@@ -59,7 +59,6 @@ const FOOTER: Array<{ to: string; label: string; icon: () => ReactNode }> = [
   { to: "/settings", label: "Settings", icon: AccountIcon },
 ];
 
-/** Two visual modes: - **Collapsed (default)**: 56px wide, icons only. */
 export function Rail() {
   const me = useCurrentUser();
   const { pinned, togglePinned, peeking, onRailMouseEnter, onRailMouseLeave } = useSidebar();
@@ -74,7 +73,6 @@ export function Rail() {
 
   return (
     <>
-      {/* Always-rendered collapsed rail in the flex flow. Sets layout width. */}
       <div
         onMouseEnter={onRailMouseEnter}
         onMouseLeave={onRailMouseLeave}
@@ -83,8 +81,7 @@ export function Rail() {
         }`}
         aria-label="Primary navigation rail"
       >
-        {/* In-flow content. Hidden when peeking (the overlay takes over) so we
-         * don't double-render rows. */}
+        {/* Hidden when peeking so the overlay does not double-render rows. */}
         {(!peeking || pinned) && (
           <RailContent
             expanded={pinned}
@@ -97,10 +94,7 @@ export function Rail() {
         )}
       </div>
 
-      {/* Hover-peek overlay. Renders an expanded rail over the page content
-       * without affecting layout. Mouse events on the overlay must propagate
-       * the rail's enter/leave so peek doesn't end the moment the cursor
-       * crosses the visual boundary. */}
+      {/* Overlay must reuse the rail's enter/leave so peek survives crossing the visual boundary. */}
       {peeking && !pinned && (
         <div
           onMouseEnter={onRailMouseEnter}
@@ -127,7 +121,6 @@ interface RailContentProps {
   footer: Array<{ to: string; label: string; icon: () => ReactNode }>;
   pinned: boolean;
   onTogglePin: () => void;
-  /** Pending count to show as a badge on the Requests section icon. */
   requestsBadge: number;
 }
 

@@ -1,7 +1,7 @@
+// In-memory SecretAccessor seeded from a name to value map.
 import type { SecretAccessor } from "./actions/types";
 import type { Redactor } from "./redact";
 
-/** In-memory SecretAccessor seeded from a name→value map. */
 export function createSecretAccessor(
   values: Record<string, string | undefined>,
   redactor: Redactor,

@@ -2,7 +2,9 @@ import type { ZodType } from "zod";
 import type { Capability, MatchResult, Mutation } from "../types";
 import type { PlanCtx } from "../plan-ctx";
 
-/** Read context: passed to action.match() and action.diff() during plan(). */
+// Core action interface and context/compensation types shared across scaffolder actions.
+
+// Read context passed to action.match() and action.diff() during plan().
 export type ReadCtx = PlanCtx;
 
 export interface ActionLogger {
@@ -12,15 +14,14 @@ export interface ActionLogger {
 }
 
 export interface SecretAccessor {
-  /** Returns the secret value or throws if unavailable. */
   read(name: string): string;
-  /** Returns the secret value or null without throwing. */
+  // Returns the secret value or null without throwing.
   tryRead(name: string): string | null;
-  /** Lists registered secret names (not values). */
+  // Lists registered secret names (not values).
   names(): string[];
 }
 
-/** Inverse operation recorded after a successful apply step. */
+// Inverse operation recorded after a successful apply step.
 export type Compensation =
   | {
       kind: "fs.restore";
@@ -30,9 +31,7 @@ export type Compensation =
     }
   | { kind: "fs.unrename"; from: string; to: string }
   | {
-      // Restores a list of files in the live repo to their pre-scaffold state.
-      // Each entry's previousContent === null deletes the file (it didn't
-      // exist before). Used by repo:scaffold and wire:* actions.
+      // previousContent === null deletes the file (it did not exist before).
       kind: "repo.restore";
       files: Array<{ path: string; previousContent: string | null }>;
     }
@@ -45,10 +44,10 @@ export type Compensation =
     }
   | { kind: "noop"; reason: string };
 
-/** Write context: passed to action.apply(). */
+// Write context passed to action.apply().
 export interface WriteCtx extends PlanCtx {
   workspacePath: string;
-  /** Repo root used for repo:scaffold / wire:* in target=main. */
+  // Repo root used for repo:scaffold / wire:* in target=main.
   repoRoot: string;
   logger: ActionLogger;
   signal: AbortSignal;
@@ -58,7 +57,6 @@ export interface WriteCtx extends PlanCtx {
 
 export interface ActionResult<O> {
   output: O;
-  /** Inverse to record on the task. */
   compensation?: Compensation;
 }
 
@@ -68,13 +66,11 @@ export interface Action<I = unknown, O = unknown> {
   schema: ZodType<I>;
   capabilities: Capability[];
   irreversible?: boolean;
-  /** Reports whether the target (post-input) already exists in a state matching this step's */
+  // Reports whether the target already exists in a state matching this step.
   match(input: I, ctx: ReadCtx): Promise<MatchResult>;
-  /** Returns the typed mutations this step would apply. */
   diff(input: I, ctx: ReadCtx): Promise<Mutation[]>;
-  /** Performs the mutations. */
   apply(input: I, ctx: WriteCtx): Promise<ActionResult<O>>;
 }
 
-/** Type-erased Action used by the registry and executor: TParams variance makes generic Actions */
+// Type-erased Action used by the registry and executor (generic variance otherwise blocks storage).
 export type AnyAction = Action<unknown, unknown>;

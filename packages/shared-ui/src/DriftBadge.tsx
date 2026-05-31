@@ -1,3 +1,4 @@
+// Inline drift indicator pill that toggles an inline detail panel; renders null when count <= 0.
 import { useState, type ReactNode } from "react";
 
 export type DriftBadgeSeverity = "info" | "warn" | "danger";
@@ -16,11 +17,6 @@ const SEVERITY_CLASSES: Record<DriftBadgeSeverity, string> = {
   danger: "border-app-danger bg-app-surface text-app-danger",
 };
 
-/**
- * Inline drift indicator. Renders null when count === 0. otherwise a compact
- * pill that toggles an inline panel below on click. Feature-specific wrappers
- * pass their own data/action handlers via `children`.
- */
 export function DriftBadge({
   count,
   severity = "warn",

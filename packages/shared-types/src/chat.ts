@@ -1,7 +1,4 @@
-// Wire types for the Platform Assistant chatbot. Shared between the backend
-// streaming executor (which emits SSE events) and the frontend chatStream
-// hook + components (which render them). Treat this file as the contract for
-// /api/chat/conversations/:id/messages, changes here ripple to both sides.
+// Wire contract for the Platform Assistant chatbot, shared by backend SSE executor and frontend.
 
 type ID = string;
 type ISODateString = string;
@@ -22,9 +19,7 @@ export interface ChatMessageDto {
   content: string;
   toolCalls: ChatToolCallSummary[] | null;
   agentRunId: ID | null;
-  /** Concatenated `<think>` content emitted by reasoning-capable models (e.g. */
   reasoning: string | null;
-  /** Total wall-clock ms the model spent inside `<think>` blocks for this message. */
   reasoningDurationMs: number | null;
   createdAt: ISODateString;
 }
@@ -34,7 +29,6 @@ export interface ChatConversationSummaryDto {
   title: string;
   createdAt: ISODateString;
   updatedAt: ISODateString;
-  /** Last assistant message timestamp. used by the widget unread badge. */
   lastAssistantAt: ISODateString | null;
 }
 
@@ -42,36 +36,25 @@ export interface ChatConversationDetailDto extends ChatConversationSummaryDto {
   messages: ChatMessageDto[];
 }
 
-// Whether the assistant is ready to chat. Not ready until an admin selects an
-// active chat model in Admin -> AI / Models. reason is "no_active_model" when
-// none is selected, or "model_unavailable" when the selected model was
-// disabled or its provider lost its key.
+// reason is "no_active_model" when none selected, "model_unavailable" when selected model is disabled or lost its key.
 export interface ChatConfigDto {
   ready: boolean;
   reason: string | null;
 }
 
-// SSE event schema
-// Each frame on the wire: `event: <type>\ndata: <json>\n\n`. The discriminator
-// is the SSE event name. the data payload is the JSON shape below.
-
 export interface ChatTokenEvent {
   text: string;
 }
 
-/** Chunk of `<think>` text streamed from a reasoning-capable model. */
 export interface ChatReasoningTokenEvent {
   text: string;
 }
 
-/** Emitted once the model exits reasoning mode (e.g. on `</think>`). */
 export interface ChatReasoningDoneEvent {
-  /** Total ms accumulated across all reasoning blocks in this turn so far. */
   durationMs: number;
 }
 
 export interface ChatToolCallStartEvent {
-  /** OpenAI tool_call id, used to pair start ↔ end. */
   id: string;
   name: string;
   args: Record<string, unknown>;
@@ -90,11 +73,10 @@ export interface ChatPolicyCheck {
   message: string;
 }
 
-/** Emitted alongside the corresponding tool_call_end for any *_prepare tool. */
+// Emitted alongside tool_call_end for any *_prepare tool.
 export interface ChatPreviewEvent {
   shortHandle: string;
   toolId: string;
-  /** Server-authored, deterministic recap built from parsedParams. */
   serverSummary: string;
   parsedParams: Record<string, unknown>;
   sideEffects: string[];
@@ -109,7 +91,6 @@ export interface ChatErrorEvent {
 export interface ChatDoneEvent {
   agentRunId: ID;
   finalText: string;
-  /** True when this turn invoked any *_submit tool. */
   containsWrites: boolean;
 }
 

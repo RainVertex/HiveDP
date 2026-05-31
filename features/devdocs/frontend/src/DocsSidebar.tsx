@@ -1,3 +1,4 @@
+// DevDocs sidebar: builds a collapsible page tree with per-entity persisted expand state.
 import { useEffect, useState } from "react";
 import type { DocPageSummary } from "@internal/shared-types";
 
@@ -30,8 +31,7 @@ function saveExpanded(entityId: string, set: Set<string>): void {
   try {
     window.localStorage.setItem(storageKey(entityId), JSON.stringify(Array.from(set)));
   } catch {
-    // localStorage can throw under quota or private-mode policies. sticky
-    // collapse state is best-effort, so swallow and continue.
+    // localStorage can throw under quota or private mode, collapse state is best-effort.
   }
 }
 
@@ -69,7 +69,7 @@ function buildTree(pages: DocPageSummary[]): TreeNode {
 }
 
 function sortNode(node: TreeNode): void {
-  // index page bubbles to the top, then directories, then leaves alphabetical.
+  // Order: index first, then directories, then leaves alphabetical.
   node.children.sort((a, b) => {
     if (a.name === "index" && b.name !== "index") return -1;
     if (b.name === "index" && a.name !== "index") return 1;
@@ -100,9 +100,7 @@ function humanize(name: string): string {
 }
 
 function ChevronGlyph({ open }: { open: boolean }) {
-  // SVG elements default to `transform-origin: 0 0`, so rotate-90 alone swings
-  // the chevron off-screen instead of pivoting in place. origin-center pins
-  // the rotation pivot to the middle of the box.
+  // origin-center is required, SVG defaults to transform-origin 0 0 so rotate-90 would swing off-screen.
   return (
     <svg
       width="10"
@@ -229,8 +227,7 @@ function NodeItem({ node, ctx }: { node: TreeNode; ctx: RenderCtx }) {
 export function DocsSidebar({ entityId, pages, activeSlug, onSelect }: DocsSidebarProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => loadExpanded(entityId));
 
-  // Reload from storage whenever we switch entities, so each entity keeps its
-  // own collapse state.
+  // Reload per entity so each keeps its own collapse state.
   useEffect(() => {
     setExpanded(loadExpanded(entityId));
   }, [entityId]);

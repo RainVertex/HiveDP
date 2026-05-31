@@ -1,6 +1,4 @@
-// Loads platform-managed secrets for the apply path. Today the only source
-// is env vars prefixed with SCAFFOLDER_SECRET_. PR plan calls out a future
-// per-user GitHub OAuth token override, which would slot in here.
+// Loads platform-managed secrets for the apply path, currently only env vars prefixed SCAFFOLDER_SECRET_.
 
 const PREFIX = "SCAFFOLDER_SECRET_";
 

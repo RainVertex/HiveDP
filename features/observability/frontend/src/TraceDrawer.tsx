@@ -1,6 +1,4 @@
-// Tempo trace drawer: fetches the trace by id (backend proxies through
-// Grafana → Tempo) and renders a CSS-bar waterfall. Spans are sorted by
-// startMs and indented by parent chain depth.
+// Drawer that fetches a Tempo trace by id and renders a CSS-bar span waterfall.
 
 import { useEffect, useMemo, useState } from "react";
 import type { TempoSpan, TempoTrace } from "@internal/shared-types";
@@ -8,11 +6,7 @@ import { useApi } from "@internal/api-client/react";
 
 export interface TraceDrawerProps {
   traceId: string;
-  /**
-   * Required for authorization, the backend gates trace access on whether
-   * the user can read this entity. Pass the entityId of the log line that
-   * surfaced the trace.
-   */
+  // Required for authorization: backend gates trace access on read perms for this entity.
   entityId: string;
   onClose: () => void;
 }

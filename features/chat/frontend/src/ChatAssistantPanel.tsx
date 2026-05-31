@@ -9,16 +9,12 @@ import { useChatStream } from "./chatStream";
 const KEY_CONV = (uid: string) => `mep:chat-widget:conversation_id:${uid}`;
 
 interface Props {
-  /** Auth identity of the current user. used to scope the per-user localStorage key so logging */
   userId: string;
-  /** Display name + avatar drive the right-side bubble avatar on user messages. */
   userName?: string;
   userAvatarUrl?: string | null;
 }
 
-// In-page chat surface (the homepage widget body). Same SSE consumer as the
-// full ChatPage, but scoped to a single persisted conversation id stored in
-// localStorage so the widget remembers your last thread across reloads.
+// Homepage widget chat surface; scopes to one persisted conversation id in localStorage so the thread survives reloads.
 export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
   const api = useApi();
   const navigate = useNavigate();
@@ -36,8 +32,7 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
     else window.localStorage.removeItem(storageKey);
   }, [conversationId, storageKey]);
 
-  // Hydrate active conversation. If the stored id 404s (deleted from /chat)
-  // null it out and let the next send create a fresh one.
+  // If the stored id 404s (deleted elsewhere), null it out so the next send creates a fresh one.
   useEffect(() => {
     if (!conversationId) {
       setActive(null);
@@ -60,7 +55,6 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
     };
   }, [api, conversationId]);
 
-  // Persist freshly-streamed turns back into the conversation detail.
   useEffect(() => {
     if (stream.status !== "done" || !conversationId) return;
     api.chat
@@ -93,8 +87,7 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
   }, [reset]);
 
   return (
-    // -m-4 cancels WidgetFrame's inner padding so MessageList/Composer sit
-    // flush, Composer has its own border-t to separate from messages.
+    // -m-4 cancels WidgetFrame's inner padding so MessageList/Composer sit flush.
     <div className="-m-4 flex h-[calc(100%+2rem)] flex-col">
       <div className="flex items-center justify-between gap-2 border-b border-app-border bg-app-surface px-3 py-1.5">
         <span className="truncate text-xs text-app-text-muted">{active?.title ?? "New chat"}</span>

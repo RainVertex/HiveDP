@@ -1,14 +1,5 @@
-// SSRF guard for admin-entered Grafana baseUrls. Admin trust covers the
-// common misuse, but defense in depth: an admin who copy/pastes the wrong
-// URL, or whose account gets compromised, shouldn't be able to point the
-// platform at internal services (metadata endpoints, Redis, the admin API
-// of another service on the VPS).
-//
-// TOCTOU caveat: the resolved address is checked at connect time only. A
-// malicious DNS could resolve the same hostname to a public address now and
-// a private one on the next fetch. Mitigation for v2: resolve + pin the IP
-// per request, or run egress through a filtering proxy. v1 catches the
-// common cases (typos, simple compromise).
+// SSRF guard rejecting admin Grafana baseUrls that resolve to private/loopback addresses.
+// TOCTOU caveat: address is checked at connect time only, a malicious DNS could flip it later.
 
 import dns from "node:dns/promises";
 import type { LookupAddress } from "node:dns";
@@ -23,9 +14,9 @@ const PRIVATE_V4: RegExp[] = [
 
 function isPrivateV6(addr: string): boolean {
   const a = addr.toLowerCase();
-  if (a === "::1") return true; // loopback
-  if (a.startsWith("fc") || a.startsWith("fd")) return true; // ULA
-  if (a.startsWith("fe80")) return true; // link-local
+  if (a === "::1") return true;
+  if (a.startsWith("fc") || a.startsWith("fd")) return true;
+  if (a.startsWith("fe80")) return true;
   return false;
 }
 
@@ -36,12 +27,7 @@ export class PrivateBaseUrlError extends Error {
   }
 }
 
-/**
- * Throws PrivateBaseUrlError if baseUrl resolves to a private/loopback/
- * link-local address, unless ALLOW_PRIVATE_GRAFANA_BASEURL=true. No-op for
- * URLs that fail to parse or resolve
- * the surrounding caller will get a useful error from the actual fetch.
- */
+// Throws PrivateBaseUrlError on private hosts unless ALLOW_PRIVATE_GRAFANA_BASEURL=true; no-op on parse/resolve failure.
 export async function assertNonPrivateHost(baseUrl: string): Promise<void> {
   if (process.env.ALLOW_PRIVATE_GRAFANA_BASEURL === "true") return;
 
@@ -57,8 +43,7 @@ export async function assertNonPrivateHost(baseUrl: string): Promise<void> {
   try {
     records = await dns.lookup(host, { all: true });
   } catch {
-    // DNS failure, let the downstream fetch surface the error verbatim
-    // rather than masking it with an SSRF rejection.
+    // Let the downstream fetch surface the DNS error verbatim instead of masking it.
     return;
   }
 

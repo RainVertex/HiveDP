@@ -1,6 +1,4 @@
-// Shared HMAC verification for GitHub App webhooks. Accepts either the raw
-// Buffer (when express.raw() is in use) or a string. Returns true only when
-// the signature header is present, well-formed, and a length-safe match.
+// HMAC-SHA256 verification for GitHub App webhook signatures (length-safe, timing-safe).
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 

@@ -1,3 +1,4 @@
+// TanStack column defs and metadata for the catalog table.
 import type { ColumnDef } from "@tanstack/react-table";
 import type { CatalogEntity, Team } from "@internal/shared-types";
 import {
@@ -162,9 +163,7 @@ export function buildColumns(): ColumnDef<CatalogRow>[] {
       enableSorting: true,
       filterFn: arrIncludesAny,
       getGroupingValue: tagsGroupingFn,
-      // Sort by first tag (alphabetical, case-insensitive). Rows with no
-      // tags sort to the bottom in asc order, tags-grouping already treats
-      // empty as "(no tags)" so users see them grouped together either way.
+      // Sort by first tag (case-insensitive); rows with no tags sink to the bottom in asc order.
       sortingFn: (a, b) => {
         const at = (a.original.tags ?? [])[0]?.toLowerCase() ?? "";
         const bt = (b.original.tags ?? [])[0]?.toLowerCase() ?? "";

@@ -1,5 +1,5 @@
-// Ambient `declare module "*.css"` must be visible when consumers' tsc descends
-// into this source file. An `import` of the .d.ts doesn't propagate ambients.
+// Grid of widgets with edit-mode drag/resize and per-widget config modal.
+// Ambient `declare module "*.css"` must be visible to consumers' tsc; importing the .d.ts doesn't propagate ambients.
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../globals.d.ts" />
 import { useMemo, useState } from "react";
@@ -22,7 +22,7 @@ interface WidgetGridProps<TId extends string> {
   registry: WidgetRegistry<TId>;
   onLayoutChange: (layout: Layout) => void;
   onRemove: (instanceId: string) => void;
-  /** Required when any widget in the registry defines a `configEditor`. */
+  // Required when any widget in the registry defines a `configEditor`.
   onConfigChange?: (instanceId: string, config: Record<string, unknown>) => void;
   emptyState?: { title: string; hint: string };
 }

@@ -1,3 +1,4 @@
+// Renders a unified diff (via the `diff` package's createPatch) with line-level coloring.
 import { createPatch } from "diff";
 
 interface DiffViewProps {
@@ -6,10 +7,6 @@ interface DiffViewProps {
   after: string | null;
 }
 
-// Renders a unified diff with simple line-level coloring. Uses the `diff`
-// package's createPatch for a compact, minimal diff (no surrounding context
-// when one side is null, since one side absent means the entire other side
-// is "added" or "removed").
 export function DiffView({ path, before, after }: DiffViewProps) {
   const patch = createPatch(path, before ?? "", after ?? "", "", "", { context: 3 });
   const lines = patch.split("\n");

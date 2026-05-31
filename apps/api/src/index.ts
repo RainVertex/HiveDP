@@ -1,3 +1,4 @@
+// API entrypoint: loads env, boots the HTTP server, runs boot-time reconciliation, wires graceful shutdown.
 import { config as loadDotenv } from "dotenv";
 import { resolve } from "node:path";
 
@@ -35,9 +36,7 @@ async function bootstrap() {
   registerAllJobs();
   startScheduler();
 
-  // Boot-time drift check: reconciles TemplateHashSnapshot and runs a
-  // targeted sweep for templates whose content hash changed since last boot.
-  // Best-effort, failure here should not block the API coming up.
+  // Best-effort, failure here must not block the API coming up.
   runBootDriftCheck(
     { liveRepoRoot: resolve(__dirname, "../../..") },
     logger.child({ jobName: "scaffolder.bootDriftCheck" }),
@@ -53,9 +52,7 @@ async function bootstrap() {
       logger.error({ err }, "TemplateAcl seeding failed");
     });
 
-  // Boot-time PM project backfill: every enabled GitHub Integration gets its
-  // repos provisioned as Projects (idempotent). Catches anything that missed
-  // a webhook or predates the auto-provisioning feature.
+  // Idempotent backfill that catches repos which missed a webhook or predate auto-provisioning.
   prisma.integration
     .findMany({ where: { kind: "github", enabled: true }, select: { config: true } })
     .then(async (integrations) => {

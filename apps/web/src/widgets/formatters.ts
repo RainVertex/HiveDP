@@ -1,3 +1,4 @@
+// Breadcrumb path and relative-time formatting helpers for widgets.
 function humanizeSegment(s: string): string {
   return s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -8,8 +9,7 @@ export function formatPath(path: string, entityNames?: Map<string, string>): str
 
   return segments
     .map((seg, i) => {
-      // Substitute the entity's real name for the id segment in /catalog/:id
-      // paths, so cuids like cmoimf0ij... show up as the user-entered name.
+      // Swap the /catalog/:id cuid segment for the entity's real name.
       if (entityNames && i === 1 && segments[0] === "catalog") {
         const name = entityNames.get(seg);
         if (name) return name;

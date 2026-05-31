@@ -1,3 +1,4 @@
+// DTO types for the DevDocs feature (doc sync state, pages, comments, stale reports, search).
 import type { ID, ISODateString } from "./common";
 
 export type DocFreshness = "fresh" | "aging" | "stale" | "unknown";
@@ -14,9 +15,7 @@ export type DocResolvedSourceKind =
 
 export interface DocResolvedSource {
   kind: DocResolvedSourceKind;
-  /** For spec-url / external. */
   url?: string;
-  /** Path within the linked repo (relative to repo root). */
   path?: string;
 }
 

@@ -1,3 +1,4 @@
+// Shared types for catalog entities, drift records, relations, and entity overviews.
 import type { ID, ISODateString, NamedEntity } from "./common";
 import type { Team } from "./team";
 import type { DoraMetricsSnapshot, ServiceHealthSample } from "./observability";
@@ -32,7 +33,7 @@ export interface CatalogEntity extends NamedEntity {
   unowned: boolean;
   installationId: number | null;
   githubRepoId: number | null;
-  /** Computed at list time: entity points at an installationId that no longer matches any live */
+  /** Computed at list time: installationId no longer matches any live installation. */
   orphaned: boolean;
 }
 

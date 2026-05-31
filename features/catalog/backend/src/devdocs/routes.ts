@@ -1,3 +1,4 @@
+// Express routes for devdocs: pages, sync, verification, comments, stale reports, and search.
 import { Router } from "express";
 import { z } from "zod";
 import { Prisma, prisma } from "@internal/db";
@@ -78,7 +79,7 @@ function shapeSyncState(
   };
 }
 
-/** Routes scoped to a specific catalog entity. */
+// Routes scoped to a specific catalog entity.
 export const devdocsEntityRouter: Router = Router({ mergeParams: true });
 
 devdocsEntityRouter.get("/", async (req, res) => {
@@ -151,7 +152,7 @@ devdocsEntityRouter.get("/:slug", async (req, res) => {
   res.json(detail);
 });
 
-/** Standalone routes. */
+// Standalone routes not scoped to an entity.
 export const devdocsRouter: Router = Router();
 
 const verifyParam = z.object({ pageId: z.string().min(1) });
@@ -277,8 +278,7 @@ devdocsRouter.post("/pages/:pageId/stale-reports", async (req, res) => {
   });
   if (!page) return res.status(404).json({ error: "Doc page not found" });
 
-  // One open report per (pageId, reporterId): if an unresolved one exists
-  // surface it instead of stacking duplicates.
+  // One open report per (pageId, reporterId): reuse the existing unresolved one instead of duplicating.
   const existing = await prisma.docStaleReport.findFirst({
     where: { pageId: page.id, reporterId: req.user.id, resolvedAt: null },
   });

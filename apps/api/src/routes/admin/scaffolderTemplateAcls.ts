@@ -1,3 +1,4 @@
+// Admin API for per-template scaffolder ACL rows (view/execute by user/team/everyone).
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "@internal/db";
@@ -72,7 +73,6 @@ adminScaffolderTemplateAclsRouter.post("/:id/acl", async (req, res, next) => {
       }
       subjectId = parsed.data.subjectId;
 
-      // Validate that the subject exists for user/team types
       if (parsed.data.subjectType === "user") {
         const u = await prisma.user.findUnique({ where: { id: subjectId } });
         if (!u) return res.status(404).json({ error: "User not found" });

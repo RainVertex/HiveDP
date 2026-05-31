@@ -5,11 +5,12 @@ import { makeUnifiedDiff } from "../diff";
 import type { Mutation } from "../types";
 import type { Action, ReadCtx, WriteCtx } from "./types";
 
+// repo:scaffold action: copies rendered workspace files into the live repo with rollback capture.
+
 const repoScaffoldInput = z.object({
-  // Where in the live repo the workspace contents land. Relative to repoRoot.
+  // Repo-relative directory where workspace contents land.
   targetDir: z.string().min(1),
-  // When true, preserves files in the target dir that the scaffold did not
-  // produce. Defaults to true. refusing to overwrite is enforced regardless.
+  // Defaults to true; overwrite refusal is enforced regardless.
   preserveExisting: z.boolean().optional(),
 });
 
@@ -73,10 +74,7 @@ export const repoScaffoldAction: Action<
   async diff(input, ctx: ReadCtx) {
     const exists = await ctx.existsInRepo(input.targetDir);
     if (exists) {
-      // Plan-time we don't have visibility into the workspace contents (the
-      // workspace doesn't exist yet at plan time), so signal an update with a
-      // single placeholder mutation. The diff viewer renders this as
-      // "scaffold target already exists. will write under here".
+      // The workspace doesn't exist at plan time, so emit a single placeholder mutation.
       const mutations: Mutation[] = [
         {
           kind: "fs.write",

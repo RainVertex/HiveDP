@@ -1,8 +1,4 @@
-// Prometheus scrape job. Runs every 5 minutes against ALL enabled Grafana
-// integrations (configs are integration-scoped, so picking just one would
-// silently drop the others). Top-level Promise.allSettled isolates failures
-// between integrations. inner allSettled chunks of 10 keep concurrency in
-// check without serializing the whole batch.
+// Prometheus scrape job: sweeps ALL enabled Grafana integrations (configs are integration-scoped) with allSettled to isolate failures.
 
 import { prisma } from "@internal/db";
 import { GrafanaApiError } from "@internal/grafana-client";

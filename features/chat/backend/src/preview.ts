@@ -1,24 +1,7 @@
+// ChatActionPreview lifecycle helpers used by the *_prepare and *_submit tools.
 import { prisma, Prisma } from "@internal/db";
 import type { ChatPolicyCheck } from "@internal/shared-types";
 import type { PrepareReturnEnvelope } from "./streamExecutor";
-
-// ChatActionPreview lifecycle helpers used by *_prepare and *_submit tools.
-//
-// Prepare flow:
-// 1. validate inputs against hard rules -> policyChecks
-// 2. allocate the next short handle (prv_NN) for (conversationId, toolId)
-// 3. supersede prior unconsumed prepares for the same (conversationId, toolId)
-// 4. insert the row, build the SSE preview event + LLM-facing payload
-// 5. return PrepareReturnEnvelope to streamExecutor which emits the event
-// and feeds forLlm to the model
-//
-// Submit flow:
-// 1. resolve handle -> row by (conversationId, shortHandle)
-// 2. authorization (userId), scope (conversationId), idempotency
-// (consumedAt), staleness (supersededAt), TTL (expiresAt)
-// 3. caller re-runs validation against current DB state
-// 4. caller runs the wrapped handler in a $transaction. we mark consumed
-// and set resultRefId
 
 const PREVIEW_TTL_MS = 10 * 60 * 1000; // 10 min
 
@@ -32,13 +15,10 @@ export interface CreatePreviewArgs {
   sideEffects: string[];
 }
 
-/** Persist a ChatActionPreview row, supersede prior unconsumed prepares of the same kind in */
+// Persist a preview row and supersede prior unconsumed prepares of the same kind.
 export async function createPreview(args: CreatePreviewArgs): Promise<PrepareReturnEnvelope> {
   return prisma.$transaction(async (tx) => {
-    // Supersede any prior unconsumed preview for (conversation, toolId). The
-    // staleness rule: only the latest is submittable. older prepares are
-    // silently superseded so the assistant can correct mid-conversation
-    // without leaving a footgun.
+    // Only the latest prepare stays submittable, so the assistant can correct mid-conversation.
     await tx.chatActionPreview.updateMany({
       where: {
         conversationId: args.conversationId,
@@ -49,9 +29,7 @@ export async function createPreview(args: CreatePreviewArgs): Promise<PrepareRet
       data: { supersededAt: new Date() },
     });
 
-    // Allocate the next short handle. Monotonic per (conversationId, toolId)
-    //we count prior previews of any state, so handles never repeat within
-    // a conversation/toolId pair (idempotent renumbering on retries).
+    // Count previews of any state so short handles never repeat per (conversationId, toolId).
     const priorCount = await tx.chatActionPreview.count({
       where: { conversationId: args.conversationId, toolId: args.toolId },
     });
@@ -107,7 +85,7 @@ export type ResolvePreviewResult =
   | { ok: true; kind: "alreadyConsumed"; resultRefId: string | null; consumedAt: Date }
   | { ok: false; error: ResolvePreviewError };
 
-/** Look up a preview by handle and run authorization + lifecycle gates. */
+// Look up a preview by handle and run authorization + lifecycle gates.
 export async function resolveForSubmit(args: {
   handle: string;
   conversationId: string;
@@ -144,9 +122,7 @@ export async function resolveForSubmit(args: {
     };
   }
   if (row.consumedAt) {
-    // Idempotency, a re-submission returns the prior result instead of
-    // re-executing the wrapped handler. resultRefId points at the row that
-    // the original submit produced (e.g. created TeamRequest id).
+    // Idempotency: re-submission returns the prior result instead of re-running the handler.
     return {
       ok: true,
       kind: "alreadyConsumed",
@@ -175,7 +151,7 @@ export async function resolveForSubmit(args: {
   return { ok: true, kind: "fresh", preview: row };
 }
 
-/** Mark a preview as consumed and record the wrapped handler's result-id. */
+// Mark a preview as consumed and record the wrapped handler's result-id.
 export async function markConsumed(args: {
   previewId: string;
   resultRefId: string | null;

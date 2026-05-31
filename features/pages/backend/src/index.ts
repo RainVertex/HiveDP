@@ -1,3 +1,4 @@
+// Pages API: CRUD, move, and layout for the per-section navigable page tree.
 import { Router, type Request } from "express";
 import { z } from "zod";
 import { Prisma, prisma } from "@internal/db";
@@ -40,7 +41,7 @@ async function audit(
       },
     });
   } catch {
-    // Audit is best-effort. don't fail the user request on audit errors.
+    // Audit is best-effort; never fail the user request on audit errors.
   }
 }
 
@@ -82,7 +83,6 @@ function isAdminSectionAllowed(role: string, section: PageSection): boolean {
   return role === "admin";
 }
 
-/** A user can edit a page when it's their own personal page, or when it's shared and they're an */
 function canEdit(
   page: Pick<Page, "ownerUserId" | "scope">,
   user: { id: string; role: string },
@@ -91,7 +91,6 @@ function canEdit(
   return page.ownerUserId === user.id;
 }
 
-/** A user can see a page if it's shared, or if it's their own personal page. */
 function canRead(page: Pick<Page, "ownerUserId" | "scope">, user: { id: string }): boolean {
   if (page.scope === "SHARED") return true;
   return page.ownerUserId === user.id;
@@ -164,7 +163,6 @@ const createSchema = z
   .refine(
     (v) => {
       const t = v.type ?? "LINK";
-      // LINK pages must have a url, unless they're folders.
       if (t === "LINK" && !v.isFolder) {
         return typeof v.url === "string" && v.url.length > 0;
       }
@@ -193,12 +191,9 @@ pagesRouter.post("/", async (req, res, next) => {
     const isAdmin = req.user.role === "admin";
     const folder = isFolder ?? false;
     const type: PageType = parsed.data.type ?? "LINK";
-    // Non-admins can only create personal pages, even if the client asks for shared.
-    // Admins default to shared but can opt into personal via the explicit toggle.
+    // Non-admins are forced to personal scope regardless of requested scope.
     const scope: PageScope = !isAdmin ? "PERSONAL" : (parsed.data.scope ?? "SHARED");
 
-    // DASHBOARD pages and folders don't navigate to a url. LINK pages require one
-    // (enforced by the refine above).
     const url = type === "DASHBOARD" || folder ? null : (parsed.data.url as string);
 
     if (parentId) {
@@ -303,7 +298,6 @@ pagesRouter.patch("/:id", async (req, res, next) => {
       fields.push("icon");
     }
     if (parsed.data.url !== undefined) {
-      // LINK pages must keep a non-null url. DASHBOARD pages must stay null.
       if (existing.type === "LINK" && (parsed.data.url === null || parsed.data.url === "")) {
         res.status(400).json({ error: "url is required for LINK pages" });
         return;
@@ -448,7 +442,6 @@ pagesRouter.post("/:id/move", async (req, res, next) => {
         res.status(400).json({ error: "Parent scope does not match" });
         return;
       }
-      // Walk ancestors of new parent, if we encounter target.id, it's a cycle.
       let cursor: { id: string; parentId: string | null } | null = parent;
       while (cursor && cursor.parentId) {
         if (cursor.parentId === target.id) {
@@ -512,7 +505,7 @@ pagesRouter.delete("/:id", async (req, res, next) => {
       return;
     }
     const now = new Date();
-    // Soft-delete the target plus every descendant. Walk the tree iteratively.
+    // Soft-delete cascades to every descendant.
     const ids = await collectDescendantIds(target.id);
     await prisma.page.updateMany({
       where: { id: { in: ids }, deletedAt: null },

@@ -1,3 +1,4 @@
+// Central cron registry: collects each feature's job definitions and re-exports scheduler controls.
 import { resolve } from "node:path";
 import { getScaffolderJobs } from "@feature/scaffolder-backend";
 import { getAgentJobs } from "@feature/agents-backend";
@@ -13,8 +14,7 @@ let registered = false;
 export function registerAllJobs(): void {
   if (registered) return;
   registerJob(heartbeatJob);
-  // Scaffolder cron jobs share the same JobDefinition shape. the feature
-  // exports them so apps/api stays the single owner of the cron registry.
+  // Features export their jobs so apps/api stays the single owner of the cron registry.
   const liveRepoRoot = resolve(__dirname, "../../../..");
   for (const def of getScaffolderJobs({ liveRepoRoot })) {
     registerJob(def);

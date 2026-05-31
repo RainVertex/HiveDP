@@ -1,3 +1,4 @@
+// Validates process.env with zod and exposes a cached, typed AppEnv via loadEnv().
 import { z } from "zod";
 
 const NodeEnv = z.enum(["development", "production", "test"]).default("development");

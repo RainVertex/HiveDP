@@ -1,3 +1,4 @@
+// Admin routes to list, mint, and revoke scaffolder MCP tokens, with audit logging.
 import { Router } from "express";
 import { z } from "zod";
 import { listAllMcpTokens, mintMcpToken, revokeMcpToken } from "@feature/scaffolder-backend";
@@ -53,8 +54,7 @@ adminScaffolderMcpTokensRouter.post("/", async (req, res, next) => {
         requestId: req.id != null ? String(req.id) : null,
       },
     );
-    // The cleartext token is returned exactly once. the admin must copy it
-    // immediately. The DB only stores the sha256 hash.
+    // Cleartext token is returned exactly once; the DB only stores the sha256 hash.
     res.status(201).json({
       id: minted.id,
       token: minted.token,

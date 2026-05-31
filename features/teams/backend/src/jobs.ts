@@ -1,3 +1,4 @@
+// Scheduled team jobs: request/maintainer-request expiration, hard delete, GitHub reconciliation.
 import { prisma } from "@internal/db";
 import { notify } from "@feature/notifications-backend";
 import { expirePendingMemberships, runReconciliation } from "@feature/catalog-backend";
@@ -18,7 +19,6 @@ export interface TeamJobDefinition {
   handler: (ctx: TeamJobContext) => Promise<void>;
 }
 
-/** Hourly: transition pending TeamRequest rows past their expiresAt to `expired`, write an */
 export function teamRequestExpirationJob(): TeamJobDefinition {
   return {
     name: "teams.requestExpiration",
@@ -27,8 +27,7 @@ export function teamRequestExpirationJob(): TeamJobDefinition {
     handler: async ({ log, signal }) => {
       const now = new Date();
       const due = await prisma.teamRequest.findMany({
-        // Both states represent an open negotiation that the cron should
-        // sweep when its TTL elapses.
+        // Both states are an open negotiation the cron sweeps when its TTL elapses.
         where: {
           status: { in: ["pending", "awaiting_user_confirmation"] },
           expiresAt: { lt: now },
@@ -80,7 +79,6 @@ export function teamRequestExpirationJob(): TeamJobDefinition {
   };
 }
 
-/** Hourly: transition pending MaintainerRequest rows past their expiresAt to `expired`, write */
 export function maintainerRequestExpirationJob(): TeamJobDefinition {
   return {
     name: "teams.maintainerRequestExpiration",
@@ -180,8 +178,6 @@ export function teamHardDeleteJob(): TeamJobDefinition {
 export function githubTeamReconciliationJob(): TeamJobDefinition {
   return {
     name: "teams.githubReconciliation",
-    // Sundays at 04:00 server time. Off-peak. gives drift dashboard a fresh
-    // baseline going into Monday.
     schedule: "0 4 * * 0",
     timeoutMs: 30 * 60 * 1000,
     handler: async ({ log, signal }) => {

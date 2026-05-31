@@ -1,8 +1,4 @@
-// Observability feature backend. Read-only health-sample endpoints (legacy)
-// + Grafana-integration-driven additions: per-entity config CRUD, Loki logs
-// proxy, Tempo trace proxy, Grafana dashboard PNG proxy. The Prometheus
-// scrape job (in ./jobs/prometheusScrape) is what populates ServiceHealthSample
-// from a Grafana integration.
+// Observability backend: health samples, per-entity config CRUD, and Loki/Tempo/dashboard proxies.
 
 import { Router } from "express";
 import { prisma } from "@internal/db";
@@ -35,10 +31,7 @@ observabilityRouter.get("/health-samples/:entityId", async (req, res) => {
   res.json({ items: samples });
 });
 
-// EntityObservabilityConfig CRUD
-// Per-entity wiring (PromQL, LogQL selector, dashboard UID, trace-id regex
-// override). Admin-only on PUT. any authenticated user can read. PUT acts as
-// an upsert so the UI can use a single endpoint to create-or-update.
+// PUT is an upsert so the UI can create-or-update via a single endpoint.
 
 function toConfigDto(row: {
   entityId: string;
@@ -149,8 +142,6 @@ observabilityRouter.delete("/entities/:entityId/config", async (req, res, next) 
   }
 });
 
-// Loki + Tempo + dashboard-image proxies
-
 observabilityRouter.get("/logs", async (req, res, next) => {
   try {
     if (!req.user) {
@@ -213,10 +204,7 @@ observabilityRouter.get("/traces/:traceId", async (req, res, next) => {
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
-    // Trace IDs are global identifiers with no inherent ownership, we
-    // require the caller to declare which entity they're looking at, then
-    // gate access on that entity's owners. EntityLogsPanel passes the
-    // entityId of the log line that surfaced the trace.
+    // Trace IDs have no inherent ownership, so authz is gated on the caller-declared entity.
     const entityId = String(req.query.entityId ?? "").trim();
     if (!entityId) {
       res.status(400).json({ error: "entityId is required" });
@@ -261,11 +249,7 @@ observabilityRouter.get("/dashboard-image", async (req, res, next) => {
       res.status(400).json({ error: "dashboardUid and panelId are required" });
       return;
     }
-    // Dashboards aren't owned by catalog entities, so authorization works
-    // by checking that the caller can read SOME entity which has pinned
-    // this dashboard via EntityObservabilityConfig.dashboardUid. Admins
-    // bypass, they can render anything (matches the Dashboards tab
-    // admin-types-UID workflow).
+    // Dashboards have no entity ownership: non-admins must read an entity that pinned this UID.
     if (req.user.role !== "admin") {
       const entityId = String(req.query.entityId ?? "").trim();
       if (!entityId) {
@@ -320,13 +304,9 @@ observabilityRouter.get("/dashboard-image", async (req, res, next) => {
   }
 });
 
-// Job exports
-
 export function getObservabilityJobs(): ObservabilityJobDefinition[] {
   return [prometheusScrapeJob(), alertStateCleanupJob()];
 }
-
-// Local helpers
 
 function nullableString(value: unknown): string | null {
   if (typeof value !== "string") return null;

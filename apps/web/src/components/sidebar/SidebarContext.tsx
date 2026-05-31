@@ -1,3 +1,4 @@
+// Sidebar state: pin/peek behavior and resolution of the active rail section.
 import {
   createContext,
   useCallback,
@@ -29,12 +30,10 @@ interface SidebarContextValue {
   setPinned: (next: boolean) => void;
   togglePinned: () => void;
   peeking: boolean;
-  /** True when the rail should render in its expanded (labels-visible) form. */
   expanded: boolean;
   onRailMouseEnter: () => void;
   onRailMouseLeave: () => void;
   activeSection: SidebarSection;
-  /** Lets a child route (e.g. */
   setRouteSection: (section: PageSection | null) => void;
 }
 
@@ -47,13 +46,9 @@ export function SidebarProvider({ children }: PropsWithChildren) {
   const leaveTimer = useRef<number | null>(null);
   const location = useLocation();
 
-  // The pure URL-derived section. Returns "home" for routes like `/p/:id` that
-  // aren't bound to a specific section in their path.
   const pathSection = useMemo(() => sectionFromPath(location.pathname), [location.pathname]);
 
-  // Last section that owned a tree. Stays "sticky" so navigating into a
-  // dashboard page (`/p/:id`) keeps showing the tree the user was in. Persisted
-  // to survive reloads.
+  // Sticky so navigating into a dashboard page keeps the tree the user was in; persisted across reloads.
   const [stickySection, setStickySection] = useState<PageSection>(() => {
     if (typeof window === "undefined") return "catalog";
     try {
@@ -65,11 +60,9 @@ export function SidebarProvider({ children }: PropsWithChildren) {
     return "catalog";
   });
 
-  // Explicit override set by a route component (DashboardPage uses this so
-  // deep-links to `/p/:id` show the right tree once the page resolves).
+  // Explicit override set by a route component once a deep-linked page resolves.
   const [routeSection, setRouteSection] = useState<PageSection | null>(null);
 
-  // Track the last tree-having section the user navigated to via the URL.
   useEffect(() => {
     if (sectionHasTree(pathSection)) {
       setStickySection(pathSection);
@@ -81,7 +74,7 @@ export function SidebarProvider({ children }: PropsWithChildren) {
     }
   }, [pathSection]);
 
-  // Resolve to: explicit route override → URL section if it has a tree → sticky.
+  // Resolution order: explicit route override, then URL section with a tree, then sticky.
   const activeSection: SidebarSection = useMemo(() => {
     if (routeSection) return routeSection;
     if (sectionHasTree(pathSection)) return pathSection;
@@ -90,8 +83,7 @@ export function SidebarProvider({ children }: PropsWithChildren) {
     return pathSection;
   }, [routeSection, pathSection, stickySection, location.pathname]);
 
-  // Reset the route override whenever the user navigates somewhere else, so the
-  // next dashboard page gets a clean slate to set its own.
+  // Reset the route override on navigation so the next dashboard page starts clean.
   useEffect(() => {
     if (!location.pathname.startsWith("/p/")) setRouteSection(null);
   }, [location.pathname]);
@@ -139,7 +131,7 @@ export function SidebarProvider({ children }: PropsWithChildren) {
   const togglePinned = useCallback(() => {
     setPinnedState((prev) => {
       const next = !prev;
-      // Pinning while peeking shouldn't leave the overlay flag stuck on.
+      // Pinning while peeking must not leave the overlay flag stuck on.
       if (next) setPeeking(false);
       return next;
     });

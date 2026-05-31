@@ -1,3 +1,4 @@
+// Config editor for the iframe widget: an https-validated embed URL input.
 import { useState } from "react";
 import type { WidgetConfigEditorProps } from "@internal/shared-ui";
 

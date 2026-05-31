@@ -1,9 +1,7 @@
 import { prisma } from "@internal/db";
 import type { RegisteredTool, ToolContext } from "@internal/llm-core";
 
-// Bootstrapping tools every conversation should call once: whoami so the
-// model knows who's asking, get_today so date-relative questions don't
-// hallucinate the date.
+// Bootstrapping chat tools (whoami, get_today) every conversation should call once.
 
 const whoami: RegisteredTool = {
   id: "whoami",
@@ -86,7 +84,6 @@ const getToday: RegisteredTool = {
 export const CHAT_CORE_TOOLS: RegisteredTool[] = [whoami, getToday];
 export const CHAT_CORE_TOOL_IDS = CHAT_CORE_TOOLS.map((t) => t.id);
 
-// Helper for other tools that need to ensure the caller is authenticated.
 export function requireUserId(ctx: ToolContext): string {
   if (!ctx.userId) throw new Error("Not authenticated");
   return ctx.userId;

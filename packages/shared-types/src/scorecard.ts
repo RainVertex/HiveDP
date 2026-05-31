@@ -1,9 +1,10 @@
+// Wire shapes for scorecards: tier definitions, rules, and per-entity evaluation results.
 import type { ID, ISODateString, Timestamped } from "./common";
 import type { CatalogEntityKind } from "./catalog";
 
 export type ScorecardTierStyle = "stage" | "threshold";
 
-/** Stage-style: bronze < silver < gold. */
+// Stage-style ordering: bronze < silver < gold.
 export type ScorecardTier =
   | "bronze"
   | "silver"
@@ -41,7 +42,6 @@ export interface ScorecardRule {
   kind: ScorecardRuleKind;
   config: Record<string, unknown>;
   weight: number;
-  /** Which tier this rule contributes to. */
   tier: Exclude<ScorecardTier, "none">;
 }
 

@@ -1,8 +1,4 @@
-// Per-entity observability config editor. Admin-only page that lists every
-// CatalogEntity in a single editable table. Each row holds PromQL / LogQL /
-// dashboard UID / trace-id regex for the selected Grafana integration. Ghost
-// text in empty fields shows the OTel-templated defaults with the entity's
-// name substituted, so admins can copy them in if their conventions match.
+// Admin editor for per-entity observability config (PromQL / LogQL / dashboard / trace-id).
 
 import { useEffect, useMemo, useState } from "react";
 import { PageLayout } from "@internal/shared-ui";

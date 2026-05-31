@@ -1,9 +1,7 @@
 import { prisma } from "@internal/db";
 import { encryptSecret } from "./crypto";
 
-// Admin-managed, encrypted-at-rest provider API keys. The plaintext is only
-// ever held in memory long enough to encrypt (write) or decrypt (use); it is
-// never returned to clients. resolveProviderApiKey reads these.
+// Admin-managed provider API keys stored encrypted at rest; plaintext is never returned to clients.
 
 export async function getProviderIdsWithStoredKey(): Promise<Set<string>> {
   const rows = await prisma.providerCredential.findMany({ select: { providerId: true } });
@@ -23,7 +21,7 @@ export async function setProviderKey(
   apiKey: string,
   updatedByUserId?: string | null,
 ): Promise<void> {
-  // Copy into a plain ArrayBuffer-backed Uint8Array for the Prisma Bytes field.
+  // Plain ArrayBuffer-backed Uint8Array is required by the Prisma Bytes field.
   const encryptedValue = new Uint8Array(encryptSecret(apiKey));
   await prisma.providerCredential.upsert({
     where: { providerId },

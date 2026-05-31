@@ -1,8 +1,4 @@
-// Grafana connect-flow dialog. Two-stage: (1) credentials form → calls
-// /probe to discover candidate datasources, (2) datasource picker (one
-// dropdown per type, auto-selected when only one candidate exists) →
-// calls the commit endpoint. Final state shows the one-time webhook
-// secret the admin pastes into Grafana's contact point.
+// Two-stage Grafana connect dialog: probe for datasources, then commit and show the one-time webhook secret.
 
 import { useState } from "react";
 import { useApi } from "@internal/api-client/react";

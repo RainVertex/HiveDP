@@ -1,3 +1,4 @@
+// Scaffolder task detail page: loads persisted state then live-streams step and log events.
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";
@@ -52,7 +53,6 @@ export function TaskPage() {
   const [error, setError] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Initial load: pull persisted task + steps + last 200 logs.
   useEffect(() => {
     if (!taskId) return;
     api.scaffolder
@@ -66,7 +66,7 @@ export function TaskPage() {
             status: s.status as StepView["status"],
           })),
         );
-        // logs come back newest-first. reverse for display.
+        // Logs come back newest-first, reverse for display.
         setLogs(
           [...(t.logs ?? [])].reverse().map((l) => ({
             stepId: l.stepId,
@@ -79,9 +79,7 @@ export function TaskPage() {
       .catch((err) => setError(err.message ?? "Failed to load task"));
   }, [api, taskId]);
 
-  // Live stream, only opens while the task is still running. Once we receive
-  // task.finished (or the initial load already showed a finished task), we
-  // skip subscribing.
+  // Live stream only opens while the task is still running, skipped once finished.
   useEffect(() => {
     if (!taskId || terminalStatus) return;
     if (task && task.finishedAt) return;
@@ -92,7 +90,7 @@ export function TaskPage() {
         const event = JSON.parse(msg.data) as StepEvent;
         applyEvent(event);
       } catch {
-        // malformed event, ignore.
+        // malformed event, ignore
       }
     };
     source.onerror = () => {

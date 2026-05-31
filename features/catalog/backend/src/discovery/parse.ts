@@ -1,31 +1,4 @@
-// Parse + validate `catalog-info.yaml` files. Two flavors are accepted:
-//
-// 1. Flat (preferred, maps 1:1 to RegisterCatalogEntityInput):
-// kind: service
-// name: payments-svc
-// description: ...
-// ownerTeamIds: [platform] # array. legacy `ownerTeamId: platform` still accepted
-// repoUrl: ...
-// tags: [...]
-//
-// 2. Backstage-ish (for migration ergonomics, only `Component` is read):
-// apiVersion: backstage.io/v1alpha1
-// kind: Component
-// metadata:
-// name: payments-svc
-// description: ...
-// tags: [...]
-// spec:
-// type: service
-// owner: platform
-//
-// Anything that doesn't pass validation is reported as a parse error and
-// skipped, discovery is best-effort, never throws.
-//
-// This module lives in catalog-backend (not scaffolder) because parsing
-// catalog-info.yaml is a catalog concern. The scaffolder's discoverCatalogYaml
-// imports from here. the GitHub App bulk sync uses these parsers directly.
-
+// Parses and validates catalog-info.yaml in two flavors (flat preferred, plus Backstage Component); best-effort, never throws.
 import { parse as parseYaml } from "yaml";
 import type { CatalogEntityKind } from "@internal/db";
 import type { RegisterCatalogEntityInput } from "../service";

@@ -1,3 +1,4 @@
+// Typed HTTP client for the platform backend, grouped by resource namespace.
 import type {
   AdminUserRow,
   Agent,
@@ -74,7 +75,6 @@ export interface CreateCatalogEntityInput {
   ownerTeamIds?: string[];
   repoUrl?: string;
   tags?: string[];
-  /** GitHub org login the entity belongs to (must match an enabled github integration). */
   accountLogin: string;
 }
 
@@ -247,7 +247,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
           method: "POST",
           body: JSON.stringify({ input }),
         }),
-      // Synchronous one-shot test invocation used by the wizard "Try it out".
       test: (id: string, prompt: string) =>
         request<{
           status: "succeeded" | "failed";
@@ -489,7 +488,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
         ),
       githubDrift: (id: string) =>
         request<GithubDriftSummaryDto>(`/api/integrations/github/${encodeURIComponent(id)}/drift`),
-      /** Public GitHub installation summaries for the team-request "mirror to GitHub" org */
       githubInstallations: () =>
         request<ListResponse<GithubInstallationSummary>>(`/api/integrations/github/installations`),
     },
@@ -513,9 +511,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
           `/api/observability/traces/${encodeURIComponent(traceId)}?${qs.toString()}`,
         );
       },
-      // Constructs the URL only, the <img> tag fetches the PNG. the backend
-      // is what holds the service-account token, never the browser. Non-admin
-      // callers must pass entityId so the backend can authorize.
+      // URL only; the <img> fetch carries the backend-held token. Non-admins must pass entityId to authorize.
       dashboardImageUrl: (params: {
         dashboardUid: string;
         panelId: number;
@@ -678,16 +674,14 @@ export function createApiClient(options: ApiClientOptions = {}) {
         description?: string;
         mirrorToGithub: boolean;
         githubIntegrationId?: string;
-        /** Optional: user ids to seat as additional `lead`s on approval. */
         proposedMaintainerUserIds?: string[];
-        /** Optional: user ids to seat as `member`s on approval. */
         proposedMemberUserIds?: string[];
       }) =>
         request<TeamRequestDto>(`/api/teams/requests`, {
           method: "POST",
           body: JSON.stringify(body),
         }),
-      /** Admin-side proposal, bumps round, transitions to awaiting_user_confirmation. */
+      // Admin-side proposal, bumps round, transitions to awaiting_user_confirmation.
       propose: (
         id: string,
         body: {
@@ -702,7 +696,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
           method: "POST",
           body: JSON.stringify(body),
         }),
-      /** Requester-side response, confirm runs the approval. counter bumps the round. */
+      // Requester-side response: confirm runs the approval, counter bumps the round.
       respond: (
         id: string,
         body:
@@ -733,7 +727,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<TeamRequestDto>(`/api/teams/requests/${encodeURIComponent(id)}/cancel`, {
           method: "POST",
         }),
-      /** Admin-only: pending + history of team requests where I'm the reviewer. */
       forMeAsApprover: () =>
         request<ListResponse<TeamRequestDto>>(`/api/teams/requests/for-me-as-approver`),
     },
@@ -744,7 +737,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<ListResponse<MaintainerRequestDto>>(
           `/api/teams/maintainer-requests/pending-for-me`,
         ),
-      /** Pending I can act on + history I reviewed. */
       forMeAsApprover: () =>
         request<ListResponse<MaintainerRequestDto>>(
           `/api/teams/maintainer-requests/for-me-as-approver`,
@@ -774,7 +766,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
     },
 
     requests: {
-      /** Sidebar-poll counts + canApprove flag for role-aware visibility. */
       pendingSummary: () =>
         request<{
           myRequestsPending: number;

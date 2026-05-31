@@ -1,3 +1,4 @@
+// Discovers catalog-info.yaml from local fs or GitHub and persists entities via the shared catalog service.
 import { promises as fs } from "node:fs";
 import { join, resolve } from "node:path";
 import type { Octokit as OctokitClient } from "octokit";
@@ -8,28 +9,18 @@ import {
   type RegisterCatalogEntityInput,
 } from "@feature/catalog-backend";
 
-// `octokit` v5 ships ESM-only. the api backend is CJS (uses __dirname), so a
-// static `import { Octokit } from "octokit"` blows up Node's CJS loader at
-// module load. Mirror publish-github's pattern: defer the load until needed.
+// octokit v5 is ESM-only and the api backend is CJS, so defer the load to avoid breaking Node's CJS loader.
 async function loadOctokit(): Promise<typeof OctokitClient> {
   const mod = await import("octokit");
   return mod.Octokit;
 }
 
-// catalog-info.yaml parsing now lives in @feature/catalog-backend
-// (features/catalog/backend/src/discovery/parse.ts) so the GitHub App bulk
-// sync can reuse it without circular deps. This module owns the I/O surface
-// (fetching files from local fs or GitHub) plus the discoverAndPersist flow.
-
 export interface DiscoveryInput {
   source: "github" | "local";
   /** "org/repo" for github, absolute path for local. */
   target: string;
-  /** Git ref for github source. */
   ref?: string;
-  /** Name of the secret holding the GitHub token. */
   tokenSecret?: string;
-  /** Resolved token value. */
   token?: string;
 }
 

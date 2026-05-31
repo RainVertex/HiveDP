@@ -1,3 +1,4 @@
+// DTO types for third-party integrations (config views, GitHub installation reconciliation, drift).
 import type { ID, ISODateString, NamedEntity } from "./common";
 
 export type IntegrationKind = "github" | "jira" | "slack" | "grafana";
@@ -8,11 +9,7 @@ export interface Integration extends NamedEntity {
   config: Record<string, unknown>;
 }
 
-// Per-kind "safe view" of an integration's config, only fields safe to display.
-// Returned by GET /api/integrations/:id. Encrypted secrets are NEVER included.
-// `hasApiToken` / `hasWebhookSecret` flags let the UI show a "set / not set"
-// indicator without leaking the value.
-
+// Safe view of an integration's config; encrypted secrets are NEVER included, only has* presence flags.
 export interface GrafanaIntegrationConfigView {
   baseUrl: string;
   dsUid: { prometheus: string; loki?: string; tempo?: string };
@@ -36,16 +33,13 @@ export type IntegrationDetail =
   | (IntegrationDetailBase & { kind: "github"; config: GithubIntegrationConfigView })
   | (IntegrationDetailBase & { kind: "jira" | "slack"; config: Record<string, never> });
 
-/** Public summary of a connected GitHub App installation, exposed via GET */
 export interface GithubInstallationSummary {
   integrationId: ID;
   name: string;
   accountLogin: string;
 }
 
-// One row of the GithubReconciliationRun audit table. Returned by both the
-// /resync endpoint (the row it just produced) and the /drift endpoint
-// (recent runs feed).
+// One row of the GithubReconciliationRun audit table.
 export interface GithubReconciliationRunDto {
   runId: string;
   installationId: number;
@@ -64,8 +58,6 @@ export interface GithubReconciliationRunDto {
   finishedAt: string;
 }
 
-// Lightweight summary used by the inline drift badge on the integrations page.
-// Replaces the previous verbose dashboard payload.
 export interface GithubDriftSummaryDto {
   installationId: number;
   staleTeamCount: number;

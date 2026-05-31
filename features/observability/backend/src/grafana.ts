@@ -1,8 +1,4 @@
-// Shared helper for loading a Grafana integration row, decrypting its token
-// and constructing a GrafanaClient. Used by both the Prometheus scrape job
-// (loops over every enabled integration) and the request-time observability
-// routes (logs / trace / dashboard-image. resolve a single integration).
-
+// Loads Grafana integration rows, decrypts their token, and builds a GrafanaClient.
 import { decryptSecret, prisma } from "@internal/db";
 import { createGrafanaClient, type GrafanaClient } from "@internal/grafana-client";
 
@@ -71,7 +67,7 @@ function hydrate(row: {
   };
 }
 
-/** Load every enabled Grafana integration. The scrape job iterates this. */
+// Load every enabled Grafana integration.
 export async function loadGrafanaIntegrations(): Promise<GrafanaIntegrationRecord[]> {
   const rows = await prisma.integration.findMany({
     where: { kind: "grafana", enabled: true },
@@ -81,11 +77,7 @@ export async function loadGrafanaIntegrations(): Promise<GrafanaIntegrationRecor
   return rows.map(hydrate);
 }
 
-/**
- * Load a specific Grafana integration by id, regardless of `enabled`. Returns
- * null if the row doesn't exist or isn't kind=grafana. Routes call this with
- * a request-supplied id. callers must check `record.enabled` themselves.
- */
+// Loads a Grafana integration by id regardless of enabled; callers must check record.enabled.
 export async function loadGrafanaIntegrationById(
   id: string,
 ): Promise<GrafanaIntegrationRecord | null> {
@@ -97,11 +89,7 @@ export async function loadGrafanaIntegrationById(
   return hydrate(row);
 }
 
-/**
- * Load the canonical (= most-recently-updated, enabled) Grafana integration.
- * Used by request-time routes that don't take an integration id (logs, trace,
- * dashboard-image). Returns null if no enabled integration exists.
- */
+// Loads the canonical (most-recently-updated, enabled) integration for id-less routes.
 export async function loadDefaultGrafanaIntegration(): Promise<GrafanaIntegrationRecord | null> {
   const row = await prisma.integration.findFirst({
     where: { kind: "grafana", enabled: true },

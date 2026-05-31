@@ -1,3 +1,4 @@
+// Lazily builds and caches the scaffolder action and template registries as singletons.
 import {
   createActionRegistry,
   createTemplateRegistry,
@@ -56,8 +57,7 @@ export function getTemplateRegistry(): TemplateRegistry {
   return templates;
 }
 
-// Test-only, drops the singletons so a test can re-register against a fresh
-// registry without polluting later suites.
+// Test-only, drops the singletons so a fresh registry avoids cross-suite pollution.
 export function resetRegistries(): void {
   actionsCache = null;
   templatesCache = null;

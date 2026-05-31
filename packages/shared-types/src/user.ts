@@ -1,3 +1,4 @@
+// User identity DTOs: current user, admin rows, and lightweight summaries.
 import type { ID, ISODateString, Timestamped } from "./common";
 
 export type UserRole = "admin" | "member";
@@ -18,7 +19,6 @@ export interface AdminUserRow extends CurrentUser {
   githubId: string;
 }
 
-/** Lightweight, provider-neutral user shape returned by `GET /api/users?query=`. */
 export interface UserSummary {
   id: ID;
   displayName: string;

@@ -5,17 +5,14 @@ import type { ChatConfigDto } from "@internal/shared-types";
 import { useApi } from "@internal/api-client/react";
 import { useCurrentUser } from "../../auth";
 
-// Apps-web wrapper for the /chat routes. Resolves the current user and gates
-// the assistant on readiness: until an admin selects an active chat model the
-// user sees a friendly not-configured message instead of the chat surface.
+// Apps-web /chat wrapper: gates the assistant until an admin selects an active chat model.
 export function ChatRoute() {
   const me = useCurrentUser();
   const api = useApi();
   const [config, setConfig] = useState<ChatConfigDto | null>(null);
 
   useEffect(() => {
-    // On a transient error, fall back to "ready" and let the send-time 409 be
-    // the backstop, so a blip doesn't hide a working assistant.
+    // On transient error fall back to ready; the send-time 409 is the backstop.
     api.chat
       .getConfig()
       .then(setConfig)

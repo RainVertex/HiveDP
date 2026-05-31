@@ -1,3 +1,4 @@
+// localStorage-backed widget grid layout state with edit/draft/commit flow.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Layout } from "react-grid-layout";
 import type { WidgetInstance, WidgetRegistry } from "./types";
@@ -56,7 +57,7 @@ export function useGridLayout<TId extends string>({
   const [draft, setDraft] = useState<WidgetInstance<TId>[]>(committed);
   const [editMode, setEditMode] = useState(false);
 
-  // When the storage key changes (e.g. navigating between entities), reload from storage.
+  // Reload from storage when the key changes (navigating between entities).
   useEffect(() => {
     const next = readStored();
     setCommitted(next);

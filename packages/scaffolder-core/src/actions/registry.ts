@@ -1,5 +1,7 @@
 import type { AnyAction } from "./types";
 
+// In-memory registry mapping action ids to actions, with duplicate-id guarding.
+
 export class ActionRegistry {
   private readonly byId = new Map<string, AnyAction>();
 
@@ -18,7 +20,7 @@ export class ActionRegistry {
     return this.byId.get(id);
   }
 
-  /** Throws if missing, used by the executor where an unknown action is fatal. */
+  // Throws if missing; the executor treats an unknown action as fatal.
   require(id: string): AnyAction {
     const a = this.byId.get(id);
     if (!a) throw new Error(`Unknown scaffolder action: ${id}`);

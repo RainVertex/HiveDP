@@ -1,7 +1,4 @@
-// Grafana HTTP API response types. Keep these narrow to what the client
-// actually uses, Grafana's full surface is huge and largely irrelevant to
-// the integration. UI-facing DTOs (LokiLogLine, TempoTrace, ...) live in
-// @internal/shared-types and are derived from these in the normalizers.
+// Narrow Grafana HTTP API response types; UI-facing DTOs live in @internal/shared-types.
 
 export interface GrafanaClientConfig {
   baseUrl: string;
@@ -57,8 +54,7 @@ export interface LokiQueryResult {
   error?: string;
 }
 
-// Tempo trace responses follow an OTLP-shaped JSON: `batches[].scopeSpans[].spans[]`.
-// We only model what the normalizer reads.
+// Tempo trace responses are OTLP-shaped JSON; only the fields the normalizer reads are modeled.
 export interface TempoApiResponse {
   batches: Array<{
     resource?: {

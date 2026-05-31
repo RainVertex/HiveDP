@@ -1,3 +1,4 @@
+// Hook syncing catalog table view state (search, sort, facets, columns) with URL params and localStorage.
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
@@ -66,7 +67,6 @@ function parseColumns(raw: string | null): CatalogColumnId[] | null {
     .map((s) => asColumnId(s.trim()))
     .filter((s): s is CatalogColumnId => s !== null);
   if (ids.length === 0) return null;
-  // ensure pinned column always present
   if (!ids.includes(PINNED_COLUMN)) ids.unshift(PINNED_COLUMN);
   return ids;
 }
@@ -122,7 +122,7 @@ export function useCatalogView(): CatalogView {
   const [params, setParams] = useSearchParams();
   const seededRef = useRef(false);
 
-  // On first mount with an empty URL, hydrate from localStorage so the user lands on their last view.
+  // On first mount with an empty URL, hydrate from localStorage to restore the last view.
   useEffect(() => {
     if (seededRef.current) return;
     seededRef.current = true;
@@ -229,7 +229,7 @@ export function useCatalogView(): CatalogView {
         ? visibleColumns.filter((c) => c !== id)
         : COLUMN_ORDER.filter((c) => visibleColumns.includes(c) || c === id);
       update((n) => {
-        // Only persist if it differs from defaults, keeps URL clean.
+        // Persist only when it differs from defaults, to keep the URL clean.
         const dflt = defaultVisible();
         const same =
           nextVisible.length === dflt.length && nextVisible.every((c, i) => c === dflt[i]);

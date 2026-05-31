@@ -6,10 +6,7 @@ import { makeUnifiedDiff } from "../diff";
 import type { Mutation } from "../types";
 import type { Action, ReadCtx, WriteCtx } from "./types";
 
-// Shared helpers ported from tools/create-feature. Each action runs an idempotent
-// transform: it calculates the desired source, reads the current source, and
-// either no-ops (already wired) or rewrites with a captured "before" content
-// that the executor can use as the rollback target.
+// wire:* actions that idempotently splice a generated feature into apps/api and apps/web sources.
 
 function detectEol(src: string): string {
   return src.includes("\r\n") ? "\r\n" : "\n";
@@ -34,7 +31,7 @@ async function writeRepoFile(repoRoot: string, relPath: string, content: string)
 }
 
 interface WireResult {
-  /** Files to write, keyed by repo-relative path. */
+  // Files to write, keyed by repo-relative path.
   files: Map<string, { before: string; after: string }>;
 }
 
@@ -43,8 +40,7 @@ async function planWireFeature(repoRoot: string, name: string): Promise<WireResu
   const pascal = stringHelpers.toPascal(name);
   const out: WireResult = { files: new Map() };
 
-  // apps/api/src/createServer.ts: add the @feature/<name>-backend import and
-  // the matching app.use line, both alphabetically sorted.
+  // createServer.ts: add the backend import and matching app.use line, both sorted.
   {
     const relPath = "apps/api/src/createServer.ts";
     const before = await readRepoFile(repoRoot, relPath);
@@ -78,8 +74,7 @@ async function planWireFeature(repoRoot: string, name: string): Promise<WireResu
     if (src !== before) out.files.set(relPath, { before, after: src });
   }
 
-  // apps/web/src/AppRoutes.tsx: add the @feature/<name>-frontend import and
-  // the matching <Route> element, alphabetised.
+  // AppRoutes.tsx: add the frontend import and matching <Route> element, sorted.
   {
     const relPath = "apps/web/src/AppRoutes.tsx";
     const before = await readRepoFile(repoRoot, relPath);
@@ -154,7 +149,6 @@ export const wireFeatureAction: Action<
   schema: wireFeatureInput,
   capabilities: ["fs:write", "fs:write:main"],
   async match(input, ctx: ReadCtx) {
-    // Cheap probe: did we already add the import?
     const src = await ctx.readRepoFile("apps/api/src/createServer.ts");
     if (!src) return "absent";
     const camel = stringHelpers.toCamel(input.name);
@@ -165,11 +159,7 @@ export const wireFeatureAction: Action<
         : "absent";
   },
   async diff(input, _ctx: ReadCtx) {
-    // Diff is computed against the live repo at plan time; the readCtx's
-    // existsInRepo is enough to confirm targets exist, but the full content
-    // diff lives in apply() (which has access to the live filesystem). At
-    // plan time we surface a single placeholder mutation per file the action
-    // will likely touch — the diff viewer renders this as "wires X file".
+    // The real content diff lives in apply(); at plan time emit one placeholder mutation per file.
     const out: Mutation[] = [];
     for (const path of [
       "apps/api/src/createServer.ts",
@@ -255,8 +245,7 @@ export const wireSidebarAction: Action<
         compensation: { kind: "noop", reason: "already wired" },
       };
     }
-    // Insert before the closing "];" of the navItems array. The existing
-    // sidebar declares `const navItems = [ ... ];` so we anchor on that.
+    // Anchor on the navItems array closing "];" to insert before it.
     const eol = detectEol(before);
     const closing = `\n];`;
     if (!before.includes(closing)) {

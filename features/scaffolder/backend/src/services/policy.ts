@@ -1,3 +1,4 @@
+// Resolves scaffolder capability policies for human, agent, and external-agent actors from env.
 import { createPolicy, type Capability, type CapabilityPolicy } from "@internal/scaffolder-core";
 
 const ALL_CAPABILITIES: Capability[] = [
@@ -25,7 +26,6 @@ function isKnownCapability(s: string): s is Capability {
   return s.startsWith("secrets:read:");
 }
 
-/** Loads the capability policy from env. */
 export function loadCapabilityPolicy(): CapabilityPolicy {
   return createPolicy({
     human: parseCapabilities(process.env.SCAFFOLDER_HUMAN_CAPABILITIES, [

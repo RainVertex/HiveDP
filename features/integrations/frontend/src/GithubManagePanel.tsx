@@ -1,6 +1,4 @@
-// Thin GitHub configure surface. Surfaces basic install identity and a manual
-// Resync trigger. Per-team sync state and stale-team warnings are rendered
-// inline on the Integrations list page via IntegrationDriftBadge.
+// GitHub configure surface showing install identity and a manual Resync trigger.
 
 import { useState } from "react";
 import { useApi } from "@internal/api-client/react";

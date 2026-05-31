@@ -1,3 +1,4 @@
+// Runs a built plan's steps sequentially, recording compensations and rolling back on failure.
 import type { ActionRegistry } from "./actions/registry";
 import type { ActionLogger, Compensation, SecretAccessor, WriteCtx } from "./actions/types";
 import { replayFsCompensation } from "./actions/fs";
@@ -28,7 +29,6 @@ export type StepEvent =
 export interface ExecuteInput {
   taskId: string;
   plan: Plan;
-  /** Same shape returned by buildPlan, action ids + parsed inputs. */
   resolvedSteps: Array<{ stepId: string; action: string; input: unknown }>;
   actions: ActionRegistry;
   planCtx: PlanCtx;
@@ -43,11 +43,10 @@ export interface ExecuteInput {
 
 export interface ExecuteResult {
   status: TaskStatus;
-  output: Record<string, unknown>; // map of stepId -> step output
+  output: Record<string, unknown>;
   error?: string;
-  /** Compensations recorded for steps that ran successfully, in apply order. */
+  // Compensations recorded for steps that ran successfully, in apply order.
   compensations: Array<{ stepId: string; compensation: Compensation }>;
-  /** True iff rollback was performed and completed. */
   rolledBack: boolean;
 }
 
@@ -73,7 +72,6 @@ function makeStepLogger(
   };
 }
 
-/** Runs the plan's steps sequentially. */
 export async function execute(input: ExecuteInput): Promise<ExecuteResult> {
   const {
     taskId,
@@ -149,8 +147,7 @@ export async function execute(input: ExecuteInput): Promise<ExecuteResult> {
 
   let rolledBack = false;
   if ((failure || cancelled) && compensations.length > 0 && !dryRun) {
-    // Roll back in reverse order. Skip irreversible mutations, they should
-    // never have been admitted without an approval token in the first place.
+    // Reverse order; irreversible mutations are never admitted without an approval token.
     for (let i = compensations.length - 1; i >= 0; i--) {
       const { compensation } = compensations[i]!;
       try {
@@ -168,7 +165,6 @@ export async function execute(input: ExecuteInput): Promise<ExecuteResult> {
             `rollback failed for compensation ${compensation.kind}: ${e.message}`,
           ),
         });
-        // Continue rolling back what we can.
       }
     }
     rolledBack = true;

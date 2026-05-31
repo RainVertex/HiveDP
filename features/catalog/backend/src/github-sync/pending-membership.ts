@@ -1,13 +1,4 @@
-// Pending GitHub team membership lifecycle:
-// - Reconciliation enqueues entries when a GitHub team has a member whose
-// githubId doesn't match any platform User (typically because they
-// haven't completed SSO yet). The entry has a 7-day TTL.
-// - When that user later signs in via SSO, the auth handler calls
-// `resolvePendingForUser` to convert any non-expired pending rows into
-// real TeamMembership rows.
-// - The weekly reconciliation cron calls `expirePendingMemberships` to
-// drop rows whose TTL has lapsed.
-
+// Lifecycle for pending GitHub team memberships (members without a matched platform User yet), converted on SSO sign-in or expired by TTL.
 import { prisma } from "@internal/db";
 
 export interface PendingResolutionResult {
@@ -15,7 +6,7 @@ export interface PendingResolutionResult {
   skippedExpired: number;
 }
 
-/** Drain non-expired pending rows for a user who just got their User row created (or signed in */
+/** Drain non-expired pending rows into TeamMembership for a user who just signed in. */
 export async function resolvePendingForUser(
   userId: string,
   githubId: string,
@@ -51,8 +42,7 @@ export async function resolvePendingForUser(
     });
   }
 
-  // Clean up expired rows for this githubId on the same pass, no point
-  // leaving them around after we've seen the user.
+  // Clean up expired rows for this githubId on the same pass.
   if (expired.length > 0) {
     await prisma.pendingTeamMembership.deleteMany({
       where: { id: { in: expired.map((c) => c.id) } },

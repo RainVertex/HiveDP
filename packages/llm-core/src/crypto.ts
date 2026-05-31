@@ -1,14 +1,8 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
-// AES-256-GCM envelope encryption for secrets stored at rest (e.g. provider
-// API keys). On-disk format: <iv (12)> | <ciphertext> | <auth tag (16)>, all
-// packed into a single Bytes column. The master key comes from
-// APP_SECRET_MASTER_KEY (32 bytes, hex or base64). Plaintext is never stored.
-//
-// The master key fail-fasts at first use rather than at boot, so dev/test
-// environments without it configured can still start the server; only the
-// code paths that read/write a secret require it.
+// AES-256-GCM secret encryption at rest; blob layout is iv(12) | ciphertext | tag(16).
 
+// Master key is validated lazily so servers without APP_SECRET_MASTER_KEY can still boot.
 const ALGORITHM = "aes-256-gcm";
 const IV_LEN = 12;
 const TAG_LEN = 16;

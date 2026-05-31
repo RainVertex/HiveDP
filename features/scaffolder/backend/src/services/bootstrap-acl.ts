@@ -1,10 +1,10 @@
+// Seeds a default-allow "everyone" TemplateAcl row for templates that have none.
 import { prisma } from "@internal/db";
 import { getTemplateRegistry } from "./registry";
 
 /** Sentinel subjectId used on `everyone`-type ACL rows. */
 export const EVERYONE_SUBJECT_ID = "*";
 
-/** For every registered template that has zero TemplateAcl rows, insert a default-allow row */
 export async function seedTemplateAcls(): Promise<{ created: number; skipped: number }> {
   const templates = getTemplateRegistry().list();
   if (templates.length === 0) return { created: 0, skipped: 0 };

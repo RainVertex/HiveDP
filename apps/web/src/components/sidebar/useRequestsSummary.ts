@@ -1,16 +1,15 @@
+// Polls the pending-requests summary endpoint for the rail badge.
 import { useEffect, useState } from "react";
 import { useApi } from "@internal/api-client/react";
 
 export interface RequestsSummary {
   myRequestsPending: number;
   myApprovalsPending: number;
-  /** True if the user is admin or a current lead of any team. */
   canApprove: boolean;
 }
 
 const POLL_INTERVAL_MS = 30_000;
 
-/** Polls the `/api/requests/pending-summary` endpoint. */
 export function useRequestsSummary(): RequestsSummary | null {
   const api = useApi();
   const [summary, setSummary] = useState<RequestsSummary | null>(null);
@@ -22,7 +21,7 @@ export function useRequestsSummary(): RequestsSummary | null {
         const next = await api.requests.pendingSummary();
         if (!cancelled) setSummary(next);
       } catch {
-        // best-effort. keep last good value
+        // best-effort: keep last good value
       }
     }
     void tick();

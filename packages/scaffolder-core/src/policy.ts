@@ -1,6 +1,7 @@
+// Capability policy and approval-requirement computation per actor kind.
 import type { Actor, ApprovalRequirement, Capability } from "./types";
 
-/** Capability policy: what each actor kind is allowed to use without an approval token. */
+// What each actor kind may use without an approval token.
 export interface CapabilityPolicy {
   human: Set<Capability>;
   agent: Set<Capability>;
@@ -30,7 +31,6 @@ function bucketFor(actor: Actor, policy: CapabilityPolicy): Set<Capability> {
   }
 }
 
-/** Returns ApprovalRequirement[] for capabilities the actor needs but doesn't have. */
 export function computeApprovalRequirements(
   required: Capability[],
   actor: Actor,
@@ -46,7 +46,7 @@ export function computeApprovalRequirements(
   return out;
 }
 
-/** Static check: every capability used by the template's steps must be a subset of capabilities */
+// Static check: every capability used by a template's steps must be declared.
 export function assertDeclaredCapabilitiesCover(
   declared: Capability[],
   actuallyUsed: Capability[],

@@ -1,16 +1,4 @@
-// Org-level repo sync driven by a GitHub App installation. Walks every repo
-// the installation has access to, attempts to discover catalog-info.yaml
-// and writes through the canonical registerCatalogEntity path. Repos with
-// no yaml become stub entities marked needsOnboarding for the Catalog Agent
-// to enrich (resolve owners, generate yaml, open PR).
-//
-// Side effects per repo:
-// - registerCatalogEntity write (create or update, idempotent on githubRepoId)
-// - if needsOnboarding or no owners → enqueue a CatalogAgentTask (resolve_ownership)
-//
-// Errors are reported but do not abort the sweep, one bad repo shouldn't
-// take down the whole org's import.
-
+// Org-level repo sync from a GitHub App installation: discovers catalog-info.yaml, registers entities, enqueues onboarding for stubs.
 import { prisma } from "@internal/db";
 import { GitHubAppNotConfiguredError, octokitForInstallation } from "@feature/integrations-backend";
 import type { Octokit as OctokitClient } from "octokit";
@@ -37,9 +25,9 @@ export interface SyncInstallationResult {
   withCatalogInfo: number;
   needsOnboarding: number;
   errors: Array<{ fullName: string; reason: string }>;
-  // Team reconciliation summary (null if the installation isn't on an org).
+  // Null if the installation isn't on an org.
   teamSync: ReconciliationResult | null;
-  // PM project auto-provisioning summary (null if the step failed).
+  // Null if the provisioning step failed.
   projectsProvisioned: { created: number; updated: number; archived: number } | null;
   startedAt: Date;
   finishedAt: Date;
@@ -84,8 +72,6 @@ export async function syncInstallation(installationId: number): Promise<SyncInst
     throw err;
   }
 
-  // octokit.paginate flattens pages into a single array. the repos endpoint
-  // tops out at 100 per page so this is one HTTP call per 100 repos.
   const repos = (await octo.paginate(octo.rest.apps.listReposAccessibleToInstallation, {
     per_page: 100,
   })) as RepoSummary[];
@@ -108,10 +94,7 @@ export async function syncInstallation(installationId: number): Promise<SyncInst
     }
   }
 
-  // Teams reconciliation runs after repos so that owner-team references on
-  // catalog entities can resolve to imported teams on subsequent passes.
-  // First-time install counts as a 'manual' source for telemetry purposes
-  // (it's the platform admin who triggered it via the install flow).
+  // Runs after repos so owner-team references can resolve to imported teams on later passes.
   try {
     result.teamSync = await runReconciliation(installationId, "manual");
   } catch (err) {
@@ -155,15 +138,13 @@ export async function syncRepo(
   let parseError: string | null = null;
 
   if (fetched.kind === "ok") {
-    // Real catalog-info.yaml. Use the parsed input, but force repoUrl to the
-    // canonical html_url so links work even when the yaml omitted it.
+    // Force repoUrl to canonical html_url so links work even when the yaml omitted it.
     registerInput = { ...fetched.input, repoUrl: repo.html_url };
     yamlSpec = fetched.yamlSpec;
     needsOnboarding = false;
   } else {
     if (fetched.kind === "error") parseError = fetched.reason;
-    // Stub entity from repo metadata. Default kind=service. the Catalog Agent
-    // refines this in Phase 4 using Dockerfile/package.json/openapi heuristics.
+    // Stub entity from repo metadata; the Catalog Agent later refines kind via heuristics.
     registerInput = {
       kind: "service",
       name: repo.name,
@@ -190,9 +171,6 @@ export async function syncRepo(
     },
   );
 
-  // Enqueue agent work whenever the entity is incomplete: missing yaml or
-  // missing owners. Idempotent, enqueueResolveOwnership skips if a pending
-  // or running task already exists.
   const ownerCount = registerInput.ownerTeamIds?.length ?? 0;
   if (needsOnboarding || ownerCount === 0) {
     await enqueueResolveOwnership(result.entityId);
@@ -241,8 +219,7 @@ async function fetchCatalogInfo(
 }
 
 async function enqueueResolveOwnership(entityId: string): Promise<void> {
-  // Skip if there's already a pending/running task of this type for this
-  // entity. Avoids piling up duplicate work when bulk sync runs again.
+  // Idempotent: skip if a pending/running task already exists so re-runs don't pile up duplicates.
   const existing = await prisma.catalogAgentTask.findFirst({
     where: {
       entityId,
@@ -257,7 +234,7 @@ async function enqueueResolveOwnership(entityId: string): Promise<void> {
   });
 }
 
-/** Sync a repo when we only have its full name (e.g. */
+/** Sync a repo when only its owner/name is known. */
 export async function syncRepoByName(
   octo: OctokitClient,
   owner: string,
@@ -319,10 +296,7 @@ export async function staleEntityByGithubRepoId(
 }
 
 async function stampSyncedAt(installationId: number, syncedAt: Date): Promise<void> {
-  // Find the matching Integration row and update config.syncedAt. The
-  // installationId lives inside the JSON config field, so we scan kind=github
-  // rows (small set) and match in JS, same approach as
-  // integrations-backend/install.ts.
+  // installationId lives in the JSON config field, so we scan kind=github rows and match in JS.
   const rows = await prisma.integration.findMany({
     where: { kind: "github" },
     select: { id: true, config: true },

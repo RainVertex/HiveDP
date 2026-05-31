@@ -1,25 +1,12 @@
-// Cron-driven backfill for workflow runs and deployments. The webhook path
-// (./upsert.ts) handles real-time updates. this module covers:
-// - new catalog entries that gained an installation after some history existed
-// - events lost during webhook downtime / receiver outages
-// - manual "Refresh now" presses from the UI
-//
-// Per-entity cursors live on PipelineSyncCursor.lastWorkflowSyncAt /
-// lastDeploymentSyncAt, that lets each entity advance independently and lets
-// the sweep scale linearly without a giant JSON cursor blob.
+// Cron-driven backfill for workflow runs and deployments; webhooks (./upsert.ts) handle real-time updates.
 
 import { prisma, type CatalogEntity } from "@internal/db";
 import { GitHubAppNotConfiguredError, octokitForInstallation } from "@feature/integrations-backend";
 import type { Octokit as OctokitClient } from "octokit";
 
-// Backfill window for entities the sweep has never seen before. Bounds the
-// cost of attaching the App to a long-lived org with thousands of historical
-// runs, anything older than this is considered out of scope for "recent
-// pipeline activity".
+// Backfill window for never-seen entities; bounds cost on long-lived orgs with huge history.
 const BACKFILL_DAYS = 14;
-// Per-sweep pagination cap. listWorkflowRunsForRepo returns the newest first
-// so capping at 100 means we'll always pick up the last 100 changes since the
-// cursor, webhooks fill in anything we drop.
+// Newest-first cap; webhooks fill in anything dropped beyond this.
 const PER_REPO_RUN_CAP = 100;
 const PER_REPO_DEPLOYMENT_CAP = 50;
 
@@ -31,13 +18,11 @@ export interface SyncEntityResult {
 }
 
 interface SyncableEntity extends Pick<CatalogEntity, "id" | "installationId" | "repoUrl"> {
-  // Owner/name parsed from repoUrl. sync is skipped if we can't parse them.
   ownerLogin: string | null;
   repoName: string | null;
 }
 
-// Best-effort owner/name parser. Handles the three URL shapes GitHub returns:
-// https://github.com/x/y, https://github.com/x/y.git, git@github.com:x/y(.git).
+// Parses owner/name from the https, .git, and git@ repo URL shapes GitHub returns.
 function parseRepoUrl(repoUrl: string | null): { owner: string; repo: string } | null {
   if (!repoUrl) return null;
   const httpsMatch = /github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:[/?#]|$)/.exec(repoUrl);
@@ -94,7 +79,7 @@ async function recordCursorError(entityId: string, message: string): Promise<voi
       data: { lastErrorAt: new Date(), lastError: message.slice(0, 500) },
     })
     .catch(() => {
-      // Cursor row doesn't exist yet, first-time failure. Best effort only.
+      // Cursor row may not exist yet on a first-time failure; best effort only.
     });
 }
 
@@ -102,12 +87,10 @@ function backfillFloor(): Date {
   return new Date(Date.now() - BACKFILL_DAYS * 24 * 60 * 60 * 1000);
 }
 
-// Format a Date as GitHub's `created` filter expects: `>=2026-05-01T00:00:00Z`.
+// Formats a Date for GitHub's `created` filter (e.g. >=2026-05-01T00:00:00Z).
 function sinceFilter(d: Date): string {
   return `>=${d.toISOString()}`;
 }
-
-// Workflow run sync
 
 interface ListedRun {
   id: number;
@@ -176,8 +159,6 @@ async function syncWorkflowRuns(
   return count;
 }
 
-// Deployment sync
-
 interface ListedDeployment {
   id: number;
   environment: string;
@@ -206,7 +187,6 @@ async function fetchLatestStatus(
   repo: string,
   deploymentId: number,
 ): Promise<ListedDeploymentStatus | null> {
-  // listDeploymentStatuses returns newest first. Take 1.
   const res = await octo.rest.repos.listDeploymentStatuses({
     owner,
     repo,
@@ -225,9 +205,7 @@ async function syncDeployments(
   const owner = entity.ownerLogin!;
   const repo = entity.repoName!;
 
-  // The deployments list endpoint doesn't accept a `since` filter, so we
-  // pull the most recent page and stop when we cross the cursor. With a 50-
-  // item cap this comfortably covers a 15-min sweep.
+  // The deployments list endpoint has no `since` filter, so pull the recent page and stop at the cursor.
   const res = await octo.rest.repos.listDeployments({
     owner,
     repo,
@@ -240,7 +218,7 @@ async function syncDeployments(
 
   for (const d of deps) {
     const updatedAt = new Date(d.updated_at);
-    if (updatedAt <= since) continue; // Already covered by previous sweep.
+    if (updatedAt <= since) continue;
     if (updatedAt > newestUpdatedAt) newestUpdatedAt = updatedAt;
 
     const status = await fetchLatestStatus(octo, owner, repo, d.id);
@@ -269,8 +247,6 @@ async function syncDeployments(
   await advanceCursor(entity.id, { lastDeploymentSyncAt: newestUpdatedAt });
   return count;
 }
-
-// Per-entity orchestrator + bulk sweep
 
 export async function syncEntityPipelines(entityId: string): Promise<SyncEntityResult> {
   const result: SyncEntityResult = {

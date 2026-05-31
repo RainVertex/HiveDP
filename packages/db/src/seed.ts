@@ -1,3 +1,4 @@
+// Idempotent database seed: LLM provider/model registry, built-in agents, default pages, and team policies.
 import { config as loadEnv } from "dotenv";
 import { resolve } from "node:path";
 
@@ -11,16 +12,10 @@ async function main() {
   // Provider/model registry must exist before any Agent row (Agent.modelId FK).
   await seedLlmProviders();
 
-  // Static defaults that don't depend on any user/team.
   await seedDefaultPages();
   await seedTeamPolicies();
 
-  // Catalog enricher agent. The provider/model registry is created by the
-  // agent_provider_registry migration with stable IDs, so we can reference
-  // the Sonnet model row directly. The instructions string mirrors
-  // ENRICHER_SYSTEM_PROMPT in features/agents/backend/src/executor.ts
-  // duplicated here because @internal/db cannot import from feature workspaces.
-  // If you change one, change both.
+  // Mirrors ENRICHER_SYSTEM_PROMPT in features/agents/backend/src/executor.ts (db cannot import features); keep both in sync.
   const enricherInstructions = `You are the Catalog Enricher agent.
 
 You inspect a single software catalog entity and reconcile it against the
@@ -74,26 +69,10 @@ Rules:
   console.log("Seed complete.");
 }
 
-// Platform Assistant agent
-//
-// Seeds the chatbot agent that drives /api/chat. Tool ids and the system
-// prompt mirror features/chat/backend/src/prompts.ts and the read/write
-// tool aggregator at features/chat/backend/src/tools/index.ts. Kept inline
-// here (rather than imported) so @internal/db stays free of feature-backend
-// dependencies, feature backends depend on @internal/db, not the other way
-// around. If you change the prompt or tool list, update both places.
-//
-// Env overrides:
-// CHAT_LLM_MODEL_ID , default llmmodel_qwen3_8b_local
-// CHAT_WRITE_TOOLS_ENABLED , "false" omits write tools (read-only assistant)
-
+// Prompt and tool ids mirror features/chat/backend/src/{prompts.ts,tools/index.ts}; keep both in sync.
 async function seedPlatformAssistant() {
-  // Chat resolves its model at request time from the SystemSetting
-  // "chat.activeModelId" (admin-selected via the AI / Models page). The
-  // Agent.modelId FK still needs a value, so point it at a stable placeholder
-  // that chat never actually uses. We intentionally do NOT seed
-  // chat.activeModelId, so the assistant starts in the not-configured state
-  // until an admin selects a model.
+  // Chat resolves its model from SystemSetting "chat.activeModelId" at request time; this FK value is unused.
+  // chat.activeModelId is deliberately left unseeded so the assistant stays not-configured until an admin picks a model.
   const placeholderModelId = "llmmodel_qwen3_8b_local";
   const writesEnabled = process.env.CHAT_WRITE_TOOLS_ENABLED !== "false";
 
@@ -174,13 +153,7 @@ Integrations.`;
   });
 }
 
-// LLM provider/model registry
-//
-// Static IDs (not cuids) so existing references in this file
-// (`llmmodel_claude_sonnet_4_6`, `llmmodel_qwen3_8b_local`) keep working.
-// Slug is unique. upsert by slug keeps re-runs idempotent. Cost is USD per 1k
-// tokens. local Qwen leaves cost null.
-
+// Static IDs (not cuids) so in-file references keep working; upsert by unique slug stays idempotent. Cost is USD per 1k tokens.
 async function seedLlmProviders() {
   const providers: Array<{
     id: string;
@@ -325,14 +298,7 @@ async function seedLlmProviders() {
   }
 }
 
-// Default sidebar pages
-//
-// Synthetic `__system__` user owns pages that pre-date any real user. admins
-// can rename, reorder, or delete them like any other shared page. ORDER values
-// use 1024 spacing (matching ORDER_STEP in the pages router) so admins can
-// insert between them without renumbering. Hardcoded IDs are stable so re-runs
-// don't duplicate.
-
+// Synthetic `__system__` user owns the default shared pages; order uses 1024 spacing (ORDER_STEP) so admins can insert between.
 async function seedDefaultPages() {
   await prisma.user.upsert({
     where: { id: "__system__" },
@@ -363,7 +329,6 @@ async function seedDefaultPages() {
     url: string;
     order: number;
   }> = [
-    // Catalog
     { id: "__page_catalog__", section: "catalog", title: "Catalog", url: "/catalog", order: 1024 },
     {
       id: "__page_scorecards__",
@@ -373,7 +338,6 @@ async function seedDefaultPages() {
       order: 3072,
     },
 
-    // Self-service
     {
       id: "__page_scaffolder__",
       section: "selfservice",
@@ -403,7 +367,6 @@ async function seedDefaultPages() {
       order: 5120,
     },
 
-    // Requests
     {
       id: "__page_my_requests_team__",
       section: "requests",
@@ -419,7 +382,6 @@ async function seedDefaultPages() {
       order: 2048,
     },
 
-    // Workspace
     {
       id: "__page_workspace__",
       section: "workspace",
@@ -430,10 +392,8 @@ async function seedDefaultPages() {
     { id: "__page_agents__", section: "workspace", title: "Agents", url: "/agents", order: 2048 },
     { id: "__page_search__", section: "workspace", title: "Search", url: "/search", order: 3072 },
 
-    // Teams
     { id: "__page_teams__", section: "teams", title: "All teams", url: "/teams", order: 1024 },
 
-    // Observability
     {
       id: "__page_observability__",
       section: "observability",
@@ -449,7 +409,6 @@ async function seedDefaultPages() {
       order: 2048,
     },
 
-    // Admin
     {
       id: "__page_admin_ai_models__",
       section: "admin",
@@ -514,12 +473,7 @@ async function seedDefaultPages() {
   }
 }
 
-// Team policies
-//
-// Single starting policy is `name_pattern` (one row per kind, enforced by the
-// unique constraint on TeamPolicy.kind). Adding a new kind = enum migration +
-// new validator in features/teams/backend/src/policies.ts + new row here.
-
+// A new policy kind needs an enum migration, a validator in features/teams/backend/src/policies.ts, and a row here.
 async function seedTeamPolicies() {
   await prisma.teamPolicy.upsert({
     where: { kind: "name_pattern" },

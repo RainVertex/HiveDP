@@ -1,20 +1,16 @@
+// Drift detection: replans active bindings to open ScaffoldDrift rows and reconciles template hash snapshots.
 import { prisma } from "@internal/db";
 import { buildPlan, templateContentHash, type Actor } from "@internal/scaffolder-core";
 import { getActionRegistry, getTemplateRegistry } from "./registry";
 import { buildPlanCtx } from "./plan-ctx";
 import { loadCapabilityPolicy } from "./policy";
 
-// One-pass drift detection. For every active binding (optionally filtered to a
-// single template), re-runs plan() against the current template module + the
-// stored params. If the resulting plan's mode is anything other than no-op
-// open a ScaffoldDrift row. Existing open drifts for the same (binding
-// fromVersion, toVersion) are coalesced.
+// One-pass drift detection: replans every active binding and opens (or coalesces) ScaffoldDrift rows for non-no-op plans.
 
 export interface DriftSweepInput {
   liveRepoRoot: string;
   /** Restrict to a specific templateId. otherwise scans all active bindings. */
   templateId?: string;
-  /** Sample drift detection actor used for replans triggered by the system. */
   systemUserId?: string;
 }
 
@@ -71,7 +67,7 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
       moduleSource: template.metadata.id + template.metadata.version,
     });
 
-    // No version bump and no content change → nothing could have drifted.
+    // No version bump and no content change means nothing could have drifted.
     if (
       binding.templateVersion === template.metadata.version &&
       binding.templateHash === contentHash
@@ -97,11 +93,8 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
         actions,
       });
 
-      // Drift exists only if the rebuilt plan would do something meaningful.
       if (built.plan.mode === "no-op") {
-        // Bring the binding's templateHash up to date so we don't re-scan the
-        // same delta indefinitely. Version stays as-is until the plan is
-        // applied. this just records "we've considered this version a no-op".
+        // Record the hash so we don't re-scan the same no-op delta; version stays until the plan is applied.
         await prisma.scaffoldBinding.update({
           where: { id: binding.id },
           data: { templateHash: contentHash },
@@ -150,9 +143,7 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
   return out;
 }
 
-// Records the current template content hash for every registered template.
-// Returns the set of templateIds whose hash differs from the previous snapshot
-// (or which were unseen), those are the ones that need an immediate sweep.
+// Snapshots each template's content hash and returns the templateIds that changed (these need an immediate sweep).
 export async function reconcileTemplateHashSnapshots(): Promise<{
   changed: string[];
   unchanged: number;

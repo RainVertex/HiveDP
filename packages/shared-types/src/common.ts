@@ -1,6 +1,4 @@
-// Shared primitive aliases and structural building blocks used by every other
-// domain file in this package. Anything that isn't tied to a specific feature
-// (catalog, team, agent, ...) belongs here.
+// Shared primitive aliases and structural building blocks used across this package.
 
 export type ID = string;
 

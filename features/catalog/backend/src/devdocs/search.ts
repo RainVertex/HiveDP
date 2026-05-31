@@ -1,8 +1,8 @@
+// Full-text DevDocs search over DocPage via Postgres tsvector/ts_rank.
 import { Prisma, prisma } from "@internal/db";
 import type { DocSearchHit, SearchHit } from "@internal/shared-types";
 
 export interface DevDocsSearchOpts {
-  /** Limit to a single entity's pages. */
   entityId?: string;
   limit?: number;
 }
@@ -26,9 +26,7 @@ export async function getDevDocsHits(
 
   const limit = Math.min(Math.max(opts.limit ?? 10, 1), 50);
 
-  // ts_headline gives a snippet with the matched terms wrapped. We strip the
-  // markup on the way out so the API stays tag-free. the UI does its own
-  // highlighting client-side.
+  // Strip ts_headline markers so the API stays tag-free; UI highlights client-side.
   const tsQuery = Prisma.sql`plainto_tsquery('english', ${trimmed})`;
   const where = opts.entityId
     ? Prisma.sql`p."searchVector" @@ ${tsQuery} AND p."entityId" = ${opts.entityId}`
@@ -66,7 +64,7 @@ function stripHeadlineMarkers(s: string | null): string {
   return s.replace(/<<|>>/g, "");
 }
 
-/** Adapter for the global search router: maps DocSearchHit → SearchHit. */
+/** Adapter for the global search router: maps DocSearchHit to SearchHit. */
 export async function getDevDocsSearchHits(query: string, limit = 10): Promise<SearchHit[]> {
   const hits = await getDevDocsHits(query, { limit });
   return hits.map((h) => ({

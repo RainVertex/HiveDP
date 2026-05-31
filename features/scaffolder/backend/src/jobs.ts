@@ -6,9 +6,9 @@ import { markStaleEntities } from "@feature/catalog-backend";
 import { reconcileTemplateHashSnapshots, runDriftSweep } from "./services/drift";
 import { discoverAndPersist, parseGithubUrl } from "./services/catalog-discovery";
 
-// Job definitions are exposed in a shape the apps/api jobs/registry.ts can
-// consume. The interface mirrors apps/api/src/jobs/types.ts so this feature
-// stays free of an apps/api dependency.
+// Scaffolder background jobs (drift sweeps, workspace GC, catalog discovery) for the apps/api scheduler.
+
+// Interface mirrors apps/api/src/jobs/types.ts so this feature avoids an apps/api dependency.
 
 export interface ScaffolderJobLogger {
   info(o: unknown, msg?: string): void;
@@ -32,11 +32,7 @@ export interface ScaffolderJobsConfig {
   workspaceRoot?: string;
 }
 
-// One-shot startup hook. Reconciles the TemplateHashSnapshot table and
-// immediately runs a targeted drift sweep for any template whose content
-// hash changed since last boot. apps/api calls this once during bootstrap.
-// it is intentionally not a cron entry because the cron scheduler validates
-// every schedule and there is no clean "fire once at startup" expression.
+// One-shot startup hook (not a cron entry): reconciles snapshots and sweeps templates whose hash changed since boot.
 export async function runBootDriftCheck(
   config: ScaffolderJobsConfig,
   log: ScaffolderJobLogger,
@@ -63,8 +59,7 @@ export async function runBootDriftCheck(
   }
 }
 
-// Daily backstop sweep. Catches missed events (e.g. a process never booted
-// with the new code) and re-checks every active binding regardless of hash.
+// Daily backstop sweep: re-checks every active binding regardless of hash to catch missed events.
 export function driftSweepJob(config: ScaffolderJobsConfig): ScaffolderJobDefinition {
   return {
     name: "scaffolder.driftSweep",
@@ -80,10 +75,7 @@ export function driftSweepJob(config: ScaffolderJobsConfig): ScaffolderJobDefini
   };
 }
 
-// Hourly cleanup of stale apply workspaces. acquireSandbox writes each task's
-// workspace under <workspaceRoot>/<taskId>. the executor disposes its own on
-// success or failure, but cancelled or crashed runs may leak directories.
-// Anything older than 24h is fair game.
+// Hourly cleanup of leaked apply workspaces (cancelled/crashed runs); anything older than 24h is removed.
 export function workspaceGcJob(config: ScaffolderJobsConfig): ScaffolderJobDefinition {
   return {
     name: "scaffolder.workspaceGc",
@@ -114,7 +106,7 @@ export function workspaceGcJob(config: ScaffolderJobsConfig): ScaffolderJobDefin
             kept++;
           }
         } catch {
-          // best effort. the next sweep picks it up.
+          // best effort, next sweep retries
         }
       }
       log.info({ root, removed, kept }, "Workspace GC complete");
@@ -122,10 +114,7 @@ export function workspaceGcJob(config: ScaffolderJobsConfig): ScaffolderJobDefin
   };
 }
 
-// Daily sweep that walks every CatalogEntity with a repoUrl, fetches its
-// catalog-info.yaml from GitHub, and reconciles via the shared catalog
-// service. Entities not seen this run get flagged stale via staleSince
-// surfaced in the UI as a "stale" badge so humans can investigate.
+// Daily sweep reconciling every CatalogEntity from its GitHub catalog-info.yaml; entities not seen get flagged stale.
 export function catalogDiscoverySweepJob(): ScaffolderJobDefinition {
   return {
     name: "catalog.discoverySweep",

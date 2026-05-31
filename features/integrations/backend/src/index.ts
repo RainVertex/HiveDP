@@ -1,13 +1,11 @@
+// Admin integrations router (list/get/patch/delete) plus GitHub App helper re-exports.
 import { Router } from "express";
 import { prisma } from "@internal/db";
 import type { IntegrationKind, IntegrationDetail } from "@internal/shared-types";
 import { disconnectGitHubInstallation } from "./github-app/install";
 import { grafanaConnectRouter } from "./grafana/connect";
 
-// Per-kind "safe view" of an integration's stored config. Strips encrypted
-// secrets (apiToken, webhookSecret) and exposes only fields the admin needs
-// to see in the configure UI. Boolean `has*` flags let the UI render a
-// "set / not set" indicator without leaking the value itself.
+// Per-kind safe view of stored config: strips encrypted secrets, exposes has* flags instead.
 function safeConfigForKind(kind: IntegrationKind, raw: unknown): IntegrationDetail["config"] {
   const cfg =
     raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
@@ -73,9 +71,7 @@ export { verifyGitHubSignature } from "./github-app/webhook-verify";
 
 export const integrationsRouter: Router = Router();
 
-// Grafana connect flow (probe + commit). Mounted as a sub-path so the more
-// specific routes (`/grafana/probe`, `POST /grafana`) don't collide with the
-// generic `PATCH /:id` / `DELETE /:id` below.
+// Mounted as a sub-path so its specific routes don't collide with the generic PATCH/DELETE /:id below.
 integrationsRouter.use("/grafana", grafanaConnectRouter);
 
 integrationsRouter.get("/", async (req, res) => {
@@ -91,7 +87,7 @@ integrationsRouter.get("/", async (req, res) => {
       description: true,
       kind: true,
       enabled: true,
-      // Never return config as it carries encrypted secrets.
+      // Never return config: it carries encrypted secrets.
       createdAt: true,
       updatedAt: true,
     },
@@ -106,12 +102,7 @@ integrationsRouter.get("/", async (req, res) => {
   });
 });
 
-// GET /github/installations
-// Public-org-login summary used by the team-request form to populate the
-// "Mirror to GitHub, which org?" dropdown. Authenticated members can see it
-// (the org login is public). Excludes any installation missing accountLogin
-// in its config (e.g. mid-install).
-
+// Public org-login summary for the team-request form's org dropdown, visible to any authenticated member.
 integrationsRouter.get("/github/installations", async (req, res) => {
   if (!req.user) {
     res.status(401).json({ error: "Not authenticated" });

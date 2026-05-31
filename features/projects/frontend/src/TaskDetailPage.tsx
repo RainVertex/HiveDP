@@ -1,3 +1,4 @@
+// Task detail editor: fields, comments, assignees, and labels for one task.
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";

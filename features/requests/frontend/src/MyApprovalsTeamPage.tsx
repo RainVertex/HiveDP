@@ -27,8 +27,7 @@ export function MyApprovalsTeamPage() {
 
   const load = useCallback(() => {
     setError(null);
-    // Maintainer is the universal approver view (admin or any lead). Team
-    // creation is admin-only, non-admins get 403 and we just hide the group.
+    // Maintainer is the universal approver view (admin or any lead), team creation is admin-only.
     api.maintainerRequests
       .forMeAsApprover()
       .then((r) => setMaintainerRows(r.items))
@@ -37,7 +36,7 @@ export function MyApprovalsTeamPage() {
       .forMeAsApprover()
       .then((r) => setTeamRows(r.items))
       .catch((err) => {
-        // 403 just means the user isn't an admin. that's expected, suppress.
+        // 403 just means the user isn't an admin, expected so suppress.
         if (err instanceof ApiError && err.status === 403) {
           setTeamRows([]);
           return;
@@ -127,8 +126,7 @@ export function MyApprovalsTeamPage() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1 text-right text-xs">
                     <div className="text-app-text">{r.status}</div>
-                    {/* Negotiation UI lives on the deep admin page. keep this row a
-                     * link rather than duplicating propose/counter here. */}
+                    {/* Negotiation UI lives on the deep admin page, keep this row a link only. */}
                     <button
                       type="button"
                       onClick={() => navigate(`/admin/team-requests`)}

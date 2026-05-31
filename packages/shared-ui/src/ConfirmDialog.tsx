@@ -1,23 +1,18 @@
+// Themed modal confirmation dialog used in place of window.confirm.
 import type { ReactNode } from "react";
 
 export interface ConfirmDialogProps {
   open: boolean;
   title: string;
-  /** Body text or arbitrary node (e.g. */
   message?: ReactNode;
-  /** Defaults to "Confirm". */
   confirmLabel?: string;
-  /** Defaults to "Cancel". */
   cancelLabel?: string;
-  /** When true, the confirm button is rendered with the danger style. */
   destructive?: boolean;
-  /** When true, the confirm button is disabled and shows a busy label. */
   busy?: boolean;
   onConfirm: () => void;
   onClose: () => void;
 }
 
-/** Themed replacement for window.confirm, use this for all confirmations. */
 export function ConfirmDialog({
   open,
   title,

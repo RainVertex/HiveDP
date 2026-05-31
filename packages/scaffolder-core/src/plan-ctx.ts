@@ -1,6 +1,6 @@
+// Narrow read-only surface passed to a template's plan() function.
 import type { Actor, Binding, SandboxTarget, TeamSummary, UserSummary } from "./types";
 
-/** The narrow read-only surface passed to a template's plan() function. */
 export interface PlanCtx {
   actor: Actor;
   target: SandboxTarget;
@@ -8,16 +8,13 @@ export interface PlanCtx {
   // Frozen wall-clock, same value for the lifetime of the plan call.
   now(): Date;
 
-  // Filesystem probes, scoped to repo root, read-only.
   existsInRepo(path: string): Promise<boolean>;
   readRepoFile(path: string): Promise<string | null>;
 
-  // DB probes, read-only.
   readBinding(targetRef: string): Promise<Binding | null>;
   currentTeam(id: string): Promise<TeamSummary | null>;
   currentUser(id: string): Promise<UserSummary | null>;
 
-  // Deterministic string helpers.
   toTitle(s: string): string;
   toCamel(s: string): string;
   toPascal(s: string): string;

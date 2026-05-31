@@ -6,7 +6,8 @@ import { makeUnifiedDiff } from "../diff";
 import type { Mutation } from "../types";
 import type { Action, ReadCtx, WriteCtx } from "./types";
 
-/** Resolves a workspace-relative path to an absolute path under workspacePath and asserts it */
+// Filesystem scaffolder actions (write/delete/rename) and their compensations, scoped to the workspace.
+
 function resolveInWorkspace(workspacePath: string, requested: string): string {
   if (isAbsolute(requested)) {
     throw new Error(`fs action path must be relative: ${requested}`);
@@ -40,9 +41,7 @@ export const fsWriteAction: Action<z.infer<typeof fsWriteInput>, { path: string 
   schema: fsWriteInput,
   capabilities: ["fs:write"],
   async match(_input, _ctx: ReadCtx) {
-    // We can't probe the live workspace from a ReadCtx (it's read-only repo
-    // probes). Treat fs:write as always-creating during plan. the executor's
-    // existence-check below makes apply itself idempotent.
+    // ReadCtx is read-only repo probes, so plan always treats fs:write as creating; apply is idempotent.
     return "absent";
   },
   async diff(input, _ctx) {
@@ -144,7 +143,6 @@ export const fsRenameAction: Action<z.infer<typeof fsRenameInput>, { from: strin
   },
 };
 
-/** Replays a Compensation. */
 export async function replayFsCompensation(
   compensation: { kind: string; [k: string]: unknown },
   roots: { workspacePath: string; repoRoot: string },
@@ -192,7 +190,6 @@ export async function replayFsCompensation(
   }
 }
 
-/** Hash a file's current content. */
 export async function hashFileIfExists(absPath: string): Promise<string> {
   try {
     const buf = await fs.readFile(absPath);
@@ -203,7 +200,6 @@ export async function hashFileIfExists(absPath: string): Promise<string> {
   }
 }
 
-/** Joins paths the same way the actions resolve internally. */
 export function workspaceJoin(workspacePath: string, requested: string): string {
   return resolveInWorkspace(workspacePath, requested);
 }
