@@ -148,11 +148,18 @@ agentsRouter.get("/tools", (req, res) => {
 });
 
 agentsRouter.get("/:id", async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+  // Runs carry user content (chat turns persist as AgentRun); non-admins only see their own, admins see all.
+  const isAdmin = req.user.role === "admin";
   const agent = await prisma.agent.findUnique({
     where: { id: req.params.id },
     include: {
       llmModel: { include: { provider: true } },
-      runs: { orderBy: { startedAt: "desc" }, take: 20 },
+      runs: {
+        where: isAdmin ? undefined : { userId: req.user.id },
+        orderBy: { startedAt: "desc" },
+        take: 20,
+      },
     },
   });
   if (!agent) return res.status(404).json({ error: "Agent not found" });
@@ -160,8 +167,14 @@ agentsRouter.get("/:id", async (req, res) => {
 });
 
 agentsRouter.get("/:id/runs/:runId", async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
   const run = await prisma.agentRun.findUnique({ where: { id: req.params.runId } });
   if (!run || run.agentId !== req.params.id) {
+    return res.status(404).json({ error: "Run not found" });
+  }
+  // A run belongs to its invoker; system (null-owner) runs are admin-only. 404 (not 403) so existence is not disclosed.
+  const isAdmin = req.user.role === "admin";
+  if (!isAdmin && run.userId !== req.user.id) {
     return res.status(404).json({ error: "Run not found" });
   }
   res.json(run);

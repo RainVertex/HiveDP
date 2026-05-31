@@ -87,6 +87,7 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
   const run = await prisma.agentRun.create({
     data: {
       agentId: args.agentId,
+      userId: args.callerUserId,
       status: "running",
       input: {
         conversationId: args.conversationId,

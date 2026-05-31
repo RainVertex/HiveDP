@@ -58,7 +58,12 @@ export async function runAgent(
   const run = opts.existingRunId
     ? await prisma.agentRun.findUniqueOrThrow({ where: { id: opts.existingRunId } })
     : await prisma.agentRun.create({
-        data: { agentId, status: "running", input: input as Prisma.InputJsonValue },
+        data: {
+          agentId,
+          userId: opts.callerUserId ?? null,
+          status: "running",
+          input: input as Prisma.InputJsonValue,
+        },
       });
   await prisma.agent.update({ where: { id: agentId }, data: { status: "running" } });
 
@@ -238,7 +243,12 @@ export async function startAgentRun(
   const agent = await prisma.agent.findUnique({ where: { id: agentId } });
   if (!agent) throw new Error(`Agent not found: ${agentId}`);
   const run = await prisma.agentRun.create({
-    data: { agentId, status: "running", input: input as Prisma.InputJsonValue },
+    data: {
+      agentId,
+      userId: opts.callerUserId ?? null,
+      status: "running",
+      input: input as Prisma.InputJsonValue,
+    },
   });
   void runAgent(agentId, input, { ...opts, existingRunId: run.id }).catch((err) => {
     console.error(`Background runAgent crashed for run ${run.id}:`, err);

@@ -69,9 +69,7 @@ model Agent {
   id           String      @id @default(cuid())
   name         String
   description  String?
-  // Agent avatar: a client-uploaded image as a downscaled data URL, or a root-relative path to a seeded asset (e.g. "/agents/triage.svg"). Null falls back to initials.
   avatarUrl    String?
-  // Display grouping for the agent gallery (e.g. "Plan & Coordinate"). Purely presentational.
   category     String?
   // Task category. Documented values: "platform-assistant" |
   // "catalog-enrichment" | "custom". Drives the recommended-model map in
@@ -104,6 +102,8 @@ model Agent {
 model AgentRun {
   id             String      @id @default(cuid())
   agentId        String
+  // The user who invoked this run (chat turn, /test, manual /run). Null for system/cron runs (e.g. the catalog enricher). Run reads are scoped to this owner; null-owner runs are admin-only.
+  userId         String?
   status         AgentStatus
   input          Json
   output         Json?
@@ -117,7 +117,9 @@ model AgentRun {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   agent          Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user           User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([agentId])
   @@index([status])
+  @@index([userId])
 }
