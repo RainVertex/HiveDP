@@ -34,6 +34,91 @@ const listMine: RegisteredTool = {
   },
 };
 
+const listForUser: RegisteredTool = {
+  id: "teams_list_user",
+  openaiDef: {
+    type: "function",
+    function: {
+      name: "teams_list_user",
+      description:
+        "List all teams that another user (not the caller) is a member of, identified by their username (GitHub login), email, or display name. Returns the resolved user plus each team's slug, name, description, and that user's role. If the identifier matches more than one person, returns a `candidates` list to disambiguate. For the current user, use teams_list_mine instead.",
+      parameters: {
+        type: "object",
+        properties: {
+          username: {
+            type: "string",
+            description: "The target user's GitHub login (username), email, or display name.",
+          },
+        },
+        required: ["username"],
+      },
+    },
+  },
+  handler: async (args, ctx) => {
+    requireUserId(ctx);
+    const q = String((args as { username?: string }).username ?? "").trim();
+    if (!q) return { error: "username is required" };
+
+    // Exact match on a unique handle first; fall back to a fuzzy search.
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { githubLogin: { equals: q, mode: "insensitive" } },
+          { email: { equals: q, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true, githubLogin: true, displayName: true, email: true },
+    });
+
+    if (!user) {
+      const matches = await prisma.user.findMany({
+        where: {
+          OR: [
+            { githubLogin: { contains: q, mode: "insensitive" } },
+            { displayName: { contains: q, mode: "insensitive" } },
+            { email: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        select: { id: true, githubLogin: true, displayName: true, email: true },
+        take: 6,
+      });
+      if (matches.length === 0) return { error: `No user found matching '${q}'.` };
+      if (matches.length > 1) {
+        return {
+          candidates: matches.map((m) => ({
+            username: m.githubLogin,
+            displayName: m.displayName,
+            email: m.email,
+          })),
+        };
+      }
+      user = matches[0];
+    }
+
+    const memberships = await prisma.teamMembership.findMany({
+      where: { userId: user.id, team: { deletedAt: null } },
+      include: {
+        team: { select: { id: true, slug: true, name: true, description: true } },
+      },
+    });
+    return {
+      user: {
+        id: user.id,
+        username: user.githubLogin,
+        displayName: user.displayName,
+        email: user.email,
+      },
+      teams: memberships.map((m) => ({
+        id: m.team.id,
+        slug: m.team.slug,
+        name: m.team.name,
+        description: m.team.description,
+        role: m.role,
+      })),
+    };
+  },
+};
+
 const getTeam: RegisteredTool = {
   id: "teams_get",
   openaiDef: {
@@ -123,5 +208,5 @@ export const teamsGroup: ToolGroup = {
     description: "Takım listeleme ve üyelik sorguları.",
     order: 20,
   },
-  tools: [listMine, getTeam, listMembers],
+  tools: [listMine, listForUser, getTeam, listMembers],
 };
