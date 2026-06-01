@@ -16,6 +16,7 @@ import {
   useCurrentProjectsUser,
   useBuckets,
   type Task,
+  type Bucket,
 } from "./api";
 import { KanbanBoard } from "./KanbanBoard";
 import { UserAutocomplete } from "./components/UserAutocomplete";
@@ -511,6 +512,7 @@ export function ProjectDetailPage() {
       ) : (
         <TaskListView
           tasks={visibleTasks}
+          buckets={buckets}
           sortColumn={sortColumn}
           sortDir={sortDir}
           onSort={toggleSort}
@@ -522,11 +524,13 @@ export function ProjectDetailPage() {
 
 function TaskListView({
   tasks,
+  buckets,
   sortColumn,
   sortDir,
   onSort,
 }: {
   tasks: Task[];
+  buckets: Bucket[];
   sortColumn: SortColumn | null;
   sortDir: "asc" | "desc";
   onSort: (column: SortColumn) => void;
@@ -540,6 +544,14 @@ function TaskListView({
     return sortDir === "asc" ? "↑" : "↓";
   }
 
+  const sortedBuckets = [...buckets].sort((a, b) => a.position - b.position);
+  const fallbackBucketId = sortedBuckets[0]?.id ?? null;
+  const bucketTitleById = new Map(buckets.map((b) => [b.id, b.title]));
+  function columnLabel(t: Task): string | null {
+    const id = t.bucketId ?? fallbackBucketId;
+    return (id && bucketTitleById.get(id)) || null;
+  }
+
   return (
     <div className="overflow-x-auto rounded-lg border border-app-border">
       <table className="w-full text-sm">
@@ -547,6 +559,7 @@ function TaskListView({
           <tr className="border-b border-app-border bg-app-surface text-left text-xs text-app-text-muted">
             <th className="px-4 py-2 font-medium">Title</th>
             <th className="px-4 py-2 font-medium">Status</th>
+            <th className="px-4 py-2 font-medium">Stage</th>
             <th className="px-4 py-2 font-medium">Priority</th>
             <th className="px-4 py-2 font-medium">Assignee</th>
             <th className="px-4 py-2 font-medium">
@@ -583,6 +596,15 @@ function TaskListView({
                 >
                   {t.done ? "Done" : "Open"}
                 </span>
+              </td>
+              <td className="px-4 py-2">
+                {columnLabel(t) ? (
+                  <span className="inline-block rounded-full border border-app-border px-2 py-0.5 text-xs text-app-text-muted">
+                    {columnLabel(t)}
+                  </span>
+                ) : (
+                  <span className="text-app-text-muted">-</span>
+                )}
               </td>
               <td className="px-4 py-2">
                 <span
