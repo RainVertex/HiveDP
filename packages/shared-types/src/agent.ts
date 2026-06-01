@@ -1,7 +1,7 @@
 // Shared types for agents, LLM models/providers, and the admin AI / Models surface.
 import type { ID, ISODateString, NamedEntity, Timestamped } from "./common";
 
-export type AgentStatus = "idle" | "running" | "succeeded" | "failed";
+export type AgentStatus = "idle" | "running" | "succeeded" | "failed" | "cancelled";
 
 export type ProviderKind = "openai_compat" | "anthropic" | "gemini";
 
@@ -84,12 +84,14 @@ export interface AgentRun extends Timestamped {
   tokensInput?: number | null;
   tokensOutput?: number | null;
   costUsd?: number | null;
+  containsWrites?: boolean;
   startedAt: ISODateString;
   finishedAt?: ISODateString | null;
   // How the run was started and what it acted on, for the per-agent activity history.
   trigger?: AgentRunTrigger | null;
   task?: { id: ID; title: string; projectId: ID } | null;
   conversation?: { id: ID; title: string } | null;
+  agent?: { name: string; avatarUrl?: string | null } | null;
 }
 
 export interface CreateAgentInput {

@@ -19,6 +19,7 @@ export interface AdapterResult {
   toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall[];
   usage: { input: number; output: number };
   finishReason: string | null;
+  reasoning?: string | null;
 }
 
 export interface ProviderAdapter {

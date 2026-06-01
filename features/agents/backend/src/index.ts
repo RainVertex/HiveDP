@@ -8,14 +8,17 @@ import {
   resolveTools,
   recommendationsForKind,
 } from "@internal/llm-core";
-import { runAgent, startAgentRun } from "./executor";
+import { runAgent, startAgentRun, cancelAgentRun } from "./executor";
 
 export {
   runAgent,
   startAgentRun,
+  cancelAgentRun,
+  reconcileStaleAgentRuns,
   type RunAgentInput,
   type RunAgentResult,
   type RunAgentToolCall,
+  type RunAgentStep,
 } from "./executor";
 export {
   catalogEnricherJob,
@@ -190,7 +193,10 @@ agentsRouter.get("/:id", async (req, res) => {
 
 agentsRouter.get("/:id/runs/:runId", async (req, res) => {
   if (!req.user) return res.status(401).json({ error: "Not authenticated" });
-  const run = await prisma.agentRun.findUnique({ where: { id: req.params.runId } });
+  const run = await prisma.agentRun.findUnique({
+    where: { id: req.params.runId },
+    include: { agent: { select: { name: true, avatarUrl: true } } },
+  });
   if (!run || run.agentId !== req.params.id) {
     return res.status(404).json({ error: "Run not found" });
   }
@@ -199,6 +205,31 @@ agentsRouter.get("/:id/runs/:runId", async (req, res) => {
     return res.status(404).json({ error: "Run not found" });
   }
   res.json(run);
+});
+
+agentsRouter.post("/:id/runs/:runId/cancel", async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+  const run = await prisma.agentRun.findUnique({ where: { id: req.params.runId } });
+  if (!run || run.agentId !== req.params.id) {
+    return res.status(404).json({ error: "Run not found" });
+  }
+  const isAdmin = req.user.role === "admin";
+  if (!isAdmin && run.userId !== req.user.id) {
+    return res.status(404).json({ error: "Run not found" });
+  }
+  if (run.status !== "running") {
+    return res.status(409).json({ error: "Run is not running" });
+  }
+  // Graceful abort if the run is live here; otherwise it is orphaned (a prior process died mid-run),
+  // so mark it failed directly. Single-process deployment, so "no live handle" means "not running".
+  const cancelled = cancelAgentRun(run.id);
+  if (!cancelled) {
+    await prisma.agentRun.update({
+      where: { id: run.id },
+      data: { status: "cancelled", error: "Cancelled by user", finishedAt: new Date() },
+    });
+  }
+  res.json({ ok: true, aborted: cancelled });
 });
 
 const avatarUrlSchema = z

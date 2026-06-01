@@ -14,6 +14,11 @@ interface AnthropicInputJsonDelta {
   partial_json: string;
 }
 
+interface AnthropicThinkingDelta {
+  type: "thinking_delta";
+  thinking: string;
+}
+
 class AnthropicAdapter implements ProviderAdapter {
   readonly kind = "anthropic" as const;
 
@@ -38,6 +43,7 @@ class AnthropicAdapter implements ProviderAdapter {
     const toolChoice = mapToolChoiceToAnthropic(req.toolChoice, tools !== undefined);
 
     let content = "";
+    let reasoning = "";
     const toolUseAccum = new Map<number, { id: string; name: string; arguments: string }>();
     let usageInput = 0;
     let usageOutput = 0;
@@ -72,10 +78,15 @@ class AnthropicAdapter implements ProviderAdapter {
           break;
         }
         case "content_block_delta": {
-          const delta = event.delta as AnthropicTextBlockDelta | AnthropicInputJsonDelta;
+          const delta = event.delta as
+            | AnthropicTextBlockDelta
+            | AnthropicInputJsonDelta
+            | AnthropicThinkingDelta;
           if (delta.type === "text_delta") {
             content += delta.text;
             req.onTokenDelta?.(delta.text);
+          } else if (delta.type === "thinking_delta") {
+            reasoning += delta.thinking;
           } else if (delta.type === "input_json_delta") {
             const acc = toolUseAccum.get(event.index);
             if (acc) acc.arguments += delta.partial_json;
@@ -122,6 +133,7 @@ class AnthropicAdapter implements ProviderAdapter {
       toolCalls,
       usage: { input: usageInput, output: usageOutput },
       finishReason: mapStopReasonToOpenAi(stopReason, toolCalls.length > 0),
+      reasoning: reasoning || null,
     };
   }
 }

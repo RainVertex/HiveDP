@@ -19,6 +19,7 @@ export interface ChatResult {
   toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall[];
   usage: { input: number; output: number };
   finishReason: string | null;
+  reasoning?: string | null;
 }
 
 export async function chat(req: ChatRequest): Promise<ChatResult> {

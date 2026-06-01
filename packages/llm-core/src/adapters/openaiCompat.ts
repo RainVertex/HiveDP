@@ -48,6 +48,7 @@ class OpenAICompatAdapter implements ProviderAdapter {
     );
 
     let content = "";
+    let reasoning = "";
     let finishReason: string | null = null;
     const toolCallAccum: Map<number, { id?: string; name?: string; arguments: string }> = new Map();
     let usageInput = 0;
@@ -78,6 +79,7 @@ class OpenAICompatAdapter implements ProviderAdapter {
         const reasoningChunk = delta?.thinking ?? delta?.reasoning_content ?? delta?.reasoning;
         if (reasoningChunk) {
           openTag();
+          reasoning += reasoningChunk;
           req.onTokenDelta?.(reasoningChunk);
         }
         if (delta?.content) {
@@ -127,6 +129,7 @@ class OpenAICompatAdapter implements ProviderAdapter {
       toolCalls,
       usage: { input: usageInput, output: usageOutput },
       finishReason,
+      reasoning: reasoning || null,
     };
   }
 }

@@ -270,6 +270,11 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<AgentRun>(
           `/api/agents/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}`,
         ),
+      cancelRun: (id: string, runId: string) =>
+        request<{ ok: true }>(
+          `/api/agents/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}/cancel`,
+          { method: "POST" },
+        ),
       listTools: () => request<AgentToolsResponse>(`/api/agents/tools`),
     },
 

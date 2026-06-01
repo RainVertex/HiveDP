@@ -6,6 +6,7 @@ loadDotenv({ path: resolve(__dirname, "../../../.env") });
 
 import { runBootDriftCheck, seedTemplateAcls } from "@feature/scaffolder-backend";
 import { provisionProjectsForInstallation } from "@feature/projects-backend";
+import { reconcileStaleAgentRuns } from "@feature/agents-backend";
 import { runReconciliation } from "@feature/catalog-backend";
 import { prisma } from "@internal/db";
 import { createServer } from "./createServer";
@@ -33,6 +34,11 @@ async function bootstrap() {
 
   const orphans = await cancelOrphanedRuns();
   if (orphans > 0) logger.warn({ orphans }, "Marked orphaned job runs as cancelled");
+
+  const staleRuns = await reconcileStaleAgentRuns();
+  if (staleRuns.runs > 0 || staleRuns.tasks > 0) {
+    logger.warn(staleRuns, "Reconciled orphaned agent runs and released claimed catalog tasks");
+  }
 
   registerAllJobs();
   startScheduler();
