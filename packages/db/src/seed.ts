@@ -54,7 +54,7 @@ Aim for at most 8 tool calls. Do not loop.`;
       toolIds: ["catalog_lookup", "catalog_read_repo", "catalog_read_file", "catalog_open_yaml_pr"],
       approvalMode: "auto",
       category: "Catalog & Quality",
-      avatarUrl: "/agents/catalog-enricher.svg",
+      avatarUrl: "/agents/presets/catalog-enricher.svg",
     },
     create: {
       id: "seed-agent-catalog-enricher",
@@ -67,7 +67,7 @@ Aim for at most 8 tool calls. Do not loop.`;
       approvalMode: "auto",
       maxToolCalls: 10,
       category: "Catalog & Quality",
-      avatarUrl: "/agents/catalog-enricher.svg",
+      avatarUrl: "/agents/presets/catalog-enricher.svg",
     },
   });
 
@@ -153,7 +153,7 @@ Integrations.`;
       toolIds,
       approvalMode: "ask",
       category: "Plan & Coordinate",
-      avatarUrl: "/agents/platform-assistant.svg",
+      avatarUrl: "/agents/presets/platform-assistant.svg",
     },
     create: {
       id: "seed-agent-assistant",
@@ -166,7 +166,7 @@ Integrations.`;
       approvalMode: "ask",
       maxToolCalls: 12,
       category: "Plan & Coordinate",
-      avatarUrl: "/agents/platform-assistant.svg",
+      avatarUrl: "/agents/presets/platform-assistant.svg",
     },
   });
 }

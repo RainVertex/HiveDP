@@ -11,6 +11,7 @@ import { AuditPage } from "./admin/AuditPage";
 import { JobsPage } from "./admin/JobsPage";
 import { McpTokensPage } from "./admin/McpTokensPage";
 import { AgentDetailPage, AgentFormPage, AgentRunPage, AgentsPage } from "@feature/agents-frontend";
+import avatarPresets from "virtual:agent-avatar-presets";
 import { ChatRoute } from "./widgets/chat/ChatRoute";
 import {
   CatalogEntityPage,
@@ -70,9 +71,9 @@ export function AppRoutes() {
       <Route path="/chat/:conversationId?" element={<ChatRoute />} />
       <Route path="/p/:pageId" element={<DashboardPage />} />
       <Route path="/agents" element={<AgentsPage />} />
-      <Route path="/agents/new" element={<AgentFormPage />} />
+      <Route path="/agents/new" element={<AgentFormPage avatarPresets={avatarPresets} />} />
       <Route path="/agents/:id" element={<AgentDetailPage />} />
-      <Route path="/agents/:id/edit" element={<AgentFormPage />} />
+      <Route path="/agents/:id/edit" element={<AgentFormPage avatarPresets={avatarPresets} />} />
       <Route path="/agents/:id/runs/:runId" element={<AgentRunPage />} />
       <Route path="/catalog" element={<CatalogPage />} />
       <Route path="/catalog/:id" element={<CatalogEntityPage />}>

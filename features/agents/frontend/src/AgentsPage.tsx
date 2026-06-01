@@ -144,16 +144,6 @@ function AgentCard({ agent }: { agent: Agent }) {
           </span>
         </div>
       </Link>
-      {agent.avatarUrl && (
-        <a
-          href={agent.avatarUrl}
-          download
-          onClick={(e) => e.stopPropagation()}
-          className="mt-3 inline-block text-xs text-app-text-muted underline hover:text-app-text"
-        >
-          Download image
-        </a>
-      )}
     </div>
   );
 }

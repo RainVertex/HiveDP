@@ -6,10 +6,11 @@ import { useApi } from "@internal/api-client/react";
 import type { Agent, AgentToolGroup, ApprovalMode, LlmModelSummary } from "@internal/shared-types";
 import { fileToAvatarDataUrl } from "./avatarImage";
 import { AvatarPickerDialog } from "./AvatarPickerDialog";
+import type { AvatarPreset } from "./avatarPresets";
 
 const KIND_OPTIONS = ["custom", "catalog-enrichment", "platform-assistant"];
 
-export function AgentFormPage() {
+export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPreset[] }) {
   const api = useApi();
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
@@ -276,6 +277,7 @@ export function AgentFormPage() {
           <AvatarPickerDialog
             open={pickerOpen}
             value={avatarUrl}
+            presets={avatarPresets}
             onSelect={(src) => {
               setAvatarUrl(src);
               setAvatarError(null);
