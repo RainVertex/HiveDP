@@ -124,6 +124,8 @@ model ScaffoldBinding {
   @@unique([templateId, targetRef])
   @@index([templateId])
   @@index([ownerTeamId])
+  @@index([catalogEntityId])
+  @@index([appliedByUserId])
 }
 
 model TemplateHashSnapshot {
@@ -147,9 +149,11 @@ model TemplateAcl {
   canView     Boolean    @default(true)
   canExecute  Boolean    @default(false)
   createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@unique([templateId, subjectType, subjectId])
   @@index([templateId])
+  @@index([subjectType, subjectId])
 }
 
 enum TemplateAccessRequestStatus {
@@ -184,6 +188,7 @@ model TemplateAccessRequest {
   @@index([templateId, status])
   @@index([requestedByUserId])
   @@index([status, createdAt])
+  @@index([reviewedByUserId])
 }
 
 model ScaffoldDrift {
@@ -196,6 +201,7 @@ model ScaffoldDrift {
   prUrl       String?
   detectedAt  DateTime            @default(now())
   resolvedAt  DateTime?
+  updatedAt   DateTime            @updatedAt
   binding     ScaffoldBinding     @relation(fields: [bindingId], references: [id], onDelete: Cascade)
 
   @@index([bindingId])
@@ -211,6 +217,7 @@ model ScaffolderMcpToken {
   lastUsedAt DateTime?
   expiresAt  DateTime
   createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])

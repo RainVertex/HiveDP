@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { prisma } from "@internal/db";
+import { projectsDb } from "@internal/db";
 import { createLabelSchema } from "../zod";
 import { meetsLevel, resolveAccess } from "../services/permissions";
 import { labelDto } from "../services/dto";
@@ -19,7 +19,7 @@ labelsRoutes.get("/labels", async (req, res, next) => {
       res.status(404).json({ error: "Project not found" });
       return;
     }
-    const labels = await prisma.label.findMany({
+    const labels = await projectsDb.label.findMany({
       where: { projectId },
       orderBy: { title: "asc" },
     });
@@ -42,7 +42,7 @@ labelsRoutes.post("/labels", async (req, res, next) => {
       res.status(403).json({ error: "Write permission required" });
       return;
     }
-    const created = await prisma.label.create({
+    const created = await projectsDb.label.create({
       data: {
         projectId: input.projectId,
         title: input.title,

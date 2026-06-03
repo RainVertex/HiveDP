@@ -1,3 +1,8 @@
+// Soft-delete policy: only top-level, slug-unique, user-recoverable aggregates
+// carry a deletedAt (Team, Department, Page). Everything else hard-deletes via
+// onDelete: Cascade. Append-only event tables (AuditEvent and similar) keep
+// createdAt only and deliberately omit @updatedAt.
+
 generator client {
   provider = "prisma-client-js"
 }

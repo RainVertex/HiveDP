@@ -278,10 +278,17 @@ async function writeSyncState(
 }
 
 export async function syncAllDevDocs(): Promise<{ entities: number; pageCount: number }> {
+  // Per-entity sync is inherently N calls. Bound the pre-loop fetch so it cannot fan out unboundedly.
   const entities = await prisma.catalogEntity.findMany({
     where: { staleSince: null },
     select: { id: true },
+    take: 5000,
   });
+  if (entities.length === 5000) {
+    console.warn(
+      "[catalog] devdocs sync hit the 5000-entity cap; remaining entities skipped this run",
+    );
+  }
   let pageCount = 0;
   for (const e of entities) {
     const result = await syncDevDocsForEntity(e.id).catch(() => null);

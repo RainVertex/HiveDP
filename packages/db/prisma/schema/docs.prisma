@@ -4,6 +4,7 @@ enum DocSyncStatus {
   failed
 }
 
+// "searchVector" is a SQL-managed generated tsvector column defined in the 20260602140000_search_fts migration.
 model DocPage {
   id            String           @id @default(cuid())
   entityId      String
@@ -52,11 +53,13 @@ model DocStaleReport {
   reason     String?
   resolvedAt DateTime?
   createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   page       DocPage   @relation(fields: [pageId], references: [id], onDelete: Cascade)
   reporter   User      @relation(fields: [reporterId], references: [id], onDelete: Cascade)
 
   @@index([pageId])
   @@index([resolvedAt])
+  @@index([reporterId])
 }
 
 model DocSyncState {

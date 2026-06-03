@@ -24,7 +24,7 @@ enum TeamPolicyKind {
   name_pattern
 }
 
-// Origin of a Team row. Manual teams are created via the platform UI;
+// Origin of a Team row. Manual teams are created via the platform UI,
 // github teams are imported by the GitHub App reconciliation pipeline and
 // keyed on (source, externalId) where externalId is the GitHub team
 // node_id (stable across renames).
@@ -34,7 +34,7 @@ enum TeamSource {
 }
 
 model Team {
-  id                   String                  @id @default(cuid())
+  id                   String                   @id @default(cuid())
   // Slug uniqueness is enforced via a partial unique index `team_slug_active`
   // (WHERE deletedAt IS NULL) created in the real_teams migration. Prisma
   // doesn't yet support filtered unique declaratively.
@@ -44,22 +44,22 @@ model Team {
   departmentId         String?
   // Authoritative GitHub org pointer. Every team belongs to exactly one
   // org. For source=github, derived from Integration.config.accountLogin
-  // tied to installationId; for source=manual, chosen at create time.
+  // tied to installationId, for source=manual, chosen at create time.
   // A catalog entity's owner teams must all share the entity's accountLogin.
   accountLogin         String
   // External-source bookkeeping. For source=github: externalId is the team
-  // node_id; externalSlug mirrors the current GH slug for diagnostics;
-  // installationId links back to the discovering App installation;
+  // node_id, externalSlug mirrors the current GH slug for diagnostics,
+  // installationId links back to the discovering App installation,
   // parentTeamId reflects GitHub's nested-team hierarchy.
-  source               TeamSource              @default(manual)
+  source               TeamSource               @default(manual)
   externalId           String?
   externalSlug         String?
   parentTeamId         String?
   installationId       Int?
   lastSyncedAt         DateTime?
   deletedAt            DateTime?
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
   memberships          TeamMembership[]
   pendingMemberships   PendingTeamMembership[]
   catalogOwnerships    CatalogEntityOwner[]
@@ -67,14 +67,16 @@ model Team {
   webhookSubscriptions WebhookSubscription[]
   createdRequests      TeamRequest[]
   maintainerRequests   MaintainerRequest[]
-  department           Department?             @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  parentTeam           Team?                   @relation("TeamHierarchy", fields: [parentTeamId], references: [id], onDelete: SetNull)
-  childTeams           Team[]                  @relation("TeamHierarchy")
+  department           Department?              @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  parentTeam           Team?                    @relation("TeamHierarchy", fields: [parentTeamId], references: [id], onDelete: SetNull)
+  childTeams           Team[]                   @relation("TeamHierarchy")
 
   @@unique([source, externalId])
   @@index([installationId])
   @@index([source])
   @@index([accountLogin])
+  @@index([departmentId])
+  @@index([parentTeamId])
 }
 
 // Buffer for GitHub team members who don't yet have a platform User. Created
@@ -114,7 +116,7 @@ model TeamRequest {
   id                          String            @id @default(cuid())
   // Pending uniqueness is enforced via a partial unique index
   // `team_request_unique_pending_slug` (WHERE status = 'pending') in the
-  // real_teams migration; multiple non-pending rows may share a slug.
+  // real_teams migration, multiple non-pending rows may share a slug.
   slug                        String
   name                        String
   description                 String?
@@ -139,7 +141,7 @@ model TeamRequest {
   // Optional pre-staging of memberships set at submit time. Applied during
   // approval as additional `lead`/`member` rows on top of the requester
   // (who is always seeded as `lead`). Stored as plain id arrays — no FK
-  // (matches the requestedByUserId pattern); existence is re-checked inside
+  // (matches the requestedByUserId pattern), existence is re-checked inside
   // the create transaction and again at approval time so a deleted user
   // doesn't break approval.
   proposedMaintainerUserIds   String[]          @default([])
@@ -166,7 +168,7 @@ model TeamRequest {
 }
 
 // Extensible policy engine. Each enum value in TeamPolicyKind has a matching
-// validator in features/teams/backend/src/policies.ts; this row stores
+// validator in features/teams/backend/src/policies.ts, this row stores
 // per-kind enable + config only. Adding a new kind = enum migration + new
 // registry entry. The single starting policy is `name_pattern` which forces
 // hyphen-separated names ending with `-team`.

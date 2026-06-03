@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { prisma } from "@internal/db";
+import { projectsDb } from "@internal/db";
 import { taskDto, userSummary } from "../services/dto";
 
 export const usersRoutes: Router = Router();
@@ -16,7 +16,7 @@ usersRoutes.get("/users/search", async (req, res, next) => {
       res.json([]);
       return;
     }
-    const users = await prisma.user.findMany({
+    const users = await projectsDb.user.findMany({
       where: {
         // Agents are assignable like teammates (assigning one runs it on the task), so they surface here too.
         userKind: { in: ["human", "agent"] },
@@ -45,7 +45,7 @@ usersRoutes.get("/users/search", async (req, res, next) => {
 usersRoutes.get("/users/:userId/tasks", async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit ?? 10) || 10, 50);
-    const tasks = await prisma.task.findMany({
+    const tasks = await projectsDb.task.findMany({
       where: {
         assignees: { some: { userId: req.params.userId } },
         done: false,

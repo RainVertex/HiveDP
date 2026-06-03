@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { prisma } from "@internal/db";
+import { projectsDb } from "@internal/db";
 import { addAssigneeSchema, attachLabelSchema, createTaskSchema, updateTaskSchema } from "../zod";
 import { meetsLevel, resolveAccess } from "../services/permissions";
 import { taskDto, userSummary } from "../services/dto";
@@ -22,7 +22,7 @@ tasksRoutes.get("/projects/:id/tasks", async (req, res, next) => {
       res.status(404).json({ error: "Project not found" });
       return;
     }
-    const tasks = await prisma.task.findMany({
+    const tasks = await projectsDb.task.findMany({
       where: { projectId: req.params.id },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       include: TASK_INCLUDE,
@@ -47,7 +47,7 @@ tasksRoutes.post("/tasks", async (req, res, next) => {
       return;
     }
     if (input.bucketId) {
-      const bucket = await prisma.bucket.findFirst({
+      const bucket = await projectsDb.bucket.findFirst({
         where: { id: input.bucketId, projectId: input.projectId },
         select: { id: true },
       });
@@ -56,7 +56,7 @@ tasksRoutes.post("/tasks", async (req, res, next) => {
         return;
       }
     }
-    const created = await prisma.task.create({
+    const created = await projectsDb.task.create({
       data: {
         projectId: input.projectId,
         bucketId: input.bucketId ?? null,
@@ -80,7 +80,7 @@ tasksRoutes.post("/tasks", async (req, res, next) => {
 tasksRoutes.get("/tasks/:id", async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const task = await prisma.task.findUnique({
+    const task = await projectsDb.task.findUnique({
       where: { id: req.params.id },
       include: TASK_INCLUDE,
     });
@@ -102,7 +102,7 @@ tasksRoutes.get("/tasks/:id", async (req, res, next) => {
 tasksRoutes.patch("/tasks/:id", async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const existing = await prisma.task.findUnique({
+    const existing = await projectsDb.task.findUnique({
       where: { id: req.params.id },
       select: { id: true, projectId: true },
     });
@@ -121,7 +121,7 @@ tasksRoutes.patch("/tasks/:id", async (req, res, next) => {
     }
     const input = updateTaskSchema.parse(req.body);
     if (input.bucketId) {
-      const bucket = await prisma.bucket.findFirst({
+      const bucket = await projectsDb.bucket.findFirst({
         where: { id: input.bucketId, projectId: existing.projectId },
         select: { id: true },
       });
@@ -130,7 +130,7 @@ tasksRoutes.patch("/tasks/:id", async (req, res, next) => {
         return;
       }
     }
-    const updated = await prisma.task.update({
+    const updated = await projectsDb.task.update({
       where: { id: req.params.id },
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
@@ -156,7 +156,7 @@ tasksRoutes.patch("/tasks/:id", async (req, res, next) => {
 tasksRoutes.delete("/tasks/:id", async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const existing = await prisma.task.findUnique({
+    const existing = await projectsDb.task.findUnique({
       where: { id: req.params.id },
       select: { id: true, projectId: true },
     });
@@ -173,7 +173,7 @@ tasksRoutes.delete("/tasks/:id", async (req, res, next) => {
       res.status(403).json({ error: "Write permission required" });
       return;
     }
-    await prisma.task.delete({ where: { id: req.params.id } });
+    await projectsDb.task.delete({ where: { id: req.params.id } });
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -183,7 +183,7 @@ tasksRoutes.delete("/tasks/:id", async (req, res, next) => {
 tasksRoutes.post("/tasks/:id/assignees", async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const task = await prisma.task.findUnique({
+    const task = await projectsDb.task.findUnique({
       where: { id: req.params.id },
       include: { project: { select: { id: true, title: true } } },
     });
@@ -201,19 +201,19 @@ tasksRoutes.post("/tasks/:id/assignees", async (req, res, next) => {
       return;
     }
     const input = addAssigneeSchema.parse(req.body);
-    const target = await prisma.user.findUnique({
+    const target = await projectsDb.user.findUnique({
       where: { githubLogin: input.username },
     });
     if (!target) {
       res.status(404).json({ error: `No platform user found with username "${input.username}"` });
       return;
     }
-    const existed = await prisma.taskAssignee.findUnique({
+    const existed = await projectsDb.taskAssignee.findUnique({
       where: { taskId_userId: { taskId: req.params.id, userId: target.id } },
       select: { taskId: true },
     });
     if (!existed) {
-      await prisma.taskAssignee.create({
+      await projectsDb.taskAssignee.create({
         data: {
           taskId: req.params.id,
           userId: target.id,
@@ -221,7 +221,7 @@ tasksRoutes.post("/tasks/:id/assignees", async (req, res, next) => {
         },
       });
       if (target.userKind === "agent") {
-        // Assigning an agent kicks off a run against the task; it reports back as a comment.
+        // Assigning an agent kicks off a run against the task, it reports back as a comment.
         triggerAgentRunForTask({ agentUserId: target.id, taskId: task.id });
       } else if (target.id !== userId) {
         await notifyTaskAssigned({
@@ -242,7 +242,7 @@ tasksRoutes.post("/tasks/:id/assignees", async (req, res, next) => {
 tasksRoutes.delete("/tasks/:id/assignees/:userId", async (req, res, next) => {
   try {
     const actor = req.user!.id;
-    const task = await prisma.task.findUnique({
+    const task = await projectsDb.task.findUnique({
       where: { id: req.params.id },
       select: { id: true, projectId: true },
     });
@@ -259,7 +259,7 @@ tasksRoutes.delete("/tasks/:id/assignees/:userId", async (req, res, next) => {
       res.status(403).json({ error: "Write permission required" });
       return;
     }
-    await prisma.taskAssignee.deleteMany({
+    await projectsDb.taskAssignee.deleteMany({
       where: { taskId: req.params.id, userId: req.params.userId },
     });
     res.status(204).end();
@@ -271,7 +271,7 @@ tasksRoutes.delete("/tasks/:id/assignees/:userId", async (req, res, next) => {
 tasksRoutes.post("/tasks/:id/labels", async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const task = await prisma.task.findUnique({
+    const task = await projectsDb.task.findUnique({
       where: { id: req.params.id },
       select: { id: true, projectId: true },
     });
@@ -289,7 +289,7 @@ tasksRoutes.post("/tasks/:id/labels", async (req, res, next) => {
       return;
     }
     const input = attachLabelSchema.parse(req.body);
-    const label = await prisma.label.findFirst({
+    const label = await projectsDb.label.findFirst({
       where: { id: input.labelId, projectId: task.projectId },
       select: { id: true },
     });
@@ -297,7 +297,7 @@ tasksRoutes.post("/tasks/:id/labels", async (req, res, next) => {
       res.status(400).json({ error: "Label does not belong to this project" });
       return;
     }
-    await prisma.taskLabel.upsert({
+    await projectsDb.taskLabel.upsert({
       where: { taskId_labelId: { taskId: task.id, labelId: label.id } },
       create: { taskId: task.id, labelId: label.id },
       update: {},
@@ -311,7 +311,7 @@ tasksRoutes.post("/tasks/:id/labels", async (req, res, next) => {
 tasksRoutes.delete("/tasks/:id/labels/:labelId", async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const task = await prisma.task.findUnique({
+    const task = await projectsDb.task.findUnique({
       where: { id: req.params.id },
       select: { id: true, projectId: true },
     });
@@ -328,7 +328,7 @@ tasksRoutes.delete("/tasks/:id/labels/:labelId", async (req, res, next) => {
       res.status(403).json({ error: "Write permission required" });
       return;
     }
-    await prisma.taskLabel.deleteMany({
+    await projectsDb.taskLabel.deleteMany({
       where: { taskId: req.params.id, labelId: req.params.labelId },
     });
     res.status(204).end();

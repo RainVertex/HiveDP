@@ -157,7 +157,7 @@ agentsRouter.get("/tools", (req, res) => {
 
 agentsRouter.get("/:id", async (req, res) => {
   if (!req.user) return res.status(401).json({ error: "Not authenticated" });
-  // Runs carry user content (chat turns persist as AgentRun); non-admins only see their own, admins see all.
+  // Runs carry user content (chat turns persist as AgentRun), so non-admins only see their own, admins see all.
   const isAdmin = req.user.role === "admin";
   const agent = await prisma.agent.findUnique({
     where: { id: req.params.id },
@@ -176,16 +176,32 @@ agentsRouter.get("/:id", async (req, res) => {
           costUsd: true,
           startedAt: true,
           finishedAt: true,
+          conversationId: true,
           task: { select: { id: true, title: true, projectId: true } },
-          conversation: { select: { id: true, title: true } },
         },
       },
     },
   });
   if (!agent) return res.status(404).json({ error: "Agent not found" });
-  // Derived from the most recent run (scoped above); the agent row no longer stores status.
+  // conversationId is an informational link (no FK), so resolve titles in one Chat read.
+  const conversationIds = [
+    ...new Set(agent.runs.map((r) => r.conversationId).filter((id): id is string => Boolean(id))),
+  ];
+  const conversations = conversationIds.length
+    ? await prisma.chatConversation.findMany({
+        where: { id: { in: conversationIds } },
+        select: { id: true, title: true },
+      })
+    : [];
+  const conversationById = new Map(conversations.map((c) => [c.id, c]));
+  const runs = agent.runs.map(({ conversationId, ...run }) => ({
+    ...run,
+    conversation: conversationId ? (conversationById.get(conversationId) ?? null) : null,
+  }));
+  // Derived from the most recent run (scoped above). The agent row no longer stores status.
   res.json({
     ...agent,
+    runs,
     status: agent.runs[0]?.status ?? "idle",
     toolsManaged: agent.id === PLATFORM_ASSISTANT_AGENT_ID,
   });
@@ -220,7 +236,7 @@ agentsRouter.post("/:id/runs/:runId/cancel", async (req, res) => {
   if (run.status !== "running") {
     return res.status(409).json({ error: "Run is not running" });
   }
-  // Graceful abort if the run is live here; otherwise it is orphaned (a prior process died mid-run),
+  // Graceful abort if the run is live here, otherwise it is orphaned (a prior process died mid-run),
   // so mark it failed directly. Single-process deployment, so "no live handle" means "not running".
   const cancelled = cancelAgentRun(run.id);
   if (!cancelled) {
@@ -316,7 +332,7 @@ agentsRouter.patch("/:id", async (req, res) => {
   }
   const data = parsed.data;
 
-  // The assistant's tools are code-owned; drop any toolIds edit so the DB never holds a set that does not match what streamAgent runs.
+  // The assistant's tools are code-owned. Drop any toolIds edit so the DB never holds a set that does not match what streamAgent runs.
   if (req.params.id === PLATFORM_ASSISTANT_AGENT_ID) {
     data.toolIds = undefined;
   }

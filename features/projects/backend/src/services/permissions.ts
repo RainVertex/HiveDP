@@ -1,4 +1,4 @@
-import { prisma, ProjectRole } from "@internal/db";
+import { projectsDb, ProjectRole } from "@internal/db";
 
 export type PermissionLevel = "read" | "write" | "admin";
 
@@ -29,11 +29,11 @@ export async function resolveAccess(
   projectId: string,
 ): Promise<AccessContext | null> {
   const [project, user] = await Promise.all([
-    prisma.project.findUnique({
+    projectsDb.project.findUnique({
       where: { id: projectId },
       select: { id: true, creatorUserId: true },
     }),
-    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    projectsDb.user.findUnique({ where: { id: userId }, select: { role: true } }),
   ]);
   if (!project) return null;
 
@@ -42,7 +42,7 @@ export async function resolveAccess(
     return { project, maxPermission: 2 };
   }
 
-  const member = await prisma.projectMember.findUnique({
+  const member = await projectsDb.projectMember.findUnique({
     where: { projectId_userId: { projectId, userId } },
     select: { role: true },
   });

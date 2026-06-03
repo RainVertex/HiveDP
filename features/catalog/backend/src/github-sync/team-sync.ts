@@ -170,7 +170,7 @@ export async function runReconciliation(
     return result;
   }
 
-  // Personal-account installations have no teams and 404 here; skip cleanly.
+  // Personal-account installations have no teams and 404 here, so skip cleanly.
   let github: GithubState;
   try {
     github = await fetchGithubState(octo, orgLogin);
@@ -303,7 +303,7 @@ export async function fetchGithubState(
         role: maintainerIds.has(String(m.id)) ? ("lead" as const) : ("member" as const),
       }));
     } catch (err) {
-      // 404: team vanished between list and members fetch; treat as empty, diff handles it.
+      // 404: team vanished between list and members fetch, treat as empty, diff handles it.
       if ((err as { status?: number }).status !== 404) throw err;
     }
     try {
@@ -321,7 +321,7 @@ export async function fetchGithubState(
       // Mark success only after a clean pass so a transient 404 leaves grants intact.
       reposFetchedTeamNodeIds.add(t.node_id);
     } catch (err) {
-      // 404: team vanished mid-pass; skip its repo grants, the reconcile diff handles removals.
+      // 404: team vanished mid-pass, skip its repo grants, the reconcile diff handles removals.
       if ((err as { status?: number }).status !== 404) throw err;
     }
     teams.push({
@@ -377,7 +377,11 @@ async function loadDbState(installationId: number, orgLogin: string): Promise<Db
   const users = await prisma.user.findMany({
     where: { githubId: { not: "" } },
     select: { id: true, githubId: true, role: true, userKind: true },
+    take: 5000,
   });
+  if (users.length === 5000) {
+    console.warn("[catalog] team-sync user reconciliation hit the 5000-row cap");
+  }
   const userIdByGithubId = new Map(users.map((u) => [u.githubId, u.id]));
   const userRoleById = new Map(users.map((u) => [u.id, u.role]));
   const userKindById = new Map(users.map((u) => [u.id, u.userKind]));
@@ -385,13 +389,21 @@ async function loadDbState(installationId: number, orgLogin: string): Promise<Db
   const orgRows = await prisma.userOrgMembership.findMany({
     where: { accountLogin: orgLogin },
     select: { userId: true },
+    take: 5000,
   });
+  if (orgRows.length === 5000) {
+    console.warn("[catalog] team-sync org membership reconciliation hit the 5000-row cap");
+  }
   const existingOrgMembershipUserIds = new Set(orgRows.map((r) => r.userId));
 
   const manual = await prisma.team.findMany({
     where: { source: { not: "github" }, deletedAt: null },
     select: { slug: true },
+    take: 5000,
   });
+  if (manual.length === 5000) {
+    console.warn("[catalog] team-sync manual team reconciliation hit the 5000-row cap");
+  }
   const manualSlugs = new Set(manual.map((t) => t.slug));
 
   return {
@@ -766,7 +778,7 @@ async function reconcileRepoGrants(
       }
     }
     for (const e of existing) {
-      // Keep grants for teams whose repos didn't fetch cleanly; only prune confirmed removals.
+      // Keep grants for teams whose repos didn't fetch cleanly, only prune confirmed removals.
       if (uncertainTeamIds.has(e.teamId)) continue;
       if (!desired.has(`${e.entityId}:${e.teamId}`)) {
         try {

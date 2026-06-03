@@ -9,6 +9,7 @@ model Department {
   slug        String    @unique
   description String?
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
   teams       Team[]

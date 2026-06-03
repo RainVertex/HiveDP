@@ -3,7 +3,7 @@
 // "Platform Assistant"). Messages persist the full transcript including tool
 // calls. ChatActionPreview holds the validated, awaiting-confirmation payload
 // for two-phase write tools (prepare → submit). Submitting consumes a preview
-// idempotently; superseded/expired previews fail cleanly.
+// idempotently. Superseded/expired previews fail cleanly.
 
 model ChatConversation {
   id        String              @id @default(cuid())
@@ -16,7 +16,6 @@ model ChatConversation {
   agent     Agent               @relation(fields: [agentId], references: [id], onDelete: Restrict)
   messages  ChatMessage[]
   previews  ChatActionPreview[]
-  agentRuns AgentRun[]
 
   @@index([userId, updatedAt])
   @@index([agentId])

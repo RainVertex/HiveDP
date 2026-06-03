@@ -6,27 +6,32 @@ enum AgentStatus {
   cancelled
 }
 
+enum AgentApprovalMode {
+  ask
+  auto
+}
+
 // Configured upstream the platform can reach (Ollama, OpenAI, Anthropic via
 // its OpenAI-compatible endpoint, vLLM, etc.). Every provider is talked to
 // via the OpenAI SDK.
 model LlmProvider {
-  id           String     @id @default(cuid())
-  slug         String     @unique
+  id           String              @id @default(cuid())
+  slug         String              @unique
   displayName  String
   baseUrl      String
   apiKeyEnvVar String?
   kind         String
-  enabled      Boolean    @default(true)
+  enabled      Boolean             @default(true)
   models       LlmModel[]
   credential   ProviderCredential?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 }
 
 // Admin-entered provider API key, encrypted at rest (AES-256-GCM with the
 // APP_SECRET_MASTER_KEY env key). One row per provider. resolveProviderApiKey
 // prefers this over the provider's apiKeyEnvVar. The plaintext key is never
-// returned to clients; only its presence (hasStoredKey) is exposed.
+// returned to clients, only its presence (hasStoredKey) is exposed.
 model ProviderCredential {
   id              String      @id @default(cuid())
   providerId      String      @unique
@@ -63,10 +68,10 @@ model LlmModel {
 // A task-specific agent configured through the UI. Lean by design: an agent
 // is its model + system prompt + tool set + a simple approval mode. Agents
 // act on behalf of the invoking user (per-user isolation flows through
-// ToolContext.userId in the executor); they have no standalone identity,
+// ToolContext.userId in the executor), they have no standalone identity,
 // team ownership, or encrypted secret of their own.
 model Agent {
-  id           String      @id @default(cuid())
+  id           String            @id @default(cuid())
   name         String
   description  String?
   avatarUrl    String?
@@ -77,21 +82,21 @@ model Agent {
   kind         String
   modelId      String
   instructions String
-  toolIds      Json        @default("[]")
+  toolIds      Json              @default("[]")
   // "auto": write tools run without confirmation (autonomous agents like the
-  // Catalog Enricher). "ask": write tools require confirmation; in chat this
+  // Catalog Enricher). "ask": write tools require confirmation, in chat this
   // is the prepare/submit prose flow, in autonomous runs write tools are
   // blocked.
-  approvalMode String      @default("ask")
-  maxToolCalls Int         @default(10)
+  approvalMode AgentApprovalMode @default(ask)
+  maxToolCalls Int               @default(10)
   tokenBudget  Int?
   // Sampling temperature override. Null means use the per-model recommended
   // default (samplingDefaults in the openai_compat adapter, 0.2 elsewhere).
   temperature  Float?
   // Backing User (userKind='agent') the agent acts as when it does work (e.g. assigned to a task). Runs execute under this identity (ToolContext.userId), so the agent gets its own team/project grants.
-  userId       String?     @unique
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  userId       String?           @unique
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   runs              AgentRun[]
   llmModel          LlmModel           @relation(fields: [modelId], references: [id])
@@ -102,13 +107,16 @@ model Agent {
 }
 
 model AgentRun {
-  id             String      @id @default(cuid())
+  id             String            @id @default(cuid())
   agentId        String
   // The user who invoked this run (chat turn, /test, manual /run).
   userId         String?
   // How the run was started: "chat" | "task" | "test" | "manual" | "cron". Null for legacy rows.
   trigger        String?
-  // Context the run acted on, when applicable, so a bot's history links back to the task/conversation.
+  // Context the run acted on, when applicable, so a bot's history links back to
+  // the task/conversation. conversationId is an informational link only (no FK):
+  // the data model stays acyclic (Agent -> AgentRun -> Chat would otherwise close
+  // a cycle against Chat -> Agent). Resolve titles via a separate Chat read.
   taskId         String?
   conversationId String?
   status         AgentStatus
@@ -117,16 +125,15 @@ model AgentRun {
   error          String?
   tokensInput    Int?
   tokensOutput   Int?
-  costUsd        Decimal?    @db.Decimal(10, 6)
-  containsWrites Boolean     @default(false)
-  startedAt      DateTime    @default(now())
+  costUsd        Decimal?          @db.Decimal(10, 6)
+  containsWrites Boolean           @default(false)
+  startedAt      DateTime          @default(now())
   finishedAt     DateTime?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
   agent          Agent             @relation(fields: [agentId], references: [id], onDelete: Cascade)
   user           User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   task           Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  conversation   ChatConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
   @@index([agentId])
   @@index([status])

@@ -63,7 +63,7 @@ model CatalogEntity {
   // the App installation that discovered it (used for cascade-stale on
   // uninstall). githubRepoId is GitHub's stable numeric repo id, preferred
   // over (name, kind) for upserts when present so renames don't fork the row.
-  // needsOnboarding flips false the moment a valid catalog-info.yaml is seen;
+  // needsOnboarding flips false the moment a valid catalog-info.yaml is seen,
   // unowned flips false when the agent (or a manual edit) attaches owners.
   needsOnboarding     Boolean                    @default(false)
   unowned             Boolean                    @default(false)
@@ -135,9 +135,8 @@ model CatalogEntityTeamGrant {
   @@index([teamId])
 }
 
-
 // Work queue for the Catalog Agent. Bulk sync enqueues `resolve_ownership`
-// for any entity that lacks owners; on success the worker chains
+// for any entity that lacks owners, on success the worker chains
 // `generate_yaml` → `open_pr`. Each task carries a small JSON payload
 // (e.g. { prUrl, branchName, generatedYaml }). Status transitions:
 //   pending → running → done | failed | skipped

@@ -11,7 +11,7 @@ enum UserTaskStatus {
 
 // Class-table-inheritance marker. A 'human' row is a real person logged in
 // via SSO. An 'agent' row is a synthetic identity created when an Agent is
-// configured; every Agent has exactly one backing User with userKind='agent'.
+// configured, every Agent has exactly one backing User with userKind='agent'.
 // Auth, role checks, team membership, audit, and grants treat both kinds
 // uniformly — the agent runs through the same middleware a human does.
 enum UserKind {
@@ -55,6 +55,7 @@ model User {
   maintainerRequestsReviewed      MaintainerRequest[]     @relation("MaintainerRequestReviewer")
   chatConversations               ChatConversation[]
   agentRuns                       AgentRun[]
+  jobRuns                         JobRun[]
   backedAgent                     Agent?                  @relation("AgentBackingUser")
   systemSettingsUpdated           SystemSetting[]         @relation("SystemSettingUpdatedBy")
   providerCredentialsUpdated      ProviderCredential[]    @relation("ProviderCredentialUpdatedBy")
@@ -71,7 +72,7 @@ model User {
 }
 
 // Persistent record of which GitHub org logins the user was an active member
-// of at last sign-in. Written by the auth callback for non-admin users; used
+// of at last sign-in. Written by the auth callback for non-admin users, used
 // by the integration disconnect flow to identify users that must be disabled
 // when their only org is removed.
 model UserOrgMembership {

@@ -49,4 +49,5 @@ model ScorecardResult {
   @@unique([entityId, ruleId])
   @@index([scorecardId, entityId])
   @@index([entityId])
+  @@index([ruleId])
 }

@@ -1,4 +1,5 @@
-import { prisma } from "@internal/db";
+// eslint-disable-next-line no-restricted-imports -- agent model is not in projectsDb, so the single agent read below needs the raw prisma singleton.
+import { prisma, projectsDb } from "@internal/db";
 import { runAgent } from "@feature/agents-backend";
 import { notifyTaskCommented } from "./notifications";
 
@@ -17,13 +18,14 @@ async function runAgentForTask({
   agentUserId: string;
   taskId: string;
 }): Promise<void> {
+  // The agent model is chat/agents-owned, not in projectsDb's allow-list, so this lone read stays on the raw prisma singleton.
   const agent = await prisma.agent.findUnique({
     where: { userId: agentUserId },
     select: { id: true },
   });
   if (!agent) return;
 
-  const task = await prisma.task.findUnique({
+  const task = await projectsDb.task.findUnique({
     where: { id: taskId },
     include: {
       project: { select: { id: true, title: true, creatorUserId: true } },
@@ -32,7 +34,7 @@ async function runAgentForTask({
   });
   if (!task) return;
 
-  const memberships = await prisma.teamMembership.findMany({
+  const memberships = await projectsDb.teamMembership.findMany({
     where: { userId: agentUserId, team: { deletedAt: null } },
     select: { teamId: true },
   });
@@ -55,7 +57,7 @@ async function runAgentForTask({
   const body = result.finalText?.trim();
   if (!body) return;
 
-  const created = await prisma.taskComment.create({
+  const created = await projectsDb.taskComment.create({
     data: { taskId: task.id, authorUserId: agentUserId, body },
     include: { author: true },
   });

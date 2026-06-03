@@ -85,6 +85,38 @@ const sharedPackageBoundaries = {
   },
 };
 
+// projects-backend is migrated to the scoped projectsDb facade, so forbid the raw prisma singleton here while keeping the feature-backend boundary patterns.
+const projectsBackendScopedDb = {
+  files: ["features/projects/backend/**/*.{ts,tsx}"],
+  rules: {
+    "no-restricted-imports": [
+      "error",
+      {
+        paths: [
+          {
+            name: "@internal/db",
+            importNames: ["prisma"],
+            message:
+              "projects-backend is migrated to projectsDb. Import projectsDb (or coreDb) from @internal/db, not the raw prisma singleton.",
+          },
+        ],
+        patterns: [
+          {
+            group: ["@internal/app", "@internal/app/*", "@internal/backend", "@internal/backend/*"],
+            message:
+              "Feature backends cannot import from apps/*. The api shell aggregates feature routers, not the other way around.",
+          },
+          {
+            group: ["@feature/*-frontend", "@feature/*-frontend/*"],
+            message:
+              "Feature backends cannot import feature frontends — even the barrel. Wire types belong in @internal/shared-types.",
+          },
+        ],
+      },
+    ],
+  },
+};
+
 export default [
   {
     ignores: [
@@ -141,5 +173,6 @@ export default [
   featureFrontendBoundaries,
   featureBackendBoundaries,
   sharedPackageBoundaries,
+  projectsBackendScopedDb,
   prettier,
 ];

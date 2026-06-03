@@ -25,3 +25,10 @@ export interface UserSummary {
   email: string;
   avatarUrl?: string | null;
 }
+
+// Minimal user reference shared by project/task surfaces (id + username + name).
+export interface UserSummaryDto {
+  id: string;
+  username: string;
+  name: string;
+}

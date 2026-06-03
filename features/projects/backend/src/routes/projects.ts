@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { prisma } from "@internal/db";
+import { projectsDb } from "@internal/db";
 import {
   addShareSchema,
   createProjectSchema,
@@ -18,7 +18,7 @@ projectsRoutes.get("/projects", async (req, res, next) => {
 
     // Platform admins see every project at ADMIN, mirroring resolveAccess.
     if (req.user!.role === "admin") {
-      const projects = await prisma.project.findMany({
+      const projects = await projectsDb.project.findMany({
         orderBy: { title: "asc" },
         include: { creator: true, _count: { select: { tasks: true } } },
       });
@@ -26,14 +26,14 @@ projectsRoutes.get("/projects", async (req, res, next) => {
       return;
     }
 
-    const memberships = await prisma.projectMember.findMany({
+    const memberships = await projectsDb.projectMember.findMany({
       where: { userId },
       select: { projectId: true, role: true },
     });
     const memberMap = new Map(memberships.map((m) => [m.projectId, m.role]));
     const projectIds = Array.from(memberMap.keys());
 
-    const projects = await prisma.project.findMany({
+    const projects = await projectsDb.project.findMany({
       where: { id: { in: projectIds } },
       orderBy: { title: "asc" },
       include: { creator: true, _count: { select: { tasks: true } } },
@@ -54,7 +54,7 @@ projectsRoutes.post("/projects", async (req, res, next) => {
     const userId = req.user!.id;
     const input = createProjectSchema.parse(req.body);
 
-    const project = await prisma.$transaction(async (tx) => {
+    const project = await projectsDb.$transaction(async (tx) => {
       const created = await tx.project.create({
         data: {
           title: input.title,
@@ -85,7 +85,7 @@ projectsRoutes.get("/projects/:id", async (req, res, next) => {
       res.status(404).json({ error: "Project not found" });
       return;
     }
-    const project = await prisma.project.findUnique({
+    const project = await projectsDb.project.findUnique({
       where: { id: req.params.id },
       include: { creator: true, _count: { select: { tasks: true } } },
     });
@@ -112,7 +112,7 @@ projectsRoutes.patch("/projects/:id", async (req, res, next) => {
       return;
     }
     const input = updateProjectSchema.parse(req.body);
-    const updated = await prisma.project.update({
+    const updated = await projectsDb.project.update({
       where: { id: req.params.id },
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
@@ -140,7 +140,7 @@ projectsRoutes.delete("/projects/:id", async (req, res, next) => {
       res.status(403).json({ error: "Admin permission required" });
       return;
     }
-    await prisma.project.delete({ where: { id: req.params.id } });
+    await projectsDb.project.delete({ where: { id: req.params.id } });
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -155,9 +155,9 @@ projectsRoutes.get("/projects/:id/shares", async (req, res, next) => {
       res.status(404).json({ error: "Project not found" });
       return;
     }
-    const members = await prisma.projectMember.findMany({
+    const members = await projectsDb.projectMember.findMany({
       where: { projectId: req.params.id },
-      include: { user: true },
+      include: { user: { select: { id: true, githubLogin: true, displayName: true } } },
       orderBy: { addedAt: "asc" },
     });
     res.json(members.map(shareDto));
@@ -179,7 +179,7 @@ projectsRoutes.post("/projects/:id/shares", async (req, res, next) => {
       return;
     }
     const input = addShareSchema.parse(req.body);
-    const target = await prisma.user.findUnique({
+    const target = await projectsDb.user.findUnique({
       where: { githubLogin: input.username },
     });
     if (!target) {
@@ -191,7 +191,7 @@ projectsRoutes.post("/projects/:id/shares", async (req, res, next) => {
       return;
     }
     const role = numericToRole(input.right ?? 1);
-    const upserted = await prisma.projectMember.upsert({
+    const upserted = await projectsDb.projectMember.upsert({
       where: { projectId_userId: { projectId: req.params.id, userId: target.id } },
       create: {
         projectId: req.params.id,
@@ -200,7 +200,7 @@ projectsRoutes.post("/projects/:id/shares", async (req, res, next) => {
         addedByUserId: userId,
       },
       update: { role },
-      include: { user: true },
+      include: { user: { select: { id: true, githubLogin: true, displayName: true } } },
     });
     res.status(201).json(shareDto(upserted));
   } catch (err) {
@@ -221,17 +221,17 @@ projectsRoutes.patch("/projects/:id/shares/:username", async (req, res, next) =>
       return;
     }
     const input = updateShareSchema.parse(req.body);
-    const target = await prisma.user.findUnique({
+    const target = await projectsDb.user.findUnique({
       where: { githubLogin: req.params.username },
     });
     if (!target) {
       res.status(404).json({ error: "User not found" });
       return;
     }
-    const updated = await prisma.projectMember.update({
+    const updated = await projectsDb.projectMember.update({
       where: { projectId_userId: { projectId: req.params.id, userId: target.id } },
       data: { role: numericToRole(input.right) },
-      include: { user: true },
+      include: { user: { select: { id: true, githubLogin: true, displayName: true } } },
     });
     res.json(shareDto(updated));
   } catch (err) {
@@ -251,14 +251,14 @@ projectsRoutes.delete("/projects/:id/shares/:username", async (req, res, next) =
       res.status(403).json({ error: "Admin permission required" });
       return;
     }
-    const target = await prisma.user.findUnique({
+    const target = await projectsDb.user.findUnique({
       where: { githubLogin: req.params.username },
     });
     if (!target) {
       res.status(404).json({ error: "User not found" });
       return;
     }
-    await prisma.projectMember.deleteMany({
+    await projectsDb.projectMember.deleteMany({
       where: { projectId: req.params.id, userId: target.id },
     });
     res.status(204).end();

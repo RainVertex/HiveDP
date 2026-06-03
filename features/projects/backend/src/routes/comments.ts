@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { prisma } from "@internal/db";
+import { projectsDb } from "@internal/db";
 import { createCommentSchema } from "../zod";
 import { meetsLevel, resolveAccess } from "../services/permissions";
 import { commentDto } from "../services/dto";
@@ -10,7 +10,7 @@ export const commentsRoutes: Router = Router();
 commentsRoutes.get("/tasks/:id/comments", async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const task = await prisma.task.findUnique({
+    const task = await projectsDb.task.findUnique({
       where: { id: req.params.id },
       select: { id: true, projectId: true },
     });
@@ -23,7 +23,7 @@ commentsRoutes.get("/tasks/:id/comments", async (req, res, next) => {
       res.status(404).json({ error: "Task not found" });
       return;
     }
-    const comments = await prisma.taskComment.findMany({
+    const comments = await projectsDb.taskComment.findMany({
       where: { taskId: req.params.id },
       orderBy: { createdAt: "asc" },
       include: { author: true },
@@ -37,7 +37,7 @@ commentsRoutes.get("/tasks/:id/comments", async (req, res, next) => {
 commentsRoutes.post("/tasks/:id/comments", async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const task = await prisma.task.findUnique({
+    const task = await projectsDb.task.findUnique({
       where: { id: req.params.id },
       include: {
         project: { select: { id: true, title: true, creatorUserId: true } },
@@ -58,7 +58,7 @@ commentsRoutes.post("/tasks/:id/comments", async (req, res, next) => {
       return;
     }
     const input = createCommentSchema.parse(req.body);
-    const created = await prisma.taskComment.create({
+    const created = await projectsDb.taskComment.create({
       data: {
         taskId: task.id,
         authorUserId: userId,

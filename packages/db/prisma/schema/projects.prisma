@@ -38,6 +38,7 @@ model ProjectMember {
 
   @@id([projectId, userId])
   @@index([userId, role])
+  @@index([addedByUserId])
 }
 
 model Bucket {
@@ -98,6 +99,8 @@ model Task {
   @@index([projectId, done])
   @@index([projectId, bucketId, position])
   @@index([dueDate])
+  @@index([parentTaskId])
+  @@index([createdByUserId])
 }
 
 model TaskAssignee {
@@ -111,6 +114,7 @@ model TaskAssignee {
 
   @@id([taskId, userId])
   @@index([userId])
+  @@index([assignedByUserId])
 }
 
 model TaskLabel {
@@ -135,4 +139,5 @@ model TaskComment {
   author       User     @relation("TaskCommentAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
 
   @@index([taskId, createdAt])
+  @@index([authorUserId])
 }

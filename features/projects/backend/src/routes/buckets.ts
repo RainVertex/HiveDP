@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { prisma } from "@internal/db";
+import { projectsDb } from "@internal/db";
 import { createBucketSchema, updateBucketSchema } from "../zod";
 import { meetsLevel, resolveAccess } from "../services/permissions";
 import { bucketDto } from "../services/dto";
@@ -14,7 +14,7 @@ bucketsRoutes.get("/projects/:id/buckets", async (req, res, next) => {
       res.status(404).json({ error: "Project not found" });
       return;
     }
-    const buckets = await prisma.bucket.findMany({
+    const buckets = await projectsDb.bucket.findMany({
       where: { projectId: req.params.id },
       orderBy: { position: "asc" },
     });
@@ -39,7 +39,7 @@ bucketsRoutes.post("/projects/:id/buckets", async (req, res, next) => {
     const input = createBucketSchema.parse(req.body);
 
     const position = input.position ?? (await nextPosition(req.params.id));
-    const created = await prisma.bucket.create({
+    const created = await projectsDb.bucket.create({
       data: {
         projectId: req.params.id,
         title: input.title,
@@ -56,7 +56,7 @@ bucketsRoutes.post("/projects/:id/buckets", async (req, res, next) => {
 bucketsRoutes.patch("/buckets/:id", async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const bucket = await prisma.bucket.findUnique({
+    const bucket = await projectsDb.bucket.findUnique({
       where: { id: req.params.id },
       select: { id: true, projectId: true },
     });
@@ -74,7 +74,7 @@ bucketsRoutes.patch("/buckets/:id", async (req, res, next) => {
       return;
     }
     const input = updateBucketSchema.parse(req.body);
-    const updated = await prisma.bucket.update({
+    const updated = await projectsDb.bucket.update({
       where: { id: req.params.id },
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
@@ -91,7 +91,7 @@ bucketsRoutes.patch("/buckets/:id", async (req, res, next) => {
 bucketsRoutes.delete("/buckets/:id", async (req, res, next) => {
   try {
     const userId = req.user!.id;
-    const bucket = await prisma.bucket.findUnique({
+    const bucket = await projectsDb.bucket.findUnique({
       where: { id: req.params.id },
       select: { id: true, projectId: true },
     });
@@ -108,7 +108,7 @@ bucketsRoutes.delete("/buckets/:id", async (req, res, next) => {
       res.status(403).json({ error: "Write permission required" });
       return;
     }
-    await prisma.bucket.delete({ where: { id: req.params.id } });
+    await projectsDb.bucket.delete({ where: { id: req.params.id } });
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -116,7 +116,7 @@ bucketsRoutes.delete("/buckets/:id", async (req, res, next) => {
 });
 
 async function nextPosition(projectId: string): Promise<number> {
-  const last = await prisma.bucket.findFirst({
+  const last = await projectsDb.bucket.findFirst({
     where: { projectId },
     orderBy: { position: "desc" },
     select: { position: true },

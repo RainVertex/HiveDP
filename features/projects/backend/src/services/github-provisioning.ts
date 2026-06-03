@@ -1,4 +1,4 @@
-import { prisma, ProjectRole } from "@internal/db";
+import { projectsDb, ProjectRole } from "@internal/db";
 import { createDefaultBuckets } from "./seed";
 
 export interface ProvisionResult {
@@ -20,7 +20,7 @@ function permissionToRole(permission: string): ProjectRole {
 }
 
 async function getInstallerUserId(installationId: number): Promise<string | null> {
-  const integration = await prisma.integration.findFirst({
+  const integration = await projectsDb.integration.findFirst({
     where: {
       kind: "github",
       config: { path: ["installationId"], equals: installationId },
@@ -37,7 +37,7 @@ export async function reconcileMembers(
   entityId: string,
   installationId: number,
 ): Promise<void> {
-  const owners = await prisma.catalogEntityOwner.findMany({
+  const owners = await projectsDb.catalogEntityOwner.findMany({
     where: { entityId },
     select: {
       team: {
@@ -62,7 +62,7 @@ export async function reconcileMembers(
   }
 
   // GitHub team-repo grants: the granted repo permission drives access for the whole team.
-  const grants = await prisma.catalogEntityTeamGrant.findMany({
+  const grants = await projectsDb.catalogEntityTeamGrant.findMany({
     where: { entityId },
     select: {
       permission: true,
@@ -79,13 +79,13 @@ export async function reconcileMembers(
     if (installer) target.set(installer, "ADMIN");
   }
 
-  const existing = await prisma.projectMember.findMany({
+  const existing = await projectsDb.projectMember.findMany({
     where: { projectId },
     select: { userId: true, role: true },
   });
   const existingMap = new Map(existing.map((e) => [e.userId, e.role]));
 
-  await prisma.$transaction(async (tx) => {
+  await projectsDb.$transaction(async (tx) => {
     for (const [userId, role] of target) {
       if (existingMap.get(userId) !== role) {
         await tx.projectMember.upsert({
@@ -114,7 +114,7 @@ export async function provisionProjectForEntity(
   entityId: string,
   installationId: number,
 ): Promise<ProvisionForEntityResult | null> {
-  const entity = await prisma.catalogEntity.findUnique({
+  const entity = await projectsDb.catalogEntity.findUnique({
     where: { id: entityId },
     select: {
       id: true,
@@ -135,7 +135,7 @@ export async function provisionProjectForEntity(
 
   if (entity.project) {
     projectId = entity.project.id;
-    await prisma.project.update({
+    await projectsDb.project.update({
       where: { id: projectId },
       data: {
         title: entity.name,
@@ -145,7 +145,7 @@ export async function provisionProjectForEntity(
       },
     });
   } else {
-    projectId = await prisma.$transaction(async (tx) => {
+    projectId = await projectsDb.$transaction(async (tx) => {
       const p = await tx.project.create({
         data: {
           title: entity.name,
@@ -170,7 +170,7 @@ export async function provisionProjectsForInstallation(
   installationId: number,
   _source: "install" | "bulk" | "manual" | "boot" | "webhook",
 ): Promise<ProvisionResult> {
-  const entities = await prisma.catalogEntity.findMany({
+  const entities = await projectsDb.catalogEntity.findMany({
     where: { installationId },
     select: {
       id: true,
@@ -186,7 +186,7 @@ export async function provisionProjectsForInstallation(
   for (const e of entities) {
     if (e.staleSince) {
       if (e.project && !e.project.isArchived) {
-        await prisma.project.update({
+        await projectsDb.project.update({
           where: { id: e.project.id },
           data: { isArchived: true },
         });
@@ -206,7 +206,7 @@ export async function provisionProjectsForInstallation(
 export async function reconcileProjectMembersForInstallation(
   installationId: number,
 ): Promise<{ affectedProjects: number }> {
-  const projects = await prisma.project.findMany({
+  const projects = await projectsDb.project.findMany({
     where: { installationId, catalogEntityId: { not: null } },
     select: { id: true, catalogEntityId: true },
   });
@@ -218,24 +218,24 @@ export async function reconcileProjectMembersForInstallation(
 }
 
 export async function archiveProjectByGithubRepoId(githubRepoId: number): Promise<void> {
-  const entity = await prisma.catalogEntity.findUnique({
+  const entity = await projectsDb.catalogEntity.findUnique({
     where: { githubRepoId },
     select: { project: { select: { id: true } } },
   });
   if (!entity?.project) return;
-  await prisma.project.update({
+  await projectsDb.project.update({
     where: { id: entity.project.id },
     data: { isArchived: true },
   });
 }
 
 export async function unarchiveProjectByGithubRepoId(githubRepoId: number): Promise<void> {
-  const entity = await prisma.catalogEntity.findUnique({
+  const entity = await projectsDb.catalogEntity.findUnique({
     where: { githubRepoId },
     select: { project: { select: { id: true } } },
   });
   if (!entity?.project) return;
-  await prisma.project.update({
+  await projectsDb.project.update({
     where: { id: entity.project.id },
     data: { isArchived: false },
   });

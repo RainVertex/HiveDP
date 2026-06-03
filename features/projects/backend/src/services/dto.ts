@@ -1,11 +1,8 @@
 import type { Project, ProjectMember, Bucket, Task, Label, TaskComment, User } from "@internal/db";
+import type { UserSummaryDto } from "@internal/shared-types";
 import { roleToNumeric } from "./permissions";
 
-export interface UserSummaryDto {
-  id: string;
-  username: string;
-  name: string;
-}
+export type { UserSummaryDto };
 
 export function userSummary(
   user: Pick<User, "id" | "githubLogin" | "displayName"> | null | undefined,

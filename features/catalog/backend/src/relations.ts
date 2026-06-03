@@ -107,10 +107,16 @@ export async function getRelationsFor(entityId: string): Promise<CatalogRelation
   const entity = await prisma.catalogEntity.findUnique({ where: { id: entityId } });
   if (!entity) return { outgoing: [], incoming: [] };
 
-  // One findMany + Map beats per-ref lookups; incoming-edge scanning needs every yamlSpec anyway (<500 entities by design).
+  // One findMany + Map beats per-ref lookups, incoming-edge scanning needs every yamlSpec anyway (<500 entities by design).
   const all = await prisma.catalogEntity.findMany({
     select: { id: true, name: true, kind: true, lifecycle: true, yamlSpec: true },
+    take: 2000,
   });
+  if (all.length === 2000) {
+    console.warn(
+      "[catalog] relations index hit the 2000-entity cap; some relations may be missing",
+    );
+  }
   const byKey = new Map<string, (typeof all)[number]>();
   const byName = new Map<string, Array<(typeof all)[number]>>();
   for (const e of all) {
@@ -127,7 +133,7 @@ export async function getRelationsFor(entityId: string): Promise<CatalogRelation
       if (hit) return { id: hit.id, name: hit.name, kind: hit.kind, lifecycle: hit.lifecycle };
       return null;
     }
-    // No kind is ambiguous; resolve only when exactly one entity has this name.
+    // No kind is ambiguous, so resolve only when exactly one entity has this name.
     const candidates = byName.get(name) ?? [];
     if (candidates.length === 1) {
       const c = candidates[0]!;

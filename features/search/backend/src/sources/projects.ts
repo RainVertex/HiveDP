@@ -3,6 +3,7 @@ import type { SearchHit } from "@internal/shared-types";
 import type { SearchSource } from "./types";
 import { memberProjectIds } from "./scope";
 
+// Still substring (Prisma contains) matching, pending conversion to pg_trgm.
 export const projects: SearchSource = async (query, ctx, limit) => {
   const projectIds = await memberProjectIds(ctx.userId);
   if (projectIds.length === 0) return [];

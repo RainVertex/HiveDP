@@ -1,4 +1,4 @@
-import { prisma } from "@internal/db";
+import { projectsDb } from "@internal/db";
 import { notify } from "@feature/notifications-backend";
 
 export interface TaskAssignedArgs {
@@ -10,7 +10,7 @@ export interface TaskAssignedArgs {
 }
 
 export async function notifyTaskAssigned(args: TaskAssignedArgs): Promise<void> {
-  await prisma.$transaction((tx) =>
+  await projectsDb.$transaction((tx) =>
     notify(tx, {
       recipientUserId: args.recipientUserId,
       kind: "projects.task.assigned",
@@ -39,7 +39,7 @@ export async function notifyTaskCommented(args: TaskCommentedArgs): Promise<void
   const recipients = args.recipientUserIds.filter((id) => id !== args.authorUserId);
   if (recipients.length === 0) return;
 
-  await prisma.$transaction(async (tx) => {
+  await projectsDb.$transaction(async (tx) => {
     for (const recipientUserId of recipients) {
       await notify(tx, {
         recipientUserId,

@@ -2,7 +2,8 @@ import { prisma } from "@internal/db";
 import type { SearchHit } from "@internal/shared-types";
 import type { SearchSource } from "./types";
 
-// Scoped to the user's own conversations; matches the title or any message body within them.
+// Scoped to the user's own conversations, matches the title or any message body within them.
+// Still substring (Prisma contains) matching, pending conversion to pg_trgm.
 export const chat: SearchSource = async (query, ctx, limit) => {
   const rows = await prisma.chatConversation.findMany({
     where: {
