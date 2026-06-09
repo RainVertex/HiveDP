@@ -20,6 +20,7 @@
     "@feature/teams-backend": "0.1.0",
     "@feature/webhooks-backend": "0.1.0",
     "@internal/db": "0.1.0",
+    "@internal/llm-core": "0.1.0",
     "@internal/shared-types": "0.1.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -37,11 +38,13 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
+    "esbuild": "^0.28.0",
     "tsx": "^4.21.0"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "node build.mjs",
+    "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

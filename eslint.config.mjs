@@ -5,10 +5,6 @@ import reactHooks from "eslint-plugin-react-hooks";
 import prettier from "eslint-config-prettier";
 import globals from "globals";
 
-// Architectural boundary rules. Encodes the conventions documented in CLAUDE.md
-// as machine-enforced lint failures. Implemented with no-restricted-imports
-// (zero extra deps, no resolver setup) rather than eslint-plugin-boundaries
-// the patterns we need are simple workspace-package matches.
 const featureFrontendBoundaries = {
   files: ["features/*/frontend/**/*.{ts,tsx}"],
   rules: {
@@ -85,7 +81,6 @@ const sharedPackageBoundaries = {
   },
 };
 
-// projects-backend is migrated to the scoped projectsDb facade, so forbid the raw prisma singleton here while keeping the feature-backend boundary patterns.
 const projectsBackendScopedDb = {
   files: ["features/projects/backend/**/*.{ts,tsx}"],
   rules: {

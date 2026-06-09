@@ -92,3 +92,6 @@ console.log(`  1. yarn install                            # link the new workspa
 console.log(`  2. Add the feature to apps/api dependencies and wire its router in createServer.ts`);
 console.log(`  3. Add the feature to apps/web dependencies, add a route in src/AppRoutes.tsx`);
 console.log(`  4. Fill in features/${name}/AGENTS.md`);
+console.log(
+  `  5. yarn arch:check                          # verify boundaries, no cycles, declared deps`,
+);
