@@ -17,3 +17,4 @@ export * from "./devdocs";
 export * from "./scaffolder";
 export * from "./chat";
 export * from "./pipelines";
+export * from "./projects";

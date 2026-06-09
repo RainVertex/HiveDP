@@ -1,4 +1,4 @@
-import { parseGithubUrl } from "@feature/scaffolder-backend";
+import { parseGithubUrl } from "@feature/scaffolder-backend/contract";
 import { getEntityRepoFields } from "./queries";
 
 // Resolves an entity to its GitHub repo coordinates and installation, or a structured error the model/worker can act on.

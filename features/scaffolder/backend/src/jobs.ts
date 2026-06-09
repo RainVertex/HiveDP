@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { prisma } from "@internal/db";
-import { markStaleEntities } from "@feature/catalog-backend";
+import { markStaleEntities } from "@feature/catalog-backend/contract";
 import { reconcileTemplateHashSnapshots, runDriftSweep } from "./services/drift";
 import { discoverAndPersist, parseGithubUrl } from "./services/catalog-discovery";
 

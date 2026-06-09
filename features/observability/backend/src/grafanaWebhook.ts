@@ -5,7 +5,7 @@ import express from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { timingSafeEqual } from "node:crypto";
 import { decryptSecret, prisma, Prisma } from "@internal/db";
-import { notify } from "@feature/notifications-backend";
+import { notify } from "@feature/notifications-backend/contract";
 
 const ALERT_MAX_AGE_MS = 600_000;
 const DEFAULT_ALERT_REFIRE_SUPPRESSION_MS = 3_600_000;

@@ -2,7 +2,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Prisma, prisma } from "@internal/db";
-import { notify } from "@feature/notifications-backend";
+import { notify } from "@feature/notifications-backend/contract";
 import {
   TEAM_DETAIL_INCLUDE,
   audit,

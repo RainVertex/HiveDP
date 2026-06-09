@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@internal/db";
-import { registerCatalogEntity } from "@feature/catalog-backend";
+import { registerCatalogEntity } from "@feature/catalog-backend/contract";
 import type { Action, ReadCtx, WriteCtx } from "@internal/scaffolder-core";
 
 const catalogRegisterInput = z.object({

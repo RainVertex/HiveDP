@@ -1,4 +1,4 @@
-import { getDevDocsSearchHits } from "@feature/catalog-backend";
+import { getDevDocsSearchHits } from "@feature/catalog-backend/contract";
 import type { SearchSource } from "./types";
 import { userOrgLogins } from "./scope";
 

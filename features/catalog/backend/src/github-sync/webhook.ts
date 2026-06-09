@@ -11,7 +11,7 @@ import {
   recordUninstallation,
   revokeStrandedUserSessions,
   verifyGitHubSignature,
-} from "@feature/integrations-backend";
+} from "@feature/integrations-backend/contract";
 import {
   syncInstallation,
   syncRepoByName,
@@ -24,7 +24,7 @@ import {
   provisionProjectForEntity,
   archiveProjectByGithubRepoId,
   reconcileProjectMembersForInstallation,
-} from "@feature/projects-backend";
+} from "@feature/projects-backend/contract";
 import type { Octokit as OctokitClient } from "octokit";
 
 async function provisionForRepoId(repoId: number, installationId: number): Promise<void> {

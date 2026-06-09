@@ -12,7 +12,7 @@ import {
 import { computeDoraSnapshotForEntity } from "./dora/rollup";
 import { devdocsEntityRouter } from "./devdocs/routes";
 import { pipelinesRouter } from "./pipelines/routes";
-import type { CatalogEntityLink } from "@internal/shared-types";
+import type { CatalogEntityLink, CatalogEntityWithOwners } from "@internal/shared-types";
 import type { User } from "@internal/db";
 
 async function isOwningTeamMember(user: User, ownerTeamIds: string[]): Promise<boolean> {
@@ -121,12 +121,29 @@ function shapeEntity(
   row: EntityWithOwners | null,
   canViewRestricted = true,
   liveInstallationIds: ReadonlySet<number> = EMPTY_SET,
-) {
+): CatalogEntityWithOwners | null {
   if (!row) return null;
-  const { owners, yamlSpec, autoApply, ...rest } = row;
+  const { owners, yamlSpec, autoApply, createdAt, updatedAt, lastSeenAt, staleSince, ...rest } =
+    row;
   const orphaned = rest.installationId != null && !liveInstallationIds.has(rest.installationId);
-  const base = { ...rest, ownerTeams: owners.map((o) => o.team), orphaned };
-  if (canViewRestricted) return { ...base, yamlSpec, autoApply };
+  const base: CatalogEntityWithOwners = {
+    ...rest,
+    createdAt: createdAt.toISOString(),
+    updatedAt: updatedAt.toISOString(),
+    lastSeenAt: lastSeenAt.toISOString(),
+    staleSince: staleSince ? staleSince.toISOString() : null,
+    orphaned,
+    ownerTeams: owners.map((o) => ({
+      ...o.team,
+      createdAt: o.team.createdAt.toISOString(),
+      updatedAt: o.team.updatedAt.toISOString(),
+    })),
+  };
+  // yamlSpec and autoApply are restricted: only included when the viewer is allowed to see them.
+  if (canViewRestricted) {
+    base.yamlSpec = yamlSpec;
+    base.autoApply = autoApply;
+  }
   return base;
 }
 

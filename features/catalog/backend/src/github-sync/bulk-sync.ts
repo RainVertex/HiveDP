@@ -1,11 +1,14 @@
 // Org-level repo sync from a GitHub App installation: discovers catalog-info.yaml, registers entities, enqueues onboarding for stubs.
 import { prisma } from "@internal/db";
-import { GitHubAppNotConfiguredError, octokitForInstallation } from "@feature/integrations-backend";
+import {
+  GitHubAppNotConfiguredError,
+  octokitForInstallation,
+} from "@feature/integrations-backend/contract";
 import type { Octokit as OctokitClient } from "octokit";
 import { CATALOG_INFO_FILE_NAMES, parseCatalogInfo } from "../discovery/parse";
 import { registerCatalogEntity, type RegisterCatalogEntityInput } from "../service";
 import { runReconciliation, type ReconciliationResult } from "./team-sync";
-import { provisionProjectsForInstallation } from "@feature/projects-backend";
+import { provisionProjectsForInstallation } from "@feature/projects-backend/contract";
 
 export interface SyncRepoResult {
   fullName: string;

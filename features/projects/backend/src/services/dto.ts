@@ -1,28 +1,30 @@
 import type { Project, ProjectMember, Bucket, Task, Label, TaskComment, User } from "@internal/db";
-import type { UserSummaryDto } from "@internal/shared-types";
+import type {
+  UserSummaryDto,
+  ProjectDto,
+  BucketDto,
+  LabelDto,
+  TaskDto,
+  TaskCommentDto,
+  ProjectShareDto,
+} from "@internal/shared-types";
 import { roleToNumeric } from "./permissions";
 
-export type { UserSummaryDto };
+export type {
+  UserSummaryDto,
+  ProjectDto,
+  BucketDto,
+  LabelDto,
+  TaskDto,
+  TaskCommentDto,
+  ProjectShareDto,
+};
 
 export function userSummary(
   user: Pick<User, "id" | "githubLogin" | "displayName"> | null | undefined,
 ): UserSummaryDto | null {
   if (!user) return null;
   return { id: user.id, username: user.githubLogin, name: user.displayName };
-}
-
-export interface ProjectDto {
-  id: string;
-  title: string;
-  description: string | null;
-  hexColor: string | null;
-  isArchived: boolean;
-  isAutoProvisioned: boolean;
-  createdAt: string;
-  updatedAt: string;
-  taskCount: number;
-  maxPermission: 0 | 1 | 2;
-  owner: UserSummaryDto | null;
 }
 
 export function projectDto(
@@ -44,14 +46,6 @@ export function projectDto(
   };
 }
 
-export interface BucketDto {
-  id: string;
-  projectId: string;
-  title: string;
-  position: number;
-  taskLimit: number | null;
-}
-
 export function bucketDto(bucket: Bucket): BucketDto {
   return {
     id: bucket.id,
@@ -62,13 +56,6 @@ export function bucketDto(bucket: Bucket): BucketDto {
   };
 }
 
-export interface LabelDto {
-  id: string;
-  projectId: string;
-  title: string;
-  hexColor: string | null;
-}
-
 export function labelDto(label: Label): LabelDto {
   return {
     id: label.id,
@@ -76,27 +63,6 @@ export function labelDto(label: Label): LabelDto {
     title: label.title,
     hexColor: label.hexColor,
   };
-}
-
-export interface TaskDto {
-  id: string;
-  projectId: string;
-  bucketId: string | null;
-  title: string;
-  description: string | null;
-  done: boolean;
-  priority: number;
-  dueDate: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  percentDone: number;
-  isFavorite: boolean;
-  position: number;
-  createdAt: string;
-  updatedAt: string;
-  assignees: UserSummaryDto[];
-  labels: LabelDto[];
-  projectTitle?: string;
 }
 
 type TaskWithRelations = Task & {
@@ -130,15 +96,6 @@ export function taskDto(task: TaskWithRelations): TaskDto {
   };
 }
 
-export interface TaskCommentDto {
-  id: string;
-  taskId: string;
-  body: string;
-  createdAt: string;
-  updatedAt: string;
-  author: UserSummaryDto | null;
-}
-
 export function commentDto(comment: TaskComment & { author?: User | null }): TaskCommentDto {
   return {
     id: comment.id,
@@ -148,13 +105,6 @@ export function commentDto(comment: TaskComment & { author?: User | null }): Tas
     updatedAt: comment.updatedAt.toISOString(),
     author: userSummary(comment.author ?? null),
   };
-}
-
-export interface ProjectShareDto {
-  id: string;
-  username: string;
-  name: string;
-  permission: 0 | 1 | 2;
 }
 
 export function shareDto(

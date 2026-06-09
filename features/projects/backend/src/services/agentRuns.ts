@@ -1,6 +1,6 @@
 // eslint-disable-next-line no-restricted-imports -- agent model is not in projectsDb, so the single agent read below needs the raw prisma singleton.
 import { prisma, projectsDb } from "@internal/db";
-import { runAgent } from "@feature/agents-backend";
+import { runAgent } from "@feature/agents-backend/contract";
 import { notifyTaskCommented } from "./notifications";
 
 // When an agent is assigned to a task it works on it under its own identity (its backing User), then posts the result back as a task comment. Fire-and-forget so the assignment request returns immediately.

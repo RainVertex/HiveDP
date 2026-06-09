@@ -1,10 +1,10 @@
 import { prisma } from "@internal/db";
 import { z } from "zod";
 import type { RegisteredTool, ToolContext } from "@internal/llm-core";
-import { createTeamRequest } from "@feature/teams-backend";
+import { createTeamRequest } from "@feature/teams-backend/contract";
 import type { ChatPolicyCheck } from "@internal/shared-types";
 import { createPreview, resolveForSubmit, markConsumed } from "../preview";
-import { requireUserId } from "@feature/agent-tools-backend";
+import { requireUserId } from "@feature/agent-tools-backend/contract";
 
 // Chat write tools wrapping createTeamRequest(); prepare/submit split lets the user confirm before any DB change.
 

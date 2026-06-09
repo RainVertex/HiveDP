@@ -7,7 +7,7 @@ import {
   parseCatalogInfo,
   registerCatalogEntity,
   type RegisterCatalogEntityInput,
-} from "@feature/catalog-backend";
+} from "@feature/catalog-backend/contract";
 
 // octokit v5 is ESM-only and the api backend is CJS, so defer the load to avoid breaking Node's CJS loader.
 async function loadOctokit(): Promise<typeof OctokitClient> {

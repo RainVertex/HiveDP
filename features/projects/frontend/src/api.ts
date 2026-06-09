@@ -1,4 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
+import type {
+  UserSummaryDto,
+  ProjectDto,
+  BucketDto,
+  LabelDto,
+  TaskDto,
+  TaskCommentDto,
+  ProjectShareDto,
+} from "@internal/shared-types";
 
 interface FetchState<T> {
   data: T | null;
@@ -35,81 +44,19 @@ function useFetch<T>(url: string | null) {
   return { ...state, refetch };
 }
 
-export interface UserSummary {
-  id: string;
-  username: string;
-  name: string;
-}
-
-export interface Project {
-  id: string;
-  title: string;
-  description: string | null;
-  hexColor: string | null;
-  isArchived: boolean;
-  isAutoProvisioned: boolean;
-  createdAt: string;
-  updatedAt: string;
-  taskCount?: number;
-  maxPermission?: number;
-  owner?: UserSummary | null;
-}
-
-export interface LabelDto {
-  id: string;
-  projectId: string;
-  title: string;
-  hexColor: string | null;
-}
-
-export interface Task {
-  id: string;
-  projectId: string;
-  bucketId: string | null;
-  title: string;
-  description: string | null;
-  done: boolean;
-  priority: number;
-  dueDate: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  percentDone: number;
-  isFavorite: boolean;
-  position: number;
-  createdAt: string;
-  updatedAt: string;
-  assignees: UserSummary[];
-  labels: LabelDto[];
-  projectTitle?: string;
-}
-
-export interface Bucket {
-  id: string;
-  projectId: string;
-  title: string;
-  position: number;
-  taskLimit: number | null;
-}
-
-export interface TaskComment {
-  id: string;
-  taskId: string;
-  body: string;
-  createdAt: string;
-  updatedAt: string;
-  author: UserSummary | null;
-}
+// Re-exported under the names this feature's components already use, sourced from the shared contract
+// so the frontend types cannot drift from the backend DTOs.
+export type UserSummary = UserSummaryDto;
+export type Project = ProjectDto;
+export type Bucket = BucketDto;
+export type Task = TaskDto;
+export type TaskComment = TaskCommentDto;
+export type ProjectShareUser = ProjectShareDto;
+export type { LabelDto };
 
 export interface TaskFilters {
   done?: boolean;
   priority?: number;
-}
-
-export interface ProjectShareUser {
-  id: string;
-  username: string;
-  name: string;
-  permission: number;
 }
 
 export interface CurrentProjectsUser {

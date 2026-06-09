@@ -1,5 +1,5 @@
-import { parseCatalogInfo } from "@feature/catalog-backend";
-import { openOrUpdateFilePr } from "@feature/integrations-backend";
+import { parseCatalogInfo } from "@feature/catalog-backend/contract";
+import { openOrUpdateFilePr } from "@feature/integrations-backend/contract";
 import type { RegisteredTool } from "@internal/llm-core";
 import { loadEntityRepo } from "./repo";
 

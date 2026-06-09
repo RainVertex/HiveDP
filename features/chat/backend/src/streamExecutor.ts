@@ -13,7 +13,7 @@ import {
   type ToolContext,
 } from "@internal/llm-core";
 import type { ChatSseEvent, ChatToolCallSummary, ChatPolicyCheck } from "@internal/shared-types";
-import { platformAssistantReadToolIds } from "@feature/agent-tools-backend";
+import { platformAssistantReadToolIds } from "@feature/agent-tools-backend/contract";
 import { chatWriteToolIds } from "./tools";
 import { ThinkTagSplitter } from "./thinkTagSplitter";
 

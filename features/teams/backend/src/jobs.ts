@@ -1,7 +1,7 @@
 // Scheduled team jobs: request/maintainer-request expiration, hard delete, GitHub reconciliation.
 import { prisma } from "@internal/db";
-import { notify } from "@feature/notifications-backend";
-import { expirePendingMemberships, runReconciliation } from "@feature/catalog-backend";
+import { notify } from "@feature/notifications-backend/contract";
+import { expirePendingMemberships, runReconciliation } from "@feature/catalog-backend/contract";
 
 export interface TeamJobLogger {
   info(o: unknown, msg?: string): void;

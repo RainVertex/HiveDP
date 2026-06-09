@@ -1,5 +1,5 @@
 // GitHub team mirror helpers. createGithubTeam runs BEFORE platform writes; orphans are cleaned via bestEffortDeleteGithubTeam.
-import { octokitForInstallation } from "@feature/integrations-backend";
+import { octokitForInstallation } from "@feature/integrations-backend/contract";
 
 export class GithubMirrorError extends Error {
   constructor(

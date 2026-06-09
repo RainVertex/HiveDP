@@ -2,8 +2,8 @@ import {
   discoverAndPersist,
   parseGithubUrl,
   type DiscoverAndPersistResult,
-} from "@feature/scaffolder-backend";
-import { octokitForInstallation } from "@feature/integrations-backend";
+} from "@feature/scaffolder-backend/contract";
+import { octokitForInstallation } from "@feature/integrations-backend/contract";
 import type { RegisteredTool } from "@internal/llm-core";
 import { loadEntityRepo } from "./repo";
 import { getEntityWithOwners } from "./queries";

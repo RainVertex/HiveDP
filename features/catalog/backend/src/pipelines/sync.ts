@@ -1,7 +1,10 @@
 // Cron-driven backfill for workflow runs and deployments; webhooks (./upsert.ts) handle real-time updates.
 
 import { prisma, type CatalogEntity } from "@internal/db";
-import { GitHubAppNotConfiguredError, octokitForInstallation } from "@feature/integrations-backend";
+import {
+  GitHubAppNotConfiguredError,
+  octokitForInstallation,
+} from "@feature/integrations-backend/contract";
 import type { Octokit as OctokitClient } from "octokit";
 
 // Backfill window for never-seen entities; bounds cost on long-lived orgs with huge history.

@@ -1,5 +1,5 @@
 import { projectsDb } from "@internal/db";
-import { notify } from "@feature/notifications-backend";
+import { notify } from "@feature/notifications-backend/contract";
 
 export interface TaskAssignedArgs {
   taskId: string;

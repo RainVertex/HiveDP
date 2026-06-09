@@ -1,7 +1,10 @@
 // Org-level team sync driven by a GitHub App installation: snapshot GitHub, diff against the DB, apply the delta in one transaction, record the run.
 
 import { Prisma, prisma, type UserKind, type UserRole } from "@internal/db";
-import { GitHubAppNotConfiguredError, octokitForInstallation } from "@feature/integrations-backend";
+import {
+  GitHubAppNotConfiguredError,
+  octokitForInstallation,
+} from "@feature/integrations-backend/contract";
 import type { Octokit as OctokitClient } from "octokit";
 
 export type ReconciliationSource = "webhook" | "cron" | "manual" | "boot";

@@ -25,7 +25,8 @@ export interface CatalogEntity extends NamedEntity {
   sourceRef: string | null;
   lastSeenAt: ISODateString;
   staleSince: ISODateString | null;
-  autoApply: boolean;
+  /** Restricted, like yamlSpec: present only when the viewer may see restricted fields. */
+  autoApply?: boolean;
   /** Parsed catalog-info.yaml. */
   yamlSpec?: unknown;
   /** GitHub App auto-import bookkeeping. */
