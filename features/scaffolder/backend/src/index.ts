@@ -25,8 +25,8 @@ export {
   listAllMcpTokens,
   revokeMcpToken,
 } from "./services/mcp-tokens";
-export { createScaffolderRouter, type ScaffolderRouterDeps } from "./routes";
-export { createScaffolderMcpRouter, type ScaffolderMcpDeps } from "./mcp";
+export { createScaffolderRouter } from "./routes";
+export { createScaffolderMcpRouter } from "./mcp";
 export {
   getScaffolderJobs,
   runBootDriftCheck,
@@ -51,16 +51,16 @@ import type { FeatureManifestSource } from "@internal/feature-host";
 import { createScaffolderRouter as createScaffolderRouterForManifest } from "./routes";
 import { createScaffolderMcpRouter as createScaffolderMcpRouterForManifest } from "./mcp";
 
-export const featureManifest: FeatureManifestSource = (ctx) => ({
+export const featureManifest: FeatureManifestSource = () => ({
   mounts: [
     {
       path: "/mcp/scaffolder",
-      router: createScaffolderMcpRouterForManifest({ liveRepoRoot: ctx.liveRepoRoot }),
+      router: createScaffolderMcpRouterForManifest(),
       phase: "preApi",
     },
     {
       path: "/api/scaffolder",
-      router: createScaffolderRouterForManifest({ liveRepoRoot: ctx.liveRepoRoot }),
+      router: createScaffolderRouterForManifest(),
     },
   ],
 });

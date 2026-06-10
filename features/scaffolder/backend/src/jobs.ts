@@ -27,7 +27,6 @@ export interface ScaffolderJobDefinition {
 }
 
 export interface ScaffolderJobsConfig {
-  liveRepoRoot: string;
   systemUserId?: string;
   workspaceRoot?: string;
 }
@@ -42,7 +41,6 @@ export async function runBootDriftCheck(
   if (changed.length === 0) return;
   for (const templateId of changed) {
     const result = await runDriftSweep({
-      liveRepoRoot: config.liveRepoRoot,
       templateId,
       systemUserId: config.systemUserId,
     });
@@ -67,7 +65,6 @@ export function driftSweepJob(config: ScaffolderJobsConfig): ScaffolderJobDefini
     timeoutMs: 30 * 60 * 1000,
     handler: async ({ log }) => {
       const result = await runDriftSweep({
-        liveRepoRoot: config.liveRepoRoot,
         systemUserId: config.systemUserId,
       });
       log.info(result, "Daily drift sweep complete");

@@ -25,10 +25,6 @@ import { loadEnvSecrets } from "./services/secrets";
 
 // MCP HTTP router exposing scaffolder templates as tools for external agents over bearer-token auth.
 
-export interface ScaffolderMcpDeps {
-  liveRepoRoot: string;
-}
-
 interface McpAuthContext {
   tokenId: string;
   userId: string;
@@ -98,7 +94,7 @@ function res(req: Request): { locals: { mcp?: McpAuthContext } } {
   return (req as Request & { res?: Response }).res ?? { locals: {} };
 }
 
-async function buildMcpServer(req: Request, deps: ScaffolderMcpDeps): Promise<McpServer> {
+async function buildMcpServer(req: Request): Promise<McpServer> {
   const auth = res(req).locals.mcp as McpAuthContext;
   const server = new McpServer({ name: "scaffolder", version: "1.0.0" });
   const templates = getTemplateRegistry().list();
@@ -121,7 +117,7 @@ async function buildMcpServer(req: Request, deps: ScaffolderMcpDeps): Promise<Mc
         inputSchema: shape,
       },
       async (args: unknown) => {
-        const plan = await runBuildPlan(template.metadata.id, args, deps, auth);
+        const plan = await runBuildPlan(template.metadata.id, args, auth);
         auditFor(req, "scaffolder.plan.created", {
           planId: plan.id,
           templateId: plan.templateId,
@@ -166,7 +162,7 @@ async function buildMcpServer(req: Request, deps: ScaffolderMcpDeps): Promise<Mc
       inputSchema: { planId: z.string(), dryRun: z.boolean().optional() },
     },
     async ({ planId, dryRun }: { planId: string; dryRun?: boolean }) => {
-      const result = await runApplyPlan(planId, dryRun ?? false, deps, auth, req);
+      const result = await runApplyPlan(planId, dryRun ?? false, auth, req);
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         ...(result.kind === "error" ? { isError: true } : {}),
@@ -193,20 +189,11 @@ async function buildMcpServer(req: Request, deps: ScaffolderMcpDeps): Promise<Mc
   return server;
 }
 
-async function runBuildPlan(
-  templateId: string,
-  rawParams: unknown,
-  deps: ScaffolderMcpDeps,
-  auth: McpAuthContext,
-) {
+async function runBuildPlan(templateId: string, rawParams: unknown, auth: McpAuthContext) {
   const template = getTemplateRegistry().get(templateId);
   if (!template) throw new Error(`Unknown template: ${templateId}`);
   const target = resolveTarget(template, "agent");
-  const planCtx = buildPlanCtx({
-    actor: auth.actor,
-    target,
-    liveRepoRoot: deps.liveRepoRoot,
-  });
+  const planCtx = buildPlanCtx({ actor: auth.actor, target });
   const policy = loadCapabilityPolicy();
   const contentHash = templateContentHash({
     templateId: template.metadata.id,
@@ -268,7 +255,6 @@ type ApplyPlanOutcome =
 async function runApplyPlan(
   planId: string,
   dryRun: boolean,
-  deps: ScaffolderMcpDeps,
   auth: McpAuthContext,
   req: Request,
 ): Promise<ApplyPlanOutcome> {
@@ -306,7 +292,6 @@ async function runApplyPlan(
   const planCtx = buildPlanCtx({
     actor: auth.actor,
     target: plan.target,
-    liveRepoRoot: deps.liveRepoRoot,
   });
   const approvals = (planRow.approvalsGranted ?? []) as unknown as ApprovalGrant[];
 
@@ -316,7 +301,6 @@ async function runApplyPlan(
       resolvedSteps: artifact.resolvedSteps,
       actions: getActionRegistry(),
       planCtx,
-      liveRepoRoot: deps.liveRepoRoot,
       triggeredByUserId: auth.userId,
       dryRun,
       requestId: req.id != null ? String(req.id) : undefined,
@@ -368,13 +352,13 @@ async function runApplyPlan(
 void createApprovalSigner;
 void randomUUID;
 
-export function createScaffolderMcpRouter(deps: ScaffolderMcpDeps): Router {
+export function createScaffolderMcpRouter(): Router {
   const router = Router();
   router.use(requireMcpToken);
 
   router.post("/", async (req, res, next) => {
     try {
-      const server = await buildMcpServer(req, deps);
+      const server = await buildMcpServer(req);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
       });

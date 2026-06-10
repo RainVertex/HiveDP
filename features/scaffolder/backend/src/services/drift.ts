@@ -8,7 +8,6 @@ import { loadCapabilityPolicy } from "./policy";
 // One-pass drift detection: replans every active binding and opens (or coalesces) ScaffoldDrift rows for non-no-op plans.
 
 export interface DriftSweepInput {
-  liveRepoRoot: string;
   /** Restrict to a specific templateId. otherwise scans all active bindings. */
   templateId?: string;
   systemUserId?: string;
@@ -78,8 +77,7 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
     try {
       const planCtx = buildPlanCtx({
         actor,
-        target: binding.target as "main" | "branch" | "worktree",
-        liveRepoRoot: input.liveRepoRoot,
+        target: "worktree",
       });
       const built = await buildPlan({
         template,
@@ -87,7 +85,7 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
         actor,
         ctx: planCtx,
         templateContentHash: contentHash,
-        target: binding.target as "main" | "branch" | "worktree",
+        target: "worktree",
         bindingId: binding.id,
         policy,
         actions,

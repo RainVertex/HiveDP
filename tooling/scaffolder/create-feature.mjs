@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// Dev-time feature scaffolder. Reuses the runtime skeleton in
-// packages/scaffolder-templates/skeletons/in-repo-feature/ so dev-time and
-// runtime scaffolding stay in sync, update the template once, both pick it up.
+// Dev-time feature scaffolder for this monorepo, separate from the self-service
+// scaffolder, which only provisions external targets (Backstage-style).
 //
 // Usage: yarn create-feature <kebab-case-name>
 
@@ -11,13 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..", "..");
-const skeletonRoot = path.join(
-  repoRoot,
-  "packages",
-  "scaffolder-templates",
-  "skeletons",
-  "in-repo-feature",
-);
+const skeletonRoot = path.join(__dirname, "skeletons", "in-repo-feature");
 
 const name = process.argv[2];
 if (!name) {

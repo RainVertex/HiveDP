@@ -7,17 +7,10 @@ import {
   fsDeleteAction,
   fsRenameAction,
   fsWriteAction,
-  repoScaffoldAction,
-  wireFeatureAction,
-  wireSidebarAction,
   type ActionRegistry,
   type TemplateRegistry,
 } from "@internal/scaffolder-core";
-import {
-  githubServiceTemplate,
-  inRepoFeatureTemplate,
-  inRepoWidgetTemplate,
-} from "@internal/scaffolder-templates";
+import { githubServiceTemplate } from "@internal/scaffolder-templates";
 import { catalogRegisterAction } from "../actions/catalog";
 import { catalogDiscoverAction } from "../actions/catalog-discover";
 import { bindingWriteAction } from "../actions/binding";
@@ -35,9 +28,6 @@ export function getActionRegistry(): ActionRegistry {
     fsDeleteAction,
     fsRenameAction,
     fetchTemplateAction,
-    repoScaffoldAction,
-    wireFeatureAction,
-    wireSidebarAction,
     catalogRegisterAction,
     catalogDiscoverAction,
     bindingWriteAction,
@@ -50,8 +40,6 @@ export function getActionRegistry(): ActionRegistry {
 export function getTemplateRegistry(): TemplateRegistry {
   if (templatesCache) return templatesCache;
   const templates = createTemplateRegistry();
-  templates.register(inRepoFeatureTemplate);
-  templates.register(inRepoWidgetTemplate);
   templates.register(githubServiceTemplate);
   templatesCache = templates;
   return templates;

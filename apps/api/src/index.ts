@@ -44,10 +44,7 @@ async function bootstrap() {
   startScheduler();
 
   // Best-effort, failure here must not block the API coming up.
-  runBootDriftCheck(
-    { liveRepoRoot: resolve(__dirname, "../../..") },
-    logger.child({ jobName: "scaffolder.bootDriftCheck" }),
-  ).catch((err) => {
+  runBootDriftCheck({}, logger.child({ jobName: "scaffolder.bootDriftCheck" })).catch((err) => {
     logger.error({ err }, "Boot drift check failed");
   });
 

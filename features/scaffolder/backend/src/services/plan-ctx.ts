@@ -1,6 +1,4 @@
-// Builds the PlanCtx that scaffolder plans use to read repo, DB, and identity state.
-import { promises as fs } from "node:fs";
-import { join } from "node:path";
+// Builds the PlanCtx that scaffolder plans use to read DB and identity state.
 import { prisma } from "@internal/db";
 import {
   stringHelpers,
@@ -13,7 +11,6 @@ import {
 export interface BuildPlanCtxInput {
   actor: Actor;
   target: SandboxTarget;
-  liveRepoRoot: string;
   // Frozen wall-clock for the plan, defaults to new Date().
   now?: Date;
 }
@@ -24,22 +21,6 @@ export function buildPlanCtx(input: BuildPlanCtxInput): PlanCtx {
     actor: input.actor,
     target: input.target,
     now: () => new Date(frozenNow),
-    existsInRepo: async (relPath) => {
-      try {
-        await fs.access(join(input.liveRepoRoot, relPath));
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    readRepoFile: async (relPath) => {
-      try {
-        return await fs.readFile(join(input.liveRepoRoot, relPath), "utf8");
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
-        throw err;
-      }
-    },
     readBinding: async (targetRef) => {
       const row = await prisma.scaffoldBinding.findFirst({ where: { targetRef } });
       if (!row) return null;

@@ -27,12 +27,10 @@ export const githubServiceTemplate = defineTemplate({
     name: "GitHub service",
     description:
       "Creates a new GitHub repository, pushes a starter scaffold, and registers it in the catalog.",
-    tags: ["service", "github"],
+    tags: ["recommended", "service", "github"],
     icon: "rocket",
     audience: ["human", "agent"],
     requiredRole: "member",
-    // Out-of-repo target collapses to one value; shape kept consistent so admin overrides stay available.
-    defaultTarget: { agent: "worktree", human: "worktree" },
   },
   parameters: Params,
   capabilities: [

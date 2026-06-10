@@ -1,7 +1,6 @@
 /** Capability is a closed TS union. */
 export type Capability =
   | "fs:write"
-  | "fs:write:main"
   | "db:write"
   | "db:write:catalog"
   | "repo:read"
@@ -14,7 +13,8 @@ export type ActorKind = "human" | "agent" | "external-agent";
 
 export type Audience = "human" | "agent";
 
-export type SandboxTarget = "main" | "branch" | "worktree";
+// Every apply runs in an isolated worktree, outputs leave via publish actions only.
+export type SandboxTarget = "worktree";
 
 export type PlanMode = "create" | "update" | "no-op";
 

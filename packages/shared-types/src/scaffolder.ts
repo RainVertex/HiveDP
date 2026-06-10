@@ -5,7 +5,6 @@ import type { UserRole } from "./user";
 
 export type ScaffolderCapability =
   | "fs:write"
-  | "fs:write:main"
   | "db:write"
   | "network:external"
   | "repo:public"
@@ -14,7 +13,7 @@ export type ScaffolderCapability =
 
 export type ScaffolderActorKind = "human" | "agent" | "external-agent";
 
-export type ScaffolderTarget = "main" | "branch" | "worktree";
+export type ScaffolderTarget = "worktree";
 
 export type ScaffolderPlanMode = "create" | "update" | "no-op";
 

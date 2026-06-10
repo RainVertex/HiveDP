@@ -5,7 +5,7 @@ import { useApi } from "@internal/api-client/react";
 import { useTranslation } from "@internal/i18n";
 import type { ScaffolderTemplateSummary } from "@internal/shared-types";
 
-const TAG_FILTERS = ["recommended", "feature", "monorepo", "service", "widget"] as const;
+const TAG_FILTERS = ["recommended", "service", "github"] as const;
 
 export function ScaffolderPage() {
   const api = useApi();

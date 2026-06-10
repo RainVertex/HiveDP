@@ -1,7 +1,7 @@
 export const en = {
   page: {
     createTitle: "Create",
-    createDescription: "Scaffold features, services, and widgets from versioned templates.",
+    createDescription: "Provision new services and resources from versioned golden-path templates.",
     planTitle: "Plan",
     planHeading: "Plan: {{templateId}}",
     planDescription: "v{{version}} · {{mode}} · target={{target}}",
@@ -18,10 +18,8 @@ export const en = {
   },
   tags: {
     recommended: "recommended",
-    feature: "feature",
-    monorepo: "monorepo",
     service: "service",
-    widget: "widget",
+    github: "github",
   },
   audience: {
     human: "human",

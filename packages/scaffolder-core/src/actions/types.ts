@@ -47,7 +47,7 @@ export type Compensation =
 // Write context passed to action.apply().
 export interface WriteCtx extends PlanCtx {
   workspacePath: string;
-  // Repo root used for repo:scaffold / wire:* in target=main.
+  // Isolated repo staging dir inside the workspace.
   repoRoot: string;
   logger: ActionLogger;
   signal: AbortSignal;

@@ -31,7 +31,7 @@ export const bindingWriteAction: Action<BindingWriteInput, { bindingId: string }
   id: "binding:write",
   description: "Persist the ScaffoldBinding row and write .platform/binding.yaml.",
   schema: bindingWriteInput,
-  capabilities: ["fs:write", "fs:write:main", "db:write"],
+  capabilities: ["fs:write", "db:write"],
   async match(input, _ctx: ReadCtx) {
     const existing = await prisma.scaffoldBinding.findUnique({
       where: {

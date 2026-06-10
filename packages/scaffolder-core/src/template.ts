@@ -43,7 +43,7 @@ export interface CompiledTemplate<TParams = unknown> extends TemplateDefinition<
 }
 
 const DEFAULT_PLAN_TTL_SECONDS = 1800;
-const DEFAULT_TARGETS: DefaultTargetMap = { agent: "branch", human: "main" };
+const DEFAULT_TARGETS: DefaultTargetMap = { agent: "worktree", human: "worktree" };
 
 export function defineTemplate<TParams>(
   def: TemplateDefinition<TParams>,

@@ -14,8 +14,6 @@ export * from "./actions/registry";
 export * from "./actions/fs";
 export * from "./actions/debug";
 export * from "./actions/fetch";
-export * from "./actions/repo";
-export * from "./actions/wire";
 export * from "./render";
 export * from "./zod-to-jsonschema";
 export * from "./zod-to-anthropic-tool";

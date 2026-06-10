@@ -3,7 +3,6 @@ import { createPolicy, type Capability, type CapabilityPolicy } from "@internal/
 
 const ALL_CAPABILITIES: Capability[] = [
   "fs:write",
-  "fs:write:main",
   "db:write",
   "db:write:catalog",
   "repo:read",
@@ -30,7 +29,6 @@ export function loadCapabilityPolicy(): CapabilityPolicy {
   return createPolicy({
     human: parseCapabilities(process.env.SCAFFOLDER_HUMAN_CAPABILITIES, [
       "fs:write",
-      "fs:write:main",
       "db:write",
       "db:write:catalog",
       "repo:read",

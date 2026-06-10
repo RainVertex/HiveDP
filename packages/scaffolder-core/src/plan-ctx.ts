@@ -8,9 +8,6 @@ export interface PlanCtx {
   // Frozen wall-clock, same value for the lifetime of the plan call.
   now(): Date;
 
-  existsInRepo(path: string): Promise<boolean>;
-  readRepoFile(path: string): Promise<string | null>;
-
   readBinding(targetRef: string): Promise<Binding | null>;
   currentTeam(id: string): Promise<TeamSummary | null>;
   currentUser(id: string): Promise<UserSummary | null>;

@@ -9,7 +9,6 @@ import {
   type Plan,
   type StepEvent,
   type Compensation,
-  type SandboxTarget,
   type TaskStatus,
 } from "@internal/scaffolder-core";
 import type { PlanCtx } from "@internal/scaffolder-core";
@@ -23,7 +22,6 @@ export interface ApplyInput {
   resolvedSteps: Array<{ stepId: string; action: string; input: unknown }>;
   actions: ActionRegistry;
   planCtx: PlanCtx;
-  liveRepoRoot: string;
   triggeredByUserId: string;
   workspaceRoot?: string;
   /** Maps secret name → value (env-derived). */
@@ -65,17 +63,12 @@ function defaultTargetRef(plan: Plan): string {
   return `${plan.templateId}:${plan.paramsHash}`;
 }
 
-function selectSandbox(target: SandboxTarget): SandboxTarget {
-  return target;
-}
-
 export async function applyPlan(input: ApplyInput): Promise<ApplyResult> {
   const {
     plan,
     resolvedSteps,
     actions,
     planCtx,
-    liveRepoRoot,
     triggeredByUserId,
     workspaceRoot,
     secrets = {},
@@ -104,8 +97,7 @@ export async function applyPlan(input: ApplyInput): Promise<ApplyResult> {
 
   const sandbox = await acquireSandbox({
     taskId: plan.id, // task id mirrors plan id for the v1 1:1 relationship
-    target: selectSandbox(plan.target),
-    liveRepoRoot,
+    target: plan.target,
     workspaceRoot,
   });
 

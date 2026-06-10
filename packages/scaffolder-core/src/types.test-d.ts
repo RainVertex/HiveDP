@@ -5,7 +5,7 @@ import type { Capability } from "./types";
 
 // ✅ Valid capabilities compile.
 const _ok1: Capability = "fs:write";
-const _ok2: Capability = "fs:write:main";
+const _ok2: Capability = "network:external";
 const _ok3: Capability = "secrets:read:GITHUB_TOKEN";
 
 // ❌ Typos must fail tsc.

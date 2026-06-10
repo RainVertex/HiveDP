@@ -28,7 +28,7 @@ model ScaffoldPlan {
   params           Json
   paramsHash       String
   mode             ScaffoldPlanMode
-  target           String           @default("main")
+  target           String           @default("worktree")
   capabilities     String[]
   irreversible     Boolean          @default(false)
   bindingId        String?

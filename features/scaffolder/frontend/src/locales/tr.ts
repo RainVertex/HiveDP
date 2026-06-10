@@ -3,7 +3,7 @@ import type { ScaffolderResources } from "./en";
 export const tr: ScaffolderResources = {
   page: {
     createTitle: "Oluştur",
-    createDescription: "Sürümlü şablonlardan özellikler, servisler ve widget'lar oluşturun.",
+    createDescription: "Sürümlü altın yol şablonlarından yeni servisler ve kaynaklar oluşturun.",
     planTitle: "Plan",
     planHeading: "Plan: {{templateId}}",
     planDescription: "v{{version}} · {{mode}} · target={{target}}",
@@ -20,10 +20,8 @@ export const tr: ScaffolderResources = {
   },
   tags: {
     recommended: "önerilen",
-    feature: "özellik",
-    monorepo: "monorepo",
     service: "servis",
-    widget: "widget",
+    github: "github",
   },
   audience: {
     human: "insan",

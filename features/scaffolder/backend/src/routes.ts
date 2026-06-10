@@ -25,15 +25,9 @@ import { filterByTemplateAcl } from "./services/acl";
 
 // Express router for the scaffolder HTTP API: templates, plans, apply, approvals, tasks, bindings, drift.
 
-export interface ScaffolderRouterDeps {
-  /** Absolute path to the live monorepo root, used by plan ctx + sandbox. */
-  liveRepoRoot: string;
-}
-
 const planRequestSchema = z.object({
   templateId: z.string().min(1),
   params: z.record(z.string(), z.unknown()),
-  target: z.enum(["main", "branch", "worktree"]).optional(),
 });
 
 const applyRequestSchema = z
@@ -119,7 +113,7 @@ async function loadPlan(planId: string): Promise<PersistedPlanShape | null> {
   return { plan, resolvedSteps: artifact.resolvedSteps };
 }
 
-export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
+export function createScaffolderRouter(): Router {
   const router = Router();
   const templates = getTemplateRegistry();
   const actions = getActionRegistry();
@@ -215,12 +209,8 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
         return;
       }
 
-      const target = resolveTarget(tpl, "human", parsed.data.target);
-      const planCtx = buildPlanCtx({
-        actor,
-        target,
-        liveRepoRoot: deps.liveRepoRoot,
-      });
+      const target = resolveTarget(tpl, "human");
+      const planCtx = buildPlanCtx({ actor, target });
 
       const policy = loadCapabilityPolicy();
       const contentHash = templateContentHash({
@@ -357,7 +347,6 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
       const planCtx = buildPlanCtx({
         actor,
         target: loaded.plan.target,
-        liveRepoRoot: deps.liveRepoRoot,
       });
 
       const approvals = (planRow.approvalsGranted ?? []) as unknown as ApprovalGrant[];
@@ -369,7 +358,6 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
           resolvedSteps: loaded.resolvedSteps,
           actions,
           planCtx,
-          liveRepoRoot: deps.liveRepoRoot,
           triggeredByUserId: actor.userId,
           dryRun,
           requestId: req.id != null ? String(req.id) : undefined,
@@ -672,11 +660,7 @@ export function createScaffolderRouter(deps: ScaffolderRouterDeps): Router {
         return;
       }
       const target = resolveTarget(tpl, "human");
-      const planCtx = buildPlanCtx({
-        actor,
-        target,
-        liveRepoRoot: deps.liveRepoRoot,
-      });
+      const planCtx = buildPlanCtx({ actor, target });
       const policy = loadCapabilityPolicy();
       const contentHash = templateContentHash({
         templateId: tpl.metadata.id,

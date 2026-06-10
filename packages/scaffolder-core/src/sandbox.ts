@@ -1,13 +1,13 @@
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-// Resolves and disposes the workspace and repo paths for an executor run.
+// Resolves and disposes the isolated workspace for an executor run.
 import type { SandboxTarget } from "./types";
 
 export interface SandboxHandle {
   // Where actions write during apply.
   workspacePath: string;
-  // Where repo:scaffold and wire:* commit final outputs.
+  // Isolated repo staging dir inside the workspace, never the live platform repo.
   repoRoot: string;
   target: SandboxTarget;
   dispose(): Promise<void>;
@@ -16,7 +16,6 @@ export interface SandboxHandle {
 export interface AcquireSandboxInput {
   taskId: string;
   target: SandboxTarget;
-  liveRepoRoot: string;
   // Override workspace root (tests use a temp dir).
   workspaceRoot?: string;
 }
@@ -26,24 +25,14 @@ export async function acquireSandbox(input: AcquireSandboxInput): Promise<Sandbo
   const workspacePath = join(root, input.taskId);
   await fs.mkdir(workspacePath, { recursive: true });
 
-  let repoRoot: string;
-  switch (input.target) {
-    case "main":
-    case "branch":
-      repoRoot = input.liveRepoRoot;
-      break;
-    case "worktree":
-      repoRoot = join(workspacePath, "_repo");
-      await fs.mkdir(repoRoot, { recursive: true });
-      break;
-  }
+  const repoRoot = join(workspacePath, "_repo");
+  await fs.mkdir(repoRoot, { recursive: true });
 
   return {
     workspacePath,
     repoRoot,
     target: input.target,
     dispose: async () => {
-      // Clean the workspace only, never touch the live repoRoot.
       await fs.rm(workspacePath, { recursive: true, force: true });
     },
   };
