@@ -29,7 +29,7 @@ export const getToday: RegisteredTool = {
     function: {
       name: "get_today",
       description:
-        "Return today's date in ISO format (YYYY-MM-DD) along with the current weekday and ISO timestamp in UTC. Call this before answering any 'today' or 'this week' question.",
+        "Return today's date in ISO format (YYYY-MM-DD) along with the current weekday and ISO timestamp in UTC. Call this before answering any question that needs the current date.",
       parameters: { type: "object", properties: {} },
     },
   },

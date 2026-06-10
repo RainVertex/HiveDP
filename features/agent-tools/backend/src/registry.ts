@@ -9,7 +9,7 @@ import { notificationsGroup } from "./groups/notifications";
 import { integrationsGroup } from "./groups/integrations";
 import { catalogEnrichGroup } from "./groups/catalog-enrich";
 
-// Read-only groups the Platform Assistant gets by default; the agent-only groups are opt-in per agent.
+// Read-only groups the Platform Assistant gets by default. The agent-only groups are opt-in per agent.
 const PLATFORM_ASSISTANT_READ_GROUPS: ToolGroup[] = [
   coreGroup,
   teamsGroup,
@@ -24,7 +24,7 @@ const AGENT_GROUPS: ToolGroup[] = [catalogEnrichGroup];
 
 const ALL_GROUPS: ToolGroup[] = [...PLATFORM_ASSISTANT_READ_GROUPS, ...AGENT_GROUPS];
 
-// Stamp each tool with its group id so listToolGroups() can bucket it for the UI.
+// Stamp each tool with its group id.
 function tagged(group: ToolGroup): RegisteredTool[] {
   return group.tools.map((t) => ({ ...t, group: group.meta.id }));
 }

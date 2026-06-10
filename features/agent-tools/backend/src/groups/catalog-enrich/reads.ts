@@ -101,7 +101,7 @@ export const readRepo: RegisteredTool = {
         rootFiles = root.data.map((f) => (f as { name: string }).name);
       }
     } catch {
-      // Root listing is best-effort; an empty repo or permission gap just yields no files.
+      // Root listing is best-effort. An empty repo or permission gap just yields no files.
     }
     return {
       name: meta.data.name,
