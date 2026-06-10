@@ -1,9 +1,10 @@
 // Drift detection: replans active bindings to open ScaffoldDrift rows and reconciles template hash snapshots.
 import { prisma } from "@internal/db";
-import { buildPlan, templateContentHash, type Actor } from "@internal/scaffolder-core";
-import { getActionRegistry, getTemplateRegistry } from "./registry";
+import { buildPlan, contentHashForTemplate, type Actor } from "@internal/scaffolder-core";
+import { getActionRegistry, getTemplates } from "./registry";
 import { buildPlanCtx } from "./plan-ctx";
 import { loadCapabilityPolicy } from "./policy";
+import { buildEntityContext } from "./jq-context";
 
 // One-pass drift detection: replans every active binding and opens (or coalesces) ScaffoldDrift rows for non-no-op plans.
 
@@ -48,7 +49,7 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
   });
   out.bindingsScanned = bindings.length;
 
-  const registry = getTemplateRegistry();
+  const registry = await getTemplates();
   const actions = getActionRegistry();
   const policy = loadCapabilityPolicy();
   const actor = systemActor(input.systemUserId);
@@ -60,11 +61,7 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
       continue;
     }
 
-    const contentHash = templateContentHash({
-      templateId: template.metadata.id,
-      version: template.metadata.version,
-      moduleSource: template.metadata.id + template.metadata.version,
-    });
+    const contentHash = contentHashForTemplate(template);
 
     // No version bump and no content change means nothing could have drifted.
     if (
@@ -79,6 +76,7 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
         actor,
         target: "worktree",
       });
+      const entity = await buildEntityContext(binding.catalogEntityId);
       const built = await buildPlan({
         template,
         rawParams: binding.params,
@@ -89,6 +87,7 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
         bindingId: binding.id,
         policy,
         actions,
+        entity,
       });
 
       if (built.plan.mode === "no-op") {
@@ -146,17 +145,13 @@ export async function reconcileTemplateHashSnapshots(): Promise<{
   changed: string[];
   unchanged: number;
 }> {
-  const registry = getTemplateRegistry();
+  const registry = await getTemplates();
   const templates = registry.list();
   const changed: string[] = [];
   let unchanged = 0;
 
   for (const template of templates) {
-    const hash = templateContentHash({
-      templateId: template.metadata.id,
-      version: template.metadata.version,
-      moduleSource: template.metadata.id + template.metadata.version,
-    });
+    const hash = contentHashForTemplate(template);
     const existing = await prisma.templateHashSnapshot.findUnique({
       where: { templateId: template.metadata.id },
     });

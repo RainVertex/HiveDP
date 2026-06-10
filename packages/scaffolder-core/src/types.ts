@@ -7,6 +7,8 @@ export type Capability =
   | "network:external"
   | "repo:public"
   | "repo:private"
+  // Pseudo-capability, never grantable via policy, forces an admin approval on the plan.
+  | "approval:manual"
   | `secrets:read:${string}`;
 
 export type ActorKind = "human" | "agent" | "external-agent";
@@ -17,6 +19,9 @@ export type Audience = "human" | "agent";
 export type SandboxTarget = "worktree";
 
 export type PlanMode = "create" | "update" | "no-op";
+
+// Port-style trigger operation: CREATE provisions, DAY-2 mutates and DELETE tears down an existing entity.
+export type TemplateOperation = "create" | "day2" | "delete";
 
 export type TaskStatus =
   | "pending"
@@ -68,6 +73,13 @@ export type Mutation =
       remoteUrl: string;
       branch: string;
       fileCount: number;
+    }
+  | {
+      kind: "github.openPr";
+      repo: string;
+      branch: string;
+      base: string;
+      title: string;
     }
   | { kind: "debug.log"; message: string };
 

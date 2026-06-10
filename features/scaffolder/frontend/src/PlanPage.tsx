@@ -284,6 +284,18 @@ function MutationView({ mutation }: { mutation: ScaffolderMutation }) {
           })}
         </div>
       );
+    case "github.openPr":
+      return (
+        <div className="rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">
+          <span className="font-medium">⚠ {t("plan.irreversibleWarning")}</span>{" "}
+          {t("plan.mutationGithubOpenPr", {
+            repo: mutation.repo,
+            branch: mutation.branch,
+            base: mutation.base,
+            title: mutation.title,
+          })}
+        </div>
+      );
     case "debug.log":
       return (
         <div className="rounded-md border border-app-border bg-app-surface-hover p-2 text-xs font-mono">

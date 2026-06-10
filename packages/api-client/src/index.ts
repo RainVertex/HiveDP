@@ -37,8 +37,11 @@ import type {
   RunAgentResponse,
   ScaffolderBinding,
   ScaffolderDriftSummaryDto,
+  ScaffolderFormState,
   ScaffolderPlan,
   ScaffolderTask,
+  ScaffolderTemplateDefPreview,
+  ScaffolderTemplateDefRow,
   ScaffolderTemplateSummary,
   Scorecard,
   ScorecardSummary,
@@ -90,7 +93,8 @@ export interface PatchCatalogEntityInput {
 
 export interface ScaffolderTemplateDetail extends ScaffolderTemplateSummary {
   parametersJsonSchema: Record<string, unknown>;
-  defaultTarget: { agent: "main" | "branch" | "worktree"; human: "main" | "branch" | "worktree" };
+  uiSchema: Record<string, unknown>;
+  defaultTarget: { agent: "worktree"; human: "worktree" };
   planTtlSeconds: number;
 }
 
@@ -926,10 +930,18 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<ListResponse<ScaffolderTemplateSummary>>(`/api/scaffolder/templates`),
       getTemplate: (id: string) =>
         request<ScaffolderTemplateDetail>(`/api/scaffolder/templates/${encodeURIComponent(id)}`),
+      formState: (
+        id: string,
+        body: { formData: Record<string, unknown>; catalogEntityId?: string },
+      ) =>
+        request<ScaffolderFormState>(
+          `/api/scaffolder/templates/${encodeURIComponent(id)}/form-state`,
+          { method: "POST", body: JSON.stringify(body) },
+        ),
       createPlan: (body: {
         templateId: string;
         params: Record<string, unknown>;
-        target?: "main" | "branch" | "worktree";
+        catalogEntityId?: string;
       }) =>
         request<ScaffolderPlan>(`/api/scaffolder/plans`, {
           method: "POST",
@@ -971,6 +983,34 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<{ id: string; status: string }>(`/api/scaffolder/drift/${encodeURIComponent(id)}`, {
           method: "PATCH",
           body: JSON.stringify({ status }),
+        }),
+      listTemplateDefs: () =>
+        request<ListResponse<ScaffolderTemplateDefRow>>(`/api/scaffolder/admin/template-defs`),
+      createTemplateDef: (body: { definition: Record<string, unknown> }) =>
+        request<ScaffolderTemplateDefRow>(`/api/scaffolder/admin/template-defs`, {
+          method: "POST",
+          body: JSON.stringify(body),
+        }),
+      previewTemplateDef: (body: {
+        definition: Record<string, unknown>;
+        formData?: Record<string, unknown>;
+        catalogEntityId?: string;
+      }) =>
+        request<ScaffolderTemplateDefPreview>(`/api/scaffolder/admin/template-defs/preview`, {
+          method: "POST",
+          body: JSON.stringify(body),
+        }),
+      updateTemplateDef: (
+        id: string,
+        body: { definition: Record<string, unknown>; enabled?: boolean },
+      ) =>
+        request<ScaffolderTemplateDefRow>(
+          `/api/scaffolder/admin/template-defs/${encodeURIComponent(id)}`,
+          { method: "PUT", body: JSON.stringify(body) },
+        ),
+      deleteTemplateDef: (id: string) =>
+        request<void>(`/api/scaffolder/admin/template-defs/${encodeURIComponent(id)}`, {
+          method: "DELETE",
         }),
     },
   };

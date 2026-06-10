@@ -135,6 +135,20 @@ model TemplateHashSnapshot {
   observedAt      DateTime @default(now())
 }
 
+// Port-style declarative template definitions managed via the admin API.
+model ScaffoldTemplateDef {
+  id              String   @id @default(cuid())
+  identifier      String   @unique
+  definition      Json
+  enabled         Boolean  @default(true)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       User     @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([enabled])
+}
+
 enum AclSubject {
   user
   team

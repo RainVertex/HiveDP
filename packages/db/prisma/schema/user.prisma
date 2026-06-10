@@ -39,6 +39,7 @@ model User {
   scaffoldTasks                   ScaffoldTask[]
   scaffoldBindings                ScaffoldBinding[]
   scaffolderMcpTokens             ScaffolderMcpToken[]
+  scaffoldTemplateDefs            ScaffoldTemplateDef[]
   devDocComments                  DocComment[]
   devDocStaleReports              DocStaleReport[]
   starredEntities                 StarredEntity[]

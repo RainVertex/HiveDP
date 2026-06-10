@@ -1,11 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Prisma, prisma } from "@internal/db";
-import {
-  actorFromRequest,
-  filterByTemplateAcl,
-  getTemplateRegistry,
-} from "@feature/scaffolder-backend";
+import { actorFromRequest, filterByTemplateAcl, getTemplates } from "@feature/scaffolder-backend";
 import { recordAudit } from "../audit/audit";
 
 export const scaffolderAccessRequestsRouter = Router();
@@ -57,7 +53,7 @@ scaffolderAccessRequestsRouter.post("/", async (req, res, next) => {
     const parsed = submitSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
 
-    const tpl = getTemplateRegistry().get(parsed.data.templateId);
+    const tpl = (await getTemplates()).get(parsed.data.templateId);
     if (!tpl) return res.status(404).json({ error: "Template not found" });
 
     const actor = await actorFromRequest(req);

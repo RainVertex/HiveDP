@@ -9,11 +9,14 @@ export type ScaffolderCapability =
   | "network:external"
   | "repo:public"
   | "repo:private"
+  | "approval:manual"
   | `secrets:read:${string}`;
 
 export type ScaffolderActorKind = "human" | "agent" | "external-agent";
 
 export type ScaffolderTarget = "worktree";
+
+export type ScaffolderOperation = "create" | "day2" | "delete";
 
 export type ScaffolderPlanMode = "create" | "update" | "no-op";
 
@@ -37,6 +40,31 @@ export interface ScaffolderTemplateSummary {
   audience: Array<"human" | "agent">;
   requiredRole: UserRole;
   capabilities: ScaffolderCapability[];
+  operation: ScaffolderOperation;
+  requiredApproval: boolean;
+}
+
+// Resolved wizard state after evaluating jqQuery dynamic fields server-side.
+export interface ScaffolderFormState {
+  schema: Record<string, unknown>;
+  uiSchema: Record<string, unknown>;
+}
+
+export interface ScaffolderTemplateDefRow {
+  id: ID;
+  identifier: string;
+  definition: Record<string, unknown>;
+  enabled: boolean;
+  createdByUserId: ID;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+}
+
+// Editor preview: resolved form plus the validated identity of the draft definition.
+export interface ScaffolderTemplateDefPreview extends ScaffolderFormState {
+  identifier: string;
+  title: string;
+  operation: "CREATE" | "DAY-2" | "DELETE";
 }
 
 export interface ScaffolderApprovalRequirement {
@@ -63,6 +91,7 @@ export type ScaffolderMutation =
       visibility: "public" | "private";
     }
   | { kind: "github.push"; remoteUrl: string; branch: string; fileCount: number }
+  | { kind: "github.openPr"; repo: string; branch: string; base: string; title: string }
   | { kind: "debug.log"; message: string };
 
 export interface ScaffolderPlanStep {

@@ -5,6 +5,7 @@ import { replayFsCompensation } from "./actions/fs";
 import type { Plan, TaskStatus } from "./types";
 import type { PlanCtx } from "./plan-ctx";
 import type { Redactor } from "./redact";
+import { containsToken, resolveTokens, type StepTemplateContext } from "./tokens";
 
 export type StepEvent =
   | { kind: "task.started"; taskId: string }
@@ -29,9 +30,11 @@ export type StepEvent =
 export interface ExecuteInput {
   taskId: string;
   plan: Plan;
-  resolvedSteps: Array<{ stepId: string; action: string; input: unknown }>;
+  resolvedSteps: Array<{ stepId: string; action: string; input: unknown; deferred?: boolean }>;
   actions: ActionRegistry;
   planCtx: PlanCtx;
+  // jq context persisted at plan time, step outputs are layered on top during the run.
+  templateContext?: StepTemplateContext;
   workspacePath: string;
   repoRoot: string;
   signal: AbortSignal;
@@ -78,6 +81,7 @@ export async function execute(input: ExecuteInput): Promise<ExecuteResult> {
     resolvedSteps,
     actions,
     planCtx,
+    templateContext,
     workspacePath,
     repoRoot,
     signal,
@@ -90,6 +94,7 @@ export async function execute(input: ExecuteInput): Promise<ExecuteResult> {
   emit({ kind: "task.started", taskId });
 
   const stepOutputs: Record<string, unknown> = {};
+  const stepsJqState: Record<string, { outputs: unknown }> = {};
   const compensations: ExecuteResult["compensations"] = [];
 
   const buildWriteCtx = (logger: ActionLogger): WriteCtx => ({
@@ -114,8 +119,20 @@ export async function execute(input: ExecuteInput): Promise<ExecuteResult> {
     emit({ kind: "step.started", taskId, stepId: step.stepId, action: action.id });
     const logger = makeStepLogger(emit, taskId, step.stepId, redactor);
     try {
-      const result = await action.apply(step.input, buildWriteCtx(logger));
+      let stepInput = step.input;
+      if (step.deferred || containsToken(stepInput)) {
+        const ctx: StepTemplateContext = {
+          inputs: templateContext?.inputs ?? {},
+          user: templateContext?.user ?? null,
+          entity: templateContext?.entity ?? null,
+          operation: templateContext?.operation ?? "create",
+          steps: stepsJqState,
+        };
+        stepInput = action.schema.parse(await resolveTokens(stepInput, ctx, "apply"));
+      }
+      const result = await action.apply(stepInput, buildWriteCtx(logger));
       stepOutputs[step.stepId] = result.output;
+      stepsJqState[step.stepId] = { outputs: result.output };
       if (result.compensation && !dryRun) {
         compensations.push({ stepId: step.stepId, compensation: result.compensation });
       }

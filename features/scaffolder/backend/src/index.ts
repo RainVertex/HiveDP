@@ -8,7 +8,18 @@ export {
   StalePlanError,
 } from "./services/locks";
 export { taskEventBus } from "./services/events";
-export { getActionRegistry, getTemplateRegistry, resetRegistries } from "./services/registry";
+export {
+  getActionRegistry,
+  getTemplates,
+  invalidateTemplateCache,
+  resetRegistries,
+} from "./services/registry";
+export {
+  templateDefSchema,
+  compileTemplateDef,
+  buildFormSchema,
+  type TemplateDef,
+} from "./services/template-defs";
 export { buildPlanCtx } from "./services/plan-ctx";
 export { loadCapabilityPolicy } from "./services/policy";
 export { actorFromRequest } from "./services/actor";

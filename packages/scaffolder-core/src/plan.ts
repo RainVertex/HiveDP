@@ -15,6 +15,7 @@ import type { CapabilityPolicy } from "./policy";
 import { computeApprovalRequirements } from "./policy";
 // Walks a template's plan(), resolves each step, and assembles an immutable Plan artifact.
 import { paramsHash } from "./fingerprint";
+import { containsToken, resolveTokens, type StepTemplateContext } from "./tokens";
 
 export interface BuildPlanInput<TParams> {
   template: CompiledTemplate<TParams>;
@@ -26,6 +27,9 @@ export interface BuildPlanInput<TParams> {
   bindingId?: string | null;
   policy: CapabilityPolicy;
   actions: ActionRegistry;
+  // jq context for {{ }} step-input templating, user/entity halves of StepTemplateContext.
+  user?: Record<string, unknown> | null;
+  entity?: Record<string, unknown> | null;
   // Caller supplies so it can be persisted alongside the artifact.
   planId?: string;
   now?: Date;
@@ -33,8 +37,10 @@ export interface BuildPlanInput<TParams> {
 
 export interface BuiltPlan {
   plan: Plan;
-  // Steps with their original action input, used at apply time.
-  resolvedSteps: Array<{ stepId: string; action: string; input: unknown }>;
+  // Steps with their plan-time resolved input, deferred steps re-resolve at apply time.
+  resolvedSteps: Array<{ stepId: string; action: string; input: unknown; deferred?: boolean }>;
+  // Persisted alongside the artifact so apply can rebuild the same jq context.
+  templateContext: StepTemplateContext;
 }
 
 export async function buildPlan<TParams>(input: BuildPlanInput<TParams>): Promise<BuiltPlan> {
@@ -48,12 +54,21 @@ export async function buildPlan<TParams>(input: BuildPlanInput<TParams>): Promis
     bindingId = null,
     policy,
     actions,
+    user = null,
+    entity = null,
     planId = randomUUID(),
     now = ctx.now(),
   } = input;
 
   const params = template.parameters.parse(rawParams);
   const steps = await template.plan(params, ctx);
+
+  const templateContext: StepTemplateContext = {
+    inputs: params as Record<string, unknown>,
+    user,
+    entity,
+    operation: template.resolvedOperation,
+  };
 
   const planSteps: PlanStep[] = [];
   const resolvedSteps: BuiltPlan["resolvedSteps"] = [];
@@ -67,16 +82,34 @@ export async function buildPlan<TParams>(input: BuildPlanInput<TParams>): Promis
     const step = steps[i]!;
     const action = actions.require(step.action);
     const stepId = step.id ?? `${action.id}-${i}`;
-    const inputParsed = action.schema.parse(step.input);
+    const planInput = await resolveTokens(step.input, templateContext, "plan");
+    // Steps still holding .steps tokens validate and diff at apply time instead.
+    const deferred = containsToken(planInput);
+
+    for (const c of action.capabilities) allCapabilities.add(c);
+    if (action.irreversible) irreversible = true;
+
+    if (deferred) {
+      anyAbsent = true;
+      planSteps.push({
+        stepId,
+        action: action.id,
+        capabilities: [...action.capabilities],
+        mutations: [],
+        reversible: !action.irreversible,
+        matched: "absent",
+      });
+      resolvedSteps.push({ stepId, action: action.id, input: planInput, deferred: true });
+      continue;
+    }
+
+    const inputParsed = action.schema.parse(planInput);
 
     const matched = await action.match(inputParsed, ctx);
     if (matched === "absent") anyAbsent = true;
     if (matched === "drift") anyDrift = true;
 
     const mutations = matched === "match" ? [] : await action.diff(inputParsed, ctx);
-
-    for (const c of action.capabilities) allCapabilities.add(c);
-    if (action.irreversible) irreversible = true;
 
     planSteps.push({
       stepId,
@@ -97,6 +130,13 @@ export async function buildPlan<TParams>(input: BuildPlanInput<TParams>): Promis
     actor,
     policy,
   );
+  if (template.metadata.requiredApproval) {
+    requiresApproval.push({
+      capability: "approval:manual",
+      reason: `Template ${template.metadata.id} requires manual approval`,
+    });
+    capabilities.push("approval:manual");
+  }
 
   const expiresAt = new Date(now.getTime() + template.resolvedPlanTtlSeconds * 1000);
 
@@ -118,5 +158,5 @@ export async function buildPlan<TParams>(input: BuildPlanInput<TParams>): Promis
     steps: planSteps,
     actor,
   };
-  return { plan, resolvedSteps };
+  return { plan, resolvedSteps, templateContext };
 }

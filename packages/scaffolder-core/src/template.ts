@@ -1,7 +1,8 @@
 // Template definition, compilation, and registry for scaffolder templates.
 import type { ZodType } from "zod";
-import type { Audience, Capability, SandboxTarget } from "./types";
+import type { Audience, Capability, SandboxTarget, TemplateOperation } from "./types";
 import type { PlanCtx } from "./plan-ctx";
+import { stableStringify, templateContentHash } from "./fingerprint";
 
 export interface DefaultTargetMap {
   agent: SandboxTarget;
@@ -19,6 +20,10 @@ export interface TemplateMetadata {
   requiredRole: "admin" | "member";
   planTtlSeconds?: number;
   defaultTarget?: DefaultTargetMap;
+  // Defaults to "create". day2/delete templates run against an existing catalog entity.
+  operation?: TemplateOperation;
+  // Port-style requiredApproval, every plan needs an explicit admin grant before apply.
+  requiredApproval?: boolean;
 }
 
 export interface Step {
@@ -33,6 +38,8 @@ export interface TemplateDefinition<TParams = unknown> {
   metadata: TemplateMetadata;
   parameters: ZodType<TParams>;
   capabilities: Capability[];
+  // Raw declarative source (Port-style JSON) for templates loaded from data, drives form resolution and content hashing.
+  definitionSource?: unknown;
   // Method-shorthand (not property) keeps plan() bivariant so the registry can hold CompiledTemplate<unknown>.
   plan(params: TParams, ctx: PlanCtx): Step[] | Promise<Step[]>;
 }
@@ -40,6 +47,7 @@ export interface TemplateDefinition<TParams = unknown> {
 export interface CompiledTemplate<TParams = unknown> extends TemplateDefinition<TParams> {
   resolvedDefaultTarget: DefaultTargetMap;
   resolvedPlanTtlSeconds: number;
+  resolvedOperation: TemplateOperation;
 }
 
 const DEFAULT_PLAN_TTL_SECONDS = 1800;
@@ -64,7 +72,22 @@ export function defineTemplate<TParams>(
     ...def,
     resolvedDefaultTarget: metadata.defaultTarget ?? DEFAULT_TARGETS,
     resolvedPlanTtlSeconds: metadata.planTtlSeconds ?? DEFAULT_PLAN_TTL_SECONDS,
+    resolvedOperation: metadata.operation ?? "create",
   };
+}
+
+// Declarative templates hash their full definition so edits surface as drift.
+export function contentHashForTemplate(tpl: {
+  metadata: TemplateMetadata;
+  definitionSource?: unknown;
+}): string {
+  return templateContentHash({
+    templateId: tpl.metadata.id,
+    version: tpl.metadata.version,
+    moduleSource: tpl.definitionSource
+      ? stableStringify(tpl.definitionSource)
+      : tpl.metadata.id + tpl.metadata.version,
+  });
 }
 
 export function resolveTarget(

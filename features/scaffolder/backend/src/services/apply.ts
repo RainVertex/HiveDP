@@ -9,6 +9,7 @@ import {
   type Plan,
   type StepEvent,
   type Compensation,
+  type StepTemplateContext,
   type TaskStatus,
 } from "@internal/scaffolder-core";
 import type { PlanCtx } from "@internal/scaffolder-core";
@@ -19,7 +20,9 @@ import { createApprovalSigner, residualMissingApprovals, type ApprovalGrant } fr
 // Orchestrates applying a scaffolder plan: gates, lock, sandbox, execute, persist.
 export interface ApplyInput {
   plan: Plan;
-  resolvedSteps: Array<{ stepId: string; action: string; input: unknown }>;
+  resolvedSteps: Array<{ stepId: string; action: string; input: unknown; deferred?: boolean }>;
+  // jq context persisted with the plan artifact, needed to resolve deferred step inputs.
+  templateContext?: StepTemplateContext;
   actions: ActionRegistry;
   planCtx: PlanCtx;
   triggeredByUserId: string;
@@ -67,6 +70,7 @@ export async function applyPlan(input: ApplyInput): Promise<ApplyResult> {
   const {
     plan,
     resolvedSteps,
+    templateContext,
     actions,
     planCtx,
     triggeredByUserId,
@@ -138,6 +142,7 @@ export async function applyPlan(input: ApplyInput): Promise<ApplyResult> {
     taskId,
     plan,
     resolvedSteps,
+    templateContext,
     actions,
     planCtx,
     workspacePath: sandbox.workspacePath,

@@ -2,6 +2,9 @@
 import { prisma } from "@internal/db";
 import type { CompiledTemplate, Actor } from "@internal/scaffolder-core";
 
+/** Sentinel subjectId used on `everyone`-type ACL rows. */
+export const EVERYONE_SUBJECT_ID = "*";
+
 export async function filterByTemplateAcl<T extends CompiledTemplate<unknown>>(
   templates: readonly T[],
   actor: Actor,

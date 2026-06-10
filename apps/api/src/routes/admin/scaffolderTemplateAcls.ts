@@ -2,7 +2,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "@internal/db";
-import { EVERYONE_SUBJECT_ID, getTemplateRegistry } from "@feature/scaffolder-backend";
+import { EVERYONE_SUBJECT_ID, getTemplates } from "@feature/scaffolder-backend";
 import { requireAuth, requireRole } from "../../middleware/requireAuth";
 import { adminLimiter } from "../../middleware/rateLimit";
 import { recordAudit } from "../../audit/audit";
@@ -38,14 +38,15 @@ function shape(r: {
   };
 }
 
-function templateExists(templateId: string): boolean {
-  return getTemplateRegistry().get(templateId) !== undefined;
+async function templateExists(templateId: string): Promise<boolean> {
+  return (await getTemplates()).get(templateId) !== undefined;
 }
 
 adminScaffolderTemplateAclsRouter.get("/:id/acl", async (req, res, next) => {
   try {
     const templateId = String(req.params.id);
-    if (!templateExists(templateId)) return res.status(404).json({ error: "Template not found" });
+    if (!(await templateExists(templateId)))
+      return res.status(404).json({ error: "Template not found" });
     const rows = await prisma.templateAcl.findMany({
       where: { templateId },
       orderBy: { createdAt: "asc" },
@@ -59,7 +60,8 @@ adminScaffolderTemplateAclsRouter.get("/:id/acl", async (req, res, next) => {
 adminScaffolderTemplateAclsRouter.post("/:id/acl", async (req, res, next) => {
   try {
     const templateId = String(req.params.id);
-    if (!templateExists(templateId)) return res.status(404).json({ error: "Template not found" });
+    if (!(await templateExists(templateId)))
+      return res.status(404).json({ error: "Template not found" });
 
     const parsed = upsertSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.message });

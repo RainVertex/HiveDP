@@ -5,18 +5,20 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { prisma } from "@internal/db";
 import {
   buildPlan,
+  contentHashForTemplate,
   paramsHash as computeParamsHash,
   resolveTarget,
-  templateContentHash,
   type Actor,
   type Audience,
   type SandboxTarget,
+  type StepTemplateContext,
 } from "@internal/scaffolder-core";
 import { filterByTemplateAcl } from "./services/acl";
 import { z } from "zod";
 import { verifyMcpToken } from "./services/mcp-tokens";
-import { getActionRegistry, getTemplateRegistry } from "./services/registry";
+import { getActionRegistry, getTemplates } from "./services/registry";
 import { buildPlanCtx } from "./services/plan-ctx";
+import { buildUserContext } from "./services/jq-context";
 import { loadCapabilityPolicy } from "./services/policy";
 import { applyPlan, ApprovalsMissingError, PlanExpiredError } from "./services/apply";
 import { StalePlanError, TargetLockBusyError } from "./services/locks";
@@ -97,13 +99,15 @@ function res(req: Request): { locals: { mcp?: McpAuthContext } } {
 async function buildMcpServer(req: Request): Promise<McpServer> {
   const auth = res(req).locals.mcp as McpAuthContext;
   const server = new McpServer({ name: "scaffolder", version: "1.0.0" });
-  const templates = getTemplateRegistry().list();
+  const templates = (await getTemplates()).list();
   const visible = await filterByTemplateAcl(templates, auth.actor, false);
 
   // One tool per agent-audience template; template id is sanitized to a valid MCP tool identifier.
   for (const template of visible) {
     if (!template.metadata.audience.includes("agent" as Audience)) continue;
     if (!templateAllowedForToken(template.metadata.id, auth.scopes)) continue;
+    // day2/delete templates need a catalog entity which the MCP surface cannot pick yet.
+    if (template.resolvedOperation !== "create") continue;
     // Pull the raw shape off z.object() for the SDK; non-object schemas fall back to undefined.
     const params = template.parameters as unknown as {
       shape?: Record<string, z.ZodTypeAny>;
@@ -190,16 +194,13 @@ async function buildMcpServer(req: Request): Promise<McpServer> {
 }
 
 async function runBuildPlan(templateId: string, rawParams: unknown, auth: McpAuthContext) {
-  const template = getTemplateRegistry().get(templateId);
+  const template = (await getTemplates()).get(templateId);
   if (!template) throw new Error(`Unknown template: ${templateId}`);
   const target = resolveTarget(template, "agent");
   const planCtx = buildPlanCtx({ actor: auth.actor, target });
   const policy = loadCapabilityPolicy();
-  const contentHash = templateContentHash({
-    templateId: template.metadata.id,
-    version: template.metadata.version,
-    moduleSource: template.metadata.id + template.metadata.version,
-  });
+  const contentHash = contentHashForTemplate(template);
+  const user = await buildUserContext(auth.userId);
   const phash = computeParamsHash(rawParams);
   const existingBinding = await prisma.scaffoldBinding.findFirst({
     where: { templateId: template.metadata.id, paramsHash: phash, active: true },
@@ -215,6 +216,7 @@ async function runBuildPlan(templateId: string, rawParams: unknown, auth: McpAut
     bindingId: existingBinding?.id ?? null,
     policy,
     actions: getActionRegistry(),
+    user,
   });
   await prisma.scaffoldPlan.create({
     data: {
@@ -229,7 +231,11 @@ async function runBuildPlan(templateId: string, rawParams: unknown, auth: McpAut
       capabilities: built.plan.capabilities,
       irreversible: built.plan.irreversible,
       bindingId: built.plan.bindingId,
-      artifact: { steps: built.plan.steps, resolvedSteps: built.resolvedSteps } as never,
+      artifact: {
+        steps: built.plan.steps,
+        resolvedSteps: built.resolvedSteps,
+        templateContext: built.templateContext,
+      } as never,
       requiresApproval: built.plan.requiresApproval as never,
       approvalsGranted: [] as never,
       createdByUserId: auth.userId,
@@ -265,7 +271,8 @@ async function runApplyPlan(
 
   const artifact = planRow.artifact as unknown as {
     steps: Awaited<ReturnType<typeof buildPlan>>["plan"]["steps"];
-    resolvedSteps: Array<{ stepId: string; action: string; input: unknown }>;
+    resolvedSteps: Array<{ stepId: string; action: string; input: unknown; deferred?: boolean }>;
+    templateContext?: StepTemplateContext;
   };
   const plan = {
     id: planRow.id,
@@ -299,6 +306,7 @@ async function runApplyPlan(
     const result = await applyPlan({
       plan,
       resolvedSteps: artifact.resolvedSteps,
+      ...(artifact.templateContext ? { templateContext: artifact.templateContext } : {}),
       actions: getActionRegistry(),
       planCtx,
       triggeredByUserId: auth.userId,
