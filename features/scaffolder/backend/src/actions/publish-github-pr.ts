@@ -14,22 +14,29 @@ async function loadOctokit(): Promise<typeof OctokitClient> {
 }
 
 const publishGithubPrInput = z.object({
-  org: z.string().min(1),
+  org: z.string().min(1).describe("GitHub organization or user login that owns the repo"),
   repo: z
     .string()
     .min(1)
-    .regex(/^[a-zA-Z0-9._-]+$/, "repo name must be GitHub-safe"),
-  baseBranch: z.string().min(1).default("main"),
+    .regex(/^[a-zA-Z0-9._-]+$/, "repo name must be GitHub-safe")
+    .describe("Existing repository the PR targets"),
+  baseBranch: z.string().min(1).default("main").describe("Branch the PR merges into"),
   branchName: z
     .string()
     .min(1)
-    .regex(/^[a-zA-Z0-9._/-]+$/, "branch name must be git-safe"),
-  title: z.string().min(1).max(256),
-  body: z.string().max(20_000).optional(),
-  commitMessage: z.string().min(1).default("Apply scaffold update"),
-  // Workspace subdirectory to publish, defaults to the whole workspace.
-  sourceDir: z.string().default("."),
-  tokenSecret: z.string().default("GITHUB_TOKEN"),
+    .regex(/^[a-zA-Z0-9._/-]+$/, "branch name must be git-safe")
+    .describe("New branch the rendered workspace is pushed to"),
+  title: z.string().min(1).max(256).describe("Pull request title"),
+  body: z.string().max(20_000).optional().describe("Pull request body"),
+  commitMessage: z.string().min(1).default("Apply scaffold update").describe("Commit message"),
+  sourceDir: z
+    .string()
+    .default(".")
+    .describe("Workspace subdirectory to publish, defaults to the whole workspace"),
+  tokenSecret: z
+    .string()
+    .default("GITHUB_TOKEN")
+    .describe("Name of the platform secret holding the GitHub token"),
 });
 
 type PublishGithubPrInput = z.infer<typeof publishGithubPrInput>;

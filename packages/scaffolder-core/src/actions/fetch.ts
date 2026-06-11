@@ -10,12 +10,20 @@ import type { Action, ReadCtx, WriteCtx } from "./types";
 
 const fetchTemplateInput = z.object({
   // Absolute path so this action stays filesystem-agnostic.
-  skeletonPath: z.string().min(1),
-  values: z.record(z.string(), z.unknown()),
+  skeletonPath: z.string().min(1).describe("Absolute path of the skeleton directory to render"),
+  values: z
+    .record(z.string(), z.unknown())
+    .describe("Values exposed to skeleton files as ${{ values.* }}"),
   // Substring-matched files copied verbatim (skip Nunjucks); useful for binary fixtures.
-  skipRender: z.array(z.string()).optional(),
+  skipRender: z
+    .array(z.string())
+    .optional()
+    .describe("Substring-matched files copied verbatim without rendering"),
   // Filename markers like __PASCAL__ since filenames cannot hold Nunjucks expressions on Windows.
-  pathSubstitutions: z.record(z.string(), z.string()).optional(),
+  pathSubstitutions: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe("Filename marker replacements, e.g. __PASCAL__"),
 });
 
 type FetchInput = z.infer<typeof fetchTemplateInput>;

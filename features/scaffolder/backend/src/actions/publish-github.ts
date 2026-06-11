@@ -14,15 +14,19 @@ async function loadOctokit(): Promise<typeof OctokitClient> {
 }
 
 const publishGithubInput = z.object({
-  org: z.string().min(1),
+  org: z.string().min(1).describe("GitHub organization or user login that will own the repo"),
   name: z
     .string()
     .min(1)
-    .regex(/^[a-zA-Z0-9._-]+$/, "repo name must be GitHub-safe"),
-  visibility: z.enum(["public", "private"]).default("private"),
-  description: z.string().max(350).optional(),
-  defaultBranch: z.string().default("main"),
-  tokenSecret: z.string().default("GITHUB_TOKEN"),
+    .regex(/^[a-zA-Z0-9._-]+$/, "repo name must be GitHub-safe")
+    .describe("Name of the repository to create"),
+  visibility: z.enum(["public", "private"]).default("private").describe("Repository visibility"),
+  description: z.string().max(350).optional().describe("Repository description"),
+  defaultBranch: z.string().default("main").describe("Branch the initial commit is pushed to"),
+  tokenSecret: z
+    .string()
+    .default("GITHUB_TOKEN")
+    .describe("Name of the platform secret holding the GitHub token"),
 });
 
 type PublishGithubInput = z.infer<typeof publishGithubInput>;
@@ -32,6 +36,8 @@ export interface PublishGithubOutput {
   defaultBranch: string;
   repoVisibility: "public" | "private";
   repoFullName: string;
+  // GitHub's stable numeric repo id, feed it to catalog:register so discovery converges.
+  repoId: number;
   initialCommitSha: string;
 }
 
@@ -49,7 +55,7 @@ async function repoExists(octo: OctokitClient, org: string, name: string): Promi
 async function createRepo(
   octo: OctokitClient,
   input: PublishGithubInput,
-): Promise<{ fullName: string; cloneUrl: string }> {
+): Promise<{ fullName: string; cloneUrl: string; repoId: number }> {
   // Try the org endpoint first; on 404 the org is actually a user login, so fall back.
   try {
     const { data } = await octo.rest.repos.createInOrg({
@@ -59,7 +65,7 @@ async function createRepo(
       description: input.description,
       auto_init: false,
     });
-    return { fullName: data.full_name, cloneUrl: data.clone_url };
+    return { fullName: data.full_name, cloneUrl: data.clone_url, repoId: data.id };
   } catch (err) {
     const status = (err as { status?: number }).status;
     if (status !== 404) throw err;
@@ -69,7 +75,7 @@ async function createRepo(
       description: input.description,
       auto_init: false,
     });
-    return { fullName: data.full_name, cloneUrl: data.clone_url };
+    return { fullName: data.full_name, cloneUrl: data.clone_url, repoId: data.id };
   }
 }
 
@@ -138,6 +144,7 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
           defaultBranch: input.defaultBranch,
           repoVisibility: input.visibility,
           repoFullName: `${input.org}/${input.name}`,
+          repoId: 0,
           initialCommitSha: "dry-run",
         },
         compensation: { kind: "noop", reason: "dry run" },
@@ -151,7 +158,7 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
         `publish:github: ${input.org}/${input.name} already exists; refusing to overwrite`,
       );
     }
-    const { fullName, cloneUrl } = await createRepo(octo, input);
+    const { fullName, cloneUrl, repoId } = await createRepo(octo, input);
     ctx.logger.info(`publish:github created ${fullName}`);
 
     // Count only for the audit trail; never log file contents.
@@ -172,6 +179,7 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
         defaultBranch: input.defaultBranch,
         repoVisibility: input.visibility,
         repoFullName: fullName,
+        repoId,
         initialCommitSha: sha,
       },
       // Irreversible: a public push cannot be auto-rolled-back, so cleanup is left to the operator.

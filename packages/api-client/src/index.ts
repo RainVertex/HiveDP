@@ -37,6 +37,7 @@ import type {
   RunAgentResponse,
   ScaffolderBinding,
   ScaffolderDriftSummaryDto,
+  ScaffolderActionDoc,
   ScaffolderPlan,
   ScaffolderTask,
   ScaffolderTemplateDefPreview,
@@ -929,6 +930,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request<ListResponse<ScaffolderTemplateSummary>>(`/api/scaffolder/templates`),
       getTemplate: (id: string) =>
         request<ScaffolderTemplateDetail>(`/api/scaffolder/templates/${encodeURIComponent(id)}`),
+      listActions: () => request<ListResponse<ScaffolderActionDoc>>(`/api/scaffolder/actions`),
       createPlan: (body: {
         templateId: string;
         params: Record<string, unknown>;

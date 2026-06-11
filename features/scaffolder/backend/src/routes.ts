@@ -190,6 +190,28 @@ export function createScaffolderRouter(): Router {
     }
   });
 
+  // GET /actions, installed action documentation for template authors (Backstage /create/actions equivalent).
+  router.get("/actions", async (req, res, next) => {
+    try {
+      const actor = await actorFromRequest(req);
+      if (!actor) {
+        res.status(401).json({ error: "Not authenticated" });
+        return;
+      }
+      res.json({
+        items: actions.list().map((action) => ({
+          id: action.id,
+          description: action.description,
+          capabilities: action.capabilities,
+          irreversible: action.irreversible ?? false,
+          inputJsonSchema: toJsonSchema(action.schema),
+        })),
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // GET /templates/:id, full template detail with the resolved parameter JSON Schema.
   router.get("/templates/:id", async (req, res, next) => {
     try {

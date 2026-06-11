@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { StreamLanguage } from "@codemirror/language";
+import { yaml as yamlMode } from "@codemirror/legacy-modes/mode/yaml";
 import Form from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
 import type { RJSFSchema, UiSchema } from "@rjsf/utils";
-import { PageLayout } from "@internal/shared-ui";
+import { PageLayout, codeMirrorTheme } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
 import { useTranslation } from "@internal/i18n";
 import type {
@@ -11,8 +14,11 @@ import type {
   ScaffolderTemplateDefRow,
 } from "@internal/shared-types";
 import { themeTemplates, themeWidgets } from "./rjsfTheme";
+import { ActionsDocDrawer } from "./ActionsDocDrawer";
 
 const PREVIEW_DEBOUNCE_MS = 400;
+
+const editorExtensions = [StreamLanguage.define(yamlMode)];
 
 const STARTER_SOURCE = `apiVersion: scaffolder.platform/v1
 kind: Template
@@ -42,6 +48,42 @@ spec:
         message: Scaffolding \${{ parameters.name }}
 `;
 
+interface PreviewBoundaryProps {
+  resetKey: unknown;
+  fallback: string;
+  children: ReactNode;
+}
+
+interface PreviewBoundaryState {
+  error: Error | null;
+}
+
+class PreviewErrorBoundary extends Component<PreviewBoundaryProps, PreviewBoundaryState> {
+  state: PreviewBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): PreviewBoundaryState {
+    return { error };
+  }
+
+  componentDidUpdate(prev: PreviewBoundaryProps) {
+    if (this.state.error && prev.resetKey !== this.props.resetKey) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="rounded bg-amber-50 p-2 text-xs text-amber-800">
+          <p>{this.props.fallback}</p>
+          <p className="mt-1 font-mono">{this.state.error.message}</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function TemplateEditorPage() {
   const api = useApi();
   const { t } = useTranslation("scaffolder");
@@ -56,6 +98,7 @@ export function TemplateEditorPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [docsOpen, setDocsOpen] = useState(false);
   const previewSeq = useRef(0);
 
   const isAdmin = me?.role === "admin";
@@ -172,6 +215,13 @@ export function TemplateEditorPage() {
         <>
           <button
             type="button"
+            onClick={() => setDocsOpen(true)}
+            className="rounded-md border border-app-border px-3 py-1.5 text-sm text-app-text-muted hover:bg-app-surface-hover"
+          >
+            {t("actionsDoc.openLink")}
+          </button>
+          <button
+            type="button"
             onClick={newDraft}
             className="rounded-md border border-app-border px-3 py-1.5 text-sm text-app-text-muted hover:bg-app-surface-hover"
           >
@@ -198,6 +248,7 @@ export function TemplateEditorPage() {
         </>
       }
     >
+      <ActionsDocDrawer open={docsOpen} onClose={() => setDocsOpen(false)} />
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
       {notice && <p className="mb-3 text-sm text-emerald-700">{notice}</p>}
 
@@ -250,12 +301,15 @@ export function TemplateEditorPage() {
               </label>
             )}
           </div>
-          <textarea
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            spellCheck={false}
-            className="h-[34rem] w-full rounded-md border border-app-border bg-app-surface p-3 font-mono text-xs leading-5"
-          />
+          <div className="overflow-hidden rounded-md border border-app-border text-xs">
+            <CodeMirror
+              value={source}
+              height="34rem"
+              theme={codeMirrorTheme}
+              extensions={editorExtensions}
+              onChange={(value) => setSource(value)}
+            />
+          </div>
           {previewError && (
             <p className="mt-2 rounded bg-amber-50 p-2 text-xs text-amber-800">{previewError}</p>
           )}
@@ -279,17 +333,19 @@ export function TemplateEditorPage() {
                   )}
                 </div>
               </div>
-              <Form
-                schema={preview.schema as RJSFSchema}
-                uiSchema={preview.uiSchema as UiSchema}
-                formData={playgroundData}
-                validator={validator}
-                templates={themeTemplates}
-                widgets={themeWidgets}
-                onChange={(e) => setPlaygroundData((e.formData ?? {}) as Record<string, unknown>)}
-              >
-                <div className="hidden" />
-              </Form>
+              <PreviewErrorBoundary resetKey={preview} fallback={t("editor.previewRenderError")}>
+                <Form
+                  schema={preview.schema as RJSFSchema}
+                  uiSchema={preview.uiSchema as UiSchema}
+                  formData={playgroundData}
+                  validator={validator}
+                  templates={themeTemplates}
+                  widgets={themeWidgets}
+                  onChange={(e) => setPlaygroundData((e.formData ?? {}) as Record<string, unknown>)}
+                >
+                  <div className="hidden" />
+                </Form>
+              </PreviewErrorBoundary>
             </div>
           ) : (
             <p className="text-xs text-app-text-muted">{t("editor.previewEmpty")}</p>

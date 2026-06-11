@@ -3,7 +3,9 @@
 import { z } from "zod";
 import type { Action, WriteCtx } from "./types";
 
-const debugInput = z.object({ message: z.string() });
+const debugInput = z.object({
+  message: z.string().describe("Message echoed to the task log"),
+});
 
 export const debugLogAction: Action<z.infer<typeof debugInput>, { message: string }> = {
   id: "debug:log",

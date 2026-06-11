@@ -69,6 +69,15 @@ export interface ScaffolderTemplateDefPreview extends ScaffolderFormState {
   type: string | null;
 }
 
+// Installed action documentation, the Backstage /create/actions equivalent.
+export interface ScaffolderActionDoc {
+  id: string;
+  description: string;
+  capabilities: ScaffolderCapability[];
+  irreversible: boolean;
+  inputJsonSchema: Record<string, unknown>;
+}
+
 export interface ScaffolderApprovalRequirement {
   capability: ScaffolderCapability;
   reason: string;

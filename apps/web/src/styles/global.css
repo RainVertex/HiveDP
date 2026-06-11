@@ -147,6 +147,8 @@
     --c-danger: #bf616a;
     --c-danger-soft: #ecd0d4;
     --c-danger-foreground: #6b2932;
+    --c-syntax-string: var(--c-success-foreground);
+    --c-syntax-literal: #3e7286;
     color-scheme: light;
   }
 
