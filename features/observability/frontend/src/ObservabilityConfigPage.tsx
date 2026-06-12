@@ -76,20 +76,21 @@ export function ObservabilityConfigPage() {
     Promise.all([api.catalog.list(), api.integrations.list()])
       .then(async ([entitiesRes, integrationsRes]) => {
         if (cancelled) return;
+        const accessibleItems = entitiesRes.items.filter((i) => i.accessible);
         const grafana = integrationsRes.items.filter((i) => i.kind === "grafana" && i.enabled);
         const defaultIntegrationId = grafana[0]?.id ?? "";
 
         const initial: Record<string, RowDraft> = {};
         const configs = await Promise.all(
-          entitiesRes.items.map((e) => api.observability.getEntityConfig(e.id).catch(() => null)),
+          accessibleItems.map((e) => api.observability.getEntityConfig(e.id).catch(() => null)),
         );
         if (cancelled) return;
-        for (const [idx, entity] of entitiesRes.items.entries()) {
+        for (const [idx, entity] of accessibleItems.entries()) {
           const cfg = configs[idx];
           initial[entity.id] = cfg ? rowFromDto(cfg) : defaultRow(defaultIntegrationId);
         }
 
-        setEntities(entitiesRes.items);
+        setEntities(accessibleItems);
         setIntegrations(integrationsRes.items);
         setRows(initial);
       })

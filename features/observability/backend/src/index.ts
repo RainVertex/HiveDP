@@ -3,6 +3,7 @@
 import { Router } from "express";
 import { prisma } from "@internal/db";
 import { GrafanaApiError } from "@internal/grafana-client";
+import { canViewEntityDetails, getVisibleOrgLogins } from "@feature/catalog-backend/contract";
 import { loadDefaultGrafanaIntegration } from "./grafana";
 import { canReadEntityObservability } from "./access";
 import { prometheusScrapeJob } from "./jobs/prometheusScrape";
@@ -14,8 +15,14 @@ export { grafanaWebhookRouter } from "./grafanaWebhook";
 
 export const observabilityRouter: Router = Router();
 
-observabilityRouter.get("/health-samples", async (_req, res) => {
+observabilityRouter.get("/health-samples", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const scope = await getVisibleOrgLogins(req.user);
   const samples = await prisma.serviceHealthSample.findMany({
+    ...(scope !== null ? { where: { entity: { accountLogin: { in: scope } } } } : {}),
     orderBy: { createdAt: "desc" },
     take: 200,
   });
@@ -23,6 +30,22 @@ observabilityRouter.get("/health-samples", async (_req, res) => {
 });
 
 observabilityRouter.get("/health-samples/:entityId", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const entity = await prisma.catalogEntity.findUnique({
+    where: { id: req.params.entityId },
+    select: { accountLogin: true },
+  });
+  if (!entity) {
+    res.status(404).json({ error: "Catalog entity not found" });
+    return;
+  }
+  if (!(await canViewEntityDetails(req.user, entity.accountLogin))) {
+    res.status(403).json({ error: "Org membership required" });
+    return;
+  }
   const samples = await prisma.serviceHealthSample.findMany({
     where: { entityId: req.params.entityId },
     orderBy: { createdAt: "desc" },

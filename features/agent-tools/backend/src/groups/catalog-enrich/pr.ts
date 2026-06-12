@@ -1,4 +1,4 @@
-import { parseCatalogInfo } from "@feature/catalog-backend/contract";
+import { parseCatalogInfo, resolveOrgScope } from "@feature/catalog-backend/contract";
 import { openOrUpdateFilePr } from "@feature/integrations-backend/contract";
 import type { RegisteredTool } from "@internal/llm-core";
 import { loadEntityRepo } from "./repo";
@@ -27,7 +27,7 @@ export const openYamlPr: RegisteredTool = {
       },
     },
   },
-  handler: async (args) => {
+  handler: async (args, ctx) => {
     const { entityId, yaml } = args as { entityId?: unknown; yaml?: unknown };
     if (typeof yaml !== "string" || !yaml.trim())
       return { error: "yaml required", code: "bad_args" };
@@ -35,7 +35,8 @@ export const openYamlPr: RegisteredTool = {
     if (validated.kind === "error") {
       return { error: `Invalid catalog-info.yaml: ${validated.reason}`, code: "invalid_yaml" };
     }
-    const repo = await loadEntityRepo(entityId);
+    const scope = await resolveOrgScope(ctx.userId, ctx.isAdmin);
+    const repo = await loadEntityRepo(entityId, scope);
     if ("error" in repo) return repo;
     try {
       return await openOrUpdateFilePr({

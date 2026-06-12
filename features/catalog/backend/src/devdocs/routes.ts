@@ -1,5 +1,5 @@
 // Express routes for devdocs: pages, sync, verification, comments, stale reports, and search.
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { Prisma, prisma } from "@internal/db";
 import type {
@@ -12,6 +12,7 @@ import type {
   DocsTabResponse,
   DocSyncStatus,
 } from "@internal/shared-types";
+import { canViewEntityDetails, getVisibleOrgLogins } from "../access";
 import { computeFreshness } from "./freshness";
 import { syncDevDocsForEntity } from "./sync";
 import { getDevDocsHits } from "./search";
@@ -84,11 +85,6 @@ export const devdocsEntityRouter: Router = Router({ mergeParams: true });
 
 devdocsEntityRouter.get("/", async (req, res) => {
   const entityId = (req.params as Record<string, string>).id;
-  const entity = await prisma.catalogEntity.findUnique({
-    where: { id: entityId },
-    select: { id: true },
-  });
-  if (!entity) return res.status(404).json({ error: "Catalog entity not found" });
 
   const [pages, sync] = await Promise.all([
     prisma.docPage.findMany({
@@ -116,11 +112,6 @@ devdocsEntityRouter.get("/", async (req, res) => {
 
 devdocsEntityRouter.post("/sync", async (req, res) => {
   const entityId = (req.params as Record<string, string>).id;
-  const entity = await prisma.catalogEntity.findUnique({
-    where: { id: entityId },
-    select: { id: true },
-  });
-  if (!entity) return res.status(404).json({ error: "Catalog entity not found" });
   const result = await syncDevDocsForEntity(entityId);
   res.json(result);
 });
@@ -155,6 +146,23 @@ devdocsEntityRouter.get("/:slug", async (req, res) => {
 // Standalone routes not scoped to an entity.
 export const devdocsRouter: Router = Router();
 
+// Resolves the page and enforces the org gate, returns null after responding on failure.
+async function requirePageOrgAccess(req: Request, res: Response): Promise<string | null> {
+  const page = await prisma.docPage.findUnique({
+    where: { id: (req.params as Record<string, string>).pageId },
+    select: { id: true, entity: { select: { accountLogin: true } } },
+  });
+  if (!page) {
+    res.status(404).json({ error: "Doc page not found" });
+    return null;
+  }
+  if (!(await canViewEntityDetails(req.user!, page.entity.accountLogin))) {
+    res.status(403).json({ error: "Org membership required" });
+    return null;
+  }
+  return page.id;
+}
+
 const verifyParam = z.object({ pageId: z.string().min(1) });
 
 devdocsRouter.post("/pages/:pageId/verify", async (req, res) => {
@@ -162,14 +170,11 @@ devdocsRouter.post("/pages/:pageId/verify", async (req, res) => {
   if (!params.success) return res.status(400).json({ error: params.error.message });
   if (!req.user) return res.status(401).json({ error: "Not authenticated" });
 
-  const page = await prisma.docPage.findUnique({
-    where: { id: params.data.pageId },
-    select: { id: true },
-  });
-  if (!page) return res.status(404).json({ error: "Doc page not found" });
+  const pageId = await requirePageOrgAccess(req, res);
+  if (!pageId) return;
 
   const updated = await prisma.docPage.update({
-    where: { id: page.id },
+    where: { id: pageId },
     data: { verifiedAt: new Date(), verifiedBy: req.user.id },
   });
   res.json({
@@ -185,14 +190,13 @@ const commentBody = z.object({
 });
 
 devdocsRouter.get("/pages/:pageId/comments", async (req, res) => {
-  const page = await prisma.docPage.findUnique({
-    where: { id: req.params.pageId },
-    select: { id: true },
-  });
-  if (!page) return res.status(404).json({ error: "Doc page not found" });
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+
+  const pageId = await requirePageOrgAccess(req, res);
+  if (!pageId) return;
 
   const rows = await prisma.docComment.findMany({
-    where: { pageId: page.id },
+    where: { pageId },
     orderBy: { createdAt: "asc" },
     include: { author: { select: userProjection } },
   });
@@ -219,15 +223,12 @@ devdocsRouter.post("/pages/:pageId/comments", async (req, res) => {
   const parsed = commentBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
 
-  const page = await prisma.docPage.findUnique({
-    where: { id: req.params.pageId },
-    select: { id: true },
-  });
-  if (!page) return res.status(404).json({ error: "Doc page not found" });
+  const pageId = await requirePageOrgAccess(req, res);
+  if (!pageId) return;
 
   const created = await prisma.docComment.create({
     data: {
-      pageId: page.id,
+      pageId,
       authorId: req.user.id,
       body: parsed.data.body,
       anchor: parsed.data.anchor ?? null,
@@ -254,8 +255,14 @@ devdocsRouter.post("/pages/:pageId/comments", async (req, res) => {
 
 devdocsRouter.delete("/comments/:id", async (req, res) => {
   if (!req.user) return res.status(401).json({ error: "Not authenticated" });
-  const existing = await prisma.docComment.findUnique({ where: { id: req.params.id } });
+  const existing = await prisma.docComment.findUnique({
+    where: { id: req.params.id },
+    include: { page: { select: { entity: { select: { accountLogin: true } } } } },
+  });
   if (!existing) return res.status(404).json({ error: "Comment not found" });
+  if (!(await canViewEntityDetails(req.user, existing.page.entity.accountLogin))) {
+    return res.status(403).json({ error: "Org membership required" });
+  }
   if (existing.authorId !== req.user.id && req.user.role !== "admin") {
     return res.status(403).json({ error: "Forbidden" });
   }
@@ -272,21 +279,18 @@ devdocsRouter.post("/pages/:pageId/stale-reports", async (req, res) => {
   const parsed = staleBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
 
-  const page = await prisma.docPage.findUnique({
-    where: { id: req.params.pageId },
-    select: { id: true },
-  });
-  if (!page) return res.status(404).json({ error: "Doc page not found" });
+  const pageId = await requirePageOrgAccess(req, res);
+  if (!pageId) return;
 
   // One open report per (pageId, reporterId): reuse the existing unresolved one instead of duplicating.
   const existing = await prisma.docStaleReport.findFirst({
-    where: { pageId: page.id, reporterId: req.user.id, resolvedAt: null },
+    where: { pageId, reporterId: req.user.id, resolvedAt: null },
   });
   const row =
     existing ??
     (await prisma.docStaleReport.create({
       data: {
-        pageId: page.id,
+        pageId,
         reporterId: req.user.id,
         reason: parsed.data.reason ?? null,
       },
@@ -307,6 +311,8 @@ devdocsRouter.get("/search", async (req, res) => {
   if (!q) return res.json({ query: q, hits: [] });
   const entityId = typeof req.query.entityId === "string" ? req.query.entityId : undefined;
   const limit = Number(req.query.limit) || 20;
-  const hits = await getDevDocsHits(q, { entityId, limit });
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+  const scope = await getVisibleOrgLogins(req.user);
+  const hits = await getDevDocsHits(q, { entityId, limit, accountLogins: scope ?? undefined });
   res.json({ query: q, hits });
 });

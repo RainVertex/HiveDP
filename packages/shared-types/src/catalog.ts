@@ -19,6 +19,8 @@ export type CatalogEntitySource = "manual" | "scaffolder" | "discovery" | "agent
 export interface CatalogEntity extends NamedEntity {
   kind: CatalogEntityKind;
   lifecycle: Lifecycle;
+  /** GitHub org login the entity belongs to. */
+  accountLogin: string;
   repoUrl?: string | null;
   tags: string[];
   source: CatalogEntitySource;
@@ -41,6 +43,23 @@ export interface CatalogEntity extends NamedEntity {
 export interface CatalogEntityWithOwners extends CatalogEntity {
   ownerTeams: Team[];
 }
+
+/** Public projection of an entity in an org the viewer is not a member of. */
+export interface CatalogEntityLocked {
+  accessible: false;
+  id: string;
+  name: string;
+  kind: CatalogEntityKind;
+  lifecycle: Lifecycle;
+  description: string | null;
+  accountLogin: string;
+}
+
+export interface CatalogEntityAccessible extends CatalogEntityWithOwners {
+  accessible: true;
+}
+
+export type CatalogListItem = CatalogEntityAccessible | CatalogEntityLocked;
 
 export type CatalogRelationType =
   | "dependsOn"
@@ -76,9 +95,17 @@ export interface CatalogEntityLink {
 }
 
 export interface CatalogEntityOverview {
+  accessible: true;
   entity: CatalogEntityWithOwners;
   dora: DoraMetricsSnapshot[];
   health: ServiceHealthSample[];
   scorecards: ScorecardSummary[];
   links: CatalogEntityLink[];
 }
+
+export interface CatalogEntityOverviewLocked {
+  accessible: false;
+  entity: CatalogEntityLocked;
+}
+
+export type CatalogEntityOverviewResponse = CatalogEntityOverview | CatalogEntityOverviewLocked;

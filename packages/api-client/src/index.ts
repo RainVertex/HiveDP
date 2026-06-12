@@ -9,8 +9,9 @@ import type {
   AgentToolsResponse,
   AuditEventRow,
   CatalogEntityKind,
-  CatalogEntityOverview,
+  CatalogEntityOverviewResponse,
   CatalogEntityWithOwners,
+  CatalogListItem,
   CatalogRelationsResponse,
   CreateAgentInput,
   CurrentUser,
@@ -315,14 +316,11 @@ export function createApiClient(options: ApiClientOptions = {}) {
     },
 
     catalog: {
-      list: (opts: { allOrgs?: boolean } = {}) => {
-        const qs = opts.allOrgs ? "?allOrgs=1" : "";
-        return request<ListResponse<CatalogEntityWithOwners>>(`/api/catalog${qs}`);
-      },
+      list: () => request<ListResponse<CatalogListItem>>(`/api/catalog`),
       get: (id: string) =>
         request<CatalogEntityWithOwners>(`/api/catalog/${encodeURIComponent(id)}`),
       overview: (id: string) =>
-        request<CatalogEntityOverview>(`/api/catalog/${encodeURIComponent(id)}/overview`),
+        request<CatalogEntityOverviewResponse>(`/api/catalog/${encodeURIComponent(id)}/overview`),
       relations: (id: string) =>
         request<CatalogRelationsResponse>(`/api/catalog/${encodeURIComponent(id)}/relations`),
       scorecardsFor: (id: string) =>

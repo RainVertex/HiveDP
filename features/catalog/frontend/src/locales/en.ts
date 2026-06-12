@@ -50,10 +50,8 @@ export const en = {
     buttonLabel_other: "{{count}} status filters active",
     buttonLabelNone: "No status filters",
     sectionHide: "Hide",
-    sectionScope: "Scope",
     stale: "Stale",
     orphaned: "Orphaned",
-    showAllOrgs: "Show all organizations",
     staleDescription:
       "Stale = not seen recently or installation disconnected. Orphaned = stale and the GitHub installation is gone (re-installing the same org revives via githubRepoId).",
   },
@@ -74,6 +72,7 @@ export const en = {
     name: "Name",
     kind: "Kind",
     lifecycle: "Lifecycle",
+    org: "Org",
     owner: "Owner",
     tags: "Tags",
     repoUrl: "Repository",
@@ -92,6 +91,7 @@ export const en = {
   cell: {
     staleTitle: "Not seen since {{date}}",
     staleLabel: "stale",
+    lockedTitle: "Details require org membership",
   },
   entity: {
     loading: "Loading…",
@@ -101,6 +101,9 @@ export const en = {
     componentLabel: "Component",
     owner: "Owner",
     owners: "Owners",
+    lockedTitle: "Details are restricted",
+    lockedMessage:
+      "This entity belongs to the {{org}} GitHub organization. Membership of that organization is required to view its details.",
   },
   tabs: {
     overview: "Overview",

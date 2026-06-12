@@ -52,10 +52,8 @@ export const tr: CatalogResources = {
     buttonLabel_other: "{{count}} durum filtresi etkin",
     buttonLabelNone: "Durum filtresi yok",
     sectionHide: "Gizle",
-    sectionScope: "Kapsam",
     stale: "Eski",
     orphaned: "Sahipsiz",
-    showAllOrgs: "Tüm organizasyonları göster",
     staleDescription:
       "Eski = son zamanlarda görülmedi veya kurulum bağlantısı kesildi. Sahipsiz = eski ve GitHub kurulumu silinmiş (aynı organizasyonu yeniden kurmak githubRepoId üzerinden varlığı geri getirir).",
   },
@@ -76,6 +74,7 @@ export const tr: CatalogResources = {
     name: "Ad",
     kind: "Tür",
     lifecycle: "Yaşam döngüsü",
+    org: "Organizasyon",
     owner: "Sahip",
     tags: "Etiketler",
     repoUrl: "Depo",
@@ -94,6 +93,7 @@ export const tr: CatalogResources = {
   cell: {
     staleTitle: "Son görülme: {{date}}",
     staleLabel: "eski",
+    lockedTitle: "Detaylar organizasyon üyeliği gerektirir",
   },
   entity: {
     loading: "Yükleniyor…",
@@ -103,6 +103,9 @@ export const tr: CatalogResources = {
     componentLabel: "Bileşen",
     owner: "Sahip",
     owners: "Sahipler",
+    lockedTitle: "Detaylar kısıtlı",
+    lockedMessage:
+      "Bu varlık {{org}} GitHub organizasyonuna ait. Detaylarını görmek için bu organizasyonun üyesi olmak gerekir.",
   },
   tabs: {
     overview: "Genel Bakış",

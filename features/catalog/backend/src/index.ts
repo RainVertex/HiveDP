@@ -12,8 +12,21 @@ import {
 import { computeDoraSnapshotForEntity } from "./dora/rollup";
 import { devdocsEntityRouter } from "./devdocs/routes";
 import { pipelinesRouter } from "./pipelines/routes";
-import type { CatalogEntityLink, CatalogEntityWithOwners } from "@internal/shared-types";
+import type {
+  CatalogEntityKind,
+  CatalogEntityLink,
+  CatalogEntityLocked,
+  CatalogEntityWithOwners,
+  CatalogListItem,
+  Lifecycle,
+} from "@internal/shared-types";
 import type { User } from "@internal/db";
+import {
+  canViewEntityDetails,
+  getVisibleOrgLogins,
+  isOrgVisible,
+  requireEntityOrgAccess,
+} from "./access";
 
 async function isOwningTeamMember(user: User, ownerTeamIds: string[]): Promise<boolean> {
   if (user.role === "admin") return true;
@@ -26,6 +39,7 @@ async function isOwningTeamMember(user: User, ownerTeamIds: string[]): Promise<b
 }
 
 export * from "./service";
+export * from "./access";
 export { parseCatalogInfo, VALID_KINDS, CATALOG_INFO_FILE_NAMES } from "./discovery/parse";
 export type { ParseResult } from "./discovery/parse";
 export {
@@ -147,6 +161,26 @@ function shapeEntity(
   return base;
 }
 
+/** Public projection for entities in orgs the viewer is not a member of. */
+function shapeLockedEntity(row: {
+  id: string;
+  name: string;
+  kind: string;
+  lifecycle: string;
+  description: string | null;
+  accountLogin: string;
+}): CatalogEntityLocked {
+  return {
+    accessible: false,
+    id: row.id,
+    name: row.name,
+    kind: row.kind as CatalogEntityKind,
+    lifecycle: row.lifecycle as Lifecycle,
+    description: row.description,
+    accountLogin: row.accountLogin,
+  };
+}
+
 const EMPTY_SET: ReadonlySet<number> = new Set();
 
 async function loadLiveInstallationIds(): Promise<ReadonlySet<number>> {
@@ -166,33 +200,25 @@ async function loadLiveInstallationIds(): Promise<ReadonlySet<number>> {
 export const catalogRouter: Router = Router();
 
 catalogRouter.get("/", async (req, res) => {
-  // Non-admins see only entities in their org memberships; admins and ?allOrgs bypass. Empty memberships yields zero rows by design.
-  const allOrgs = req.query.allOrgs === "1" || req.query.allOrgs === "true";
-  let whereClause: { accountLogin?: { in: string[] } } = {};
-  if (!allOrgs && req.user && req.user.role !== "admin") {
-    const memberships = await prisma.userOrgMembership.findMany({
-      where: { userId: req.user.id },
-      select: { accountLogin: true },
-    });
-    const logins = memberships.map((m) => m.accountLogin);
-    if (logins.length === 0) {
-      res.json({ items: [] });
-      return;
-    }
-    whereClause = { accountLogin: { in: logins } };
-  }
-
-  const [entities, liveInstallationIds] = await Promise.all([
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+  // Existence is public: every entity is listed, but rows outside the viewer's orgs carry only the locked projection.
+  const [scope, entities, liveInstallationIds] = await Promise.all([
+    getVisibleOrgLogins(req.user),
     prisma.catalogEntity.findMany({
-      where: whereClause,
       include: ENTITY_INCLUDE,
       orderBy: { name: "asc" },
     }),
     loadLiveInstallationIds(),
   ]);
-  res.json({
-    items: entities.map((e) => shapeEntity(e as EntityWithOwners, true, liveInstallationIds)),
-  });
+  const items: CatalogListItem[] = entities.map((e) =>
+    isOrgVisible(scope, e.accountLogin)
+      ? ({
+          ...shapeEntity(e as EntityWithOwners, true, liveInstallationIds)!,
+          accessible: true,
+        } as CatalogListItem)
+      : shapeLockedEntity(e),
+  );
+  res.json({ items });
 });
 
 catalogRouter.post("/", async (req, res) => {
@@ -214,6 +240,9 @@ catalogRouter.post("/", async (req, res) => {
     return res.status(400).json({
       error: `accountLogin "${parsed.data.accountLogin}" does not match any enabled GitHub integration`,
     });
+  }
+  if (req.user && !(await canViewEntityDetails(req.user, parsed.data.accountLogin))) {
+    return res.status(403).json({ error: "Org membership required" });
   }
   let result;
   try {
@@ -245,18 +274,17 @@ catalogRouter.get("/stars", async (req, res) => {
   res.json({ items: rows.map((r) => r.entityId) });
 });
 
-catalogRouter.put("/:id/star", async (req, res) => {
+catalogRouter.put("/:id/star", requireEntityOrgAccess(), async (req, res) => {
   if (!req.user) return res.status(401).json({ error: "Not authenticated" });
-  const entity = await prisma.catalogEntity.findUnique({ where: { id: req.params.id } });
-  if (!entity) return res.status(404).json({ error: "Catalog entity not found" });
   await prisma.starredEntity.upsert({
-    where: { userId_entityId: { userId: req.user.id, entityId: entity.id } },
-    create: { userId: req.user.id, entityId: entity.id },
+    where: { userId_entityId: { userId: req.user.id, entityId: req.params.id } },
+    create: { userId: req.user.id, entityId: req.params.id },
     update: {},
   });
   res.status(204).end();
 });
 
+// Deliberately ungated so a user who lost org access can still remove their own star.
 catalogRouter.delete("/:id/star", async (req, res) => {
   if (!req.user) return res.status(401).json({ error: "Not authenticated" });
   await prisma.starredEntity.deleteMany({
@@ -266,13 +294,18 @@ catalogRouter.delete("/:id/star", async (req, res) => {
 });
 
 catalogRouter.get("/:id/overview", async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
   const entity = await prisma.catalogEntity.findUnique({
     where: { id: req.params.id },
     include: ENTITY_INCLUDE,
   });
   if (!entity) return res.status(404).json({ error: "Catalog entity not found" });
+  // Locked envelope instead of 403 so the entity page can render its header for non-members.
+  if (!(await canViewEntityDetails(req.user, entity.accountLogin))) {
+    return res.json({ accessible: false, entity: shapeLockedEntity(entity) });
+  }
   const ownerTeamIds = (entity as EntityWithOwners).owners.map((o) => o.team.id);
-  const canViewRestricted = req.user ? await isOwningTeamMember(req.user, ownerTeamIds) : false;
+  const canViewRestricted = await isOwningTeamMember(req.user, ownerTeamIds);
 
   const [dora, health, scorecards] = await Promise.all([
     prisma.doraMetricsSnapshot.findMany({
@@ -289,6 +322,7 @@ catalogRouter.get("/:id/overview", async (req, res) => {
   ]);
 
   res.json({
+    accessible: true,
     entity: shapeEntity(entity as EntityWithOwners, canViewRestricted),
     dora,
     health,
@@ -297,59 +331,34 @@ catalogRouter.get("/:id/overview", async (req, res) => {
   });
 });
 
-catalogRouter.get("/:id/relations", async (req, res) => {
-  const exists = await prisma.catalogEntity.findUnique({
-    where: { id: req.params.id },
-    select: { id: true },
-  });
-  if (!exists) return res.status(404).json({ error: "Catalog entity not found" });
+catalogRouter.get("/:id/relations", requireEntityOrgAccess(), async (req, res) => {
   const result = await getRelationsFor(req.params.id);
   res.json(result);
 });
 
-catalogRouter.get("/:id/scorecards", async (req, res) => {
-  const exists = await prisma.catalogEntity.findUnique({
-    where: { id: req.params.id },
-    select: { id: true },
-  });
-  if (!exists) return res.status(404).json({ error: "Catalog entity not found" });
+catalogRouter.get("/:id/scorecards", requireEntityOrgAccess(), async (req, res) => {
   const summaries = await getScorecardSummariesForEntity(req.params.id);
   res.json({ items: summaries });
 });
 
-catalogRouter.post("/:id/scorecards/recompute", async (req, res) => {
-  const exists = await prisma.catalogEntity.findUnique({
-    where: { id: req.params.id },
-    select: { id: true },
-  });
-  if (!exists) return res.status(404).json({ error: "Catalog entity not found" });
+catalogRouter.post("/:id/scorecards/recompute", requireEntityOrgAccess(), async (req, res) => {
   await evaluateScorecardsForEntity(req.params.id);
   const summaries = await getScorecardSummariesForEntity(req.params.id);
   res.json({ items: summaries });
 });
 
 // Recompute a fresh DORA snapshot from this entity's ingested deployments and CI runs.
-catalogRouter.post("/:id/dora/recompute", async (req, res) => {
-  const exists = await prisma.catalogEntity.findUnique({
-    where: { id: req.params.id },
-    select: { id: true },
-  });
-  if (!exists) return res.status(404).json({ error: "Catalog entity not found" });
+catalogRouter.post("/:id/dora/recompute", requireEntityOrgAccess(), async (req, res) => {
   const snapshot = await computeDoraSnapshotForEntity(req.params.id);
   res.status(201).json(snapshot);
 });
 
 // Standalone devdocs routes are mounted separately at /api/devdocs by createServer.ts.
-catalogRouter.use("/:id/docs", devdocsEntityRouter);
+catalogRouter.use("/:id/docs", requireEntityOrgAccess(), devdocsEntityRouter);
 
 catalogRouter.use("/", pipelinesRouter);
 
-catalogRouter.get("/:id/audit", async (req, res) => {
-  const exists = await prisma.catalogEntity.findUnique({
-    where: { id: req.params.id },
-    select: { id: true },
-  });
-  if (!exists) return res.status(404).json({ error: "Catalog entity not found" });
+catalogRouter.get("/:id/audit", requireEntityOrgAccess(), async (req, res) => {
   const limit = Math.min(Number(req.query.limit ?? 200) || 200, 500);
   const events = await prisma.auditEvent.findMany({
     where: { targetKind: "catalog_entity", targetId: req.params.id },
@@ -381,7 +390,7 @@ catalogRouter.get("/:id/audit", async (req, res) => {
   });
 });
 
-catalogRouter.get("/:id", async (req, res) => {
+catalogRouter.get("/:id", requireEntityOrgAccess(), async (req, res) => {
   const entity = await prisma.catalogEntity.findUnique({
     where: { id: req.params.id },
     include: ENTITY_INCLUDE,
@@ -415,7 +424,7 @@ function deriveLinks(entity: { repoUrl: string | null; yamlSpec: unknown }): Cat
   return out;
 }
 
-catalogRouter.patch("/:id", async (req, res) => {
+catalogRouter.patch("/:id", requireEntityOrgAccess(), async (req, res) => {
   const parsed = patchInput.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
 
@@ -452,7 +461,7 @@ catalogRouter.patch("/:id", async (req, res) => {
   res.json({ ...shapeEntity(entity as EntityWithOwners | null), action: result.action });
 });
 
-catalogRouter.delete("/:id", async (req, res) => {
+catalogRouter.delete("/:id", requireEntityOrgAccess(), async (req, res) => {
   const existing = await prisma.catalogEntity.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Catalog entity not found" });
   if (existing.staleSince) return res.status(409).json({ error: "Already marked stale" });

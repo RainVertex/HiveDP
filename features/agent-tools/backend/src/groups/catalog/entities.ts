@@ -1,4 +1,5 @@
 import type { RegisteredTool } from "@internal/llm-core";
+import { resolveOrgScope } from "@feature/catalog-backend/contract";
 import { requireUserId } from "../core";
 import { searchEntities, getEntityById, entitiesOwnedByTeam } from "./queries";
 
@@ -27,7 +28,8 @@ export const search: RegisteredTool = {
   handler: async (args, ctx) => {
     requireUserId(ctx);
     const { query, kind } = args as { query: string; kind?: string };
-    return { hits: await searchEntities(query, kind) };
+    const scope = await resolveOrgScope(ctx.userId, ctx.isAdmin);
+    return { hits: await searchEntities(query, scope, kind) };
   },
 };
 
@@ -48,7 +50,8 @@ export const getEntity: RegisteredTool = {
   handler: async (args, ctx) => {
     requireUserId(ctx);
     const { entityId } = args as { entityId: string };
-    const e = await getEntityById(entityId);
+    const scope = await resolveOrgScope(ctx.userId, ctx.isAdmin);
+    const e = await getEntityById(entityId, scope);
     return e ?? { error: "Not found" };
   },
 };
@@ -70,7 +73,8 @@ export const ownedByTeam: RegisteredTool = {
   handler: async (args, ctx) => {
     requireUserId(ctx);
     const { teamSlug } = args as { teamSlug: string };
-    const result = await entitiesOwnedByTeam(teamSlug);
+    const scope = await resolveOrgScope(ctx.userId, ctx.isAdmin);
+    const result = await entitiesOwnedByTeam(teamSlug, scope);
     return result ?? { error: "Team not found" };
   },
 };

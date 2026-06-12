@@ -3,6 +3,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Prisma, prisma } from "@internal/db";
+import { canViewEntityDetails, getVisibleOrgLogins } from "../access";
 import { evaluateAllScorecards } from "./evaluator";
 import { getScorecardHistory, getScorecardReport } from "./report";
 
@@ -60,20 +61,35 @@ scorecardsRouter.get("/:id", async (req, res) => {
 });
 
 scorecardsRouter.get("/:id/report", async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
   const kindParsed = typeof req.query.kind === "string" ? KIND.safeParse(req.query.kind) : null;
   const kind = kindParsed?.success ? kindParsed.data : undefined;
   const ownerTeamId =
     typeof req.query.ownerTeamId === "string" && req.query.ownerTeamId.length > 0
       ? req.query.ownerTeamId
       : undefined;
-  const report = await getScorecardReport(req.params.id, { kind, ownerTeamId });
+  const scope = await getVisibleOrgLogins(req.user);
+  const report = await getScorecardReport(req.params.id, {
+    kind,
+    ownerTeamId,
+    accountLogins: scope ?? undefined,
+  });
   if (!report) return res.status(404).json({ error: "Scorecard not found" });
   res.json(report);
 });
 
 scorecardsRouter.get("/:id/history", async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
   const entityId = typeof req.query.entityId === "string" ? req.query.entityId : "";
   if (!entityId) return res.status(400).json({ error: "entityId query param is required" });
+  const entity = await prisma.catalogEntity.findUnique({
+    where: { id: entityId },
+    select: { accountLogin: true },
+  });
+  if (!entity) return res.status(404).json({ error: "Catalog entity not found" });
+  if (!(await canViewEntityDetails(req.user, entity.accountLogin))) {
+    return res.status(403).json({ error: "Org membership required" });
+  }
   const items = await getScorecardHistory(req.params.id, entityId);
   res.json({ items });
 });

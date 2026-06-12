@@ -1,6 +1,6 @@
-// REST surface for the Pipelines tab, mounted entity-scoped under /api/catalog/:id/*; reads need any user, refresh needs admin/member.
+// REST surface for the Pipelines tab, mounted entity-scoped under /api/catalog/:id/* behind the org gate, refresh additionally needs admin/member.
 
-import { Router, type Request, type Response } from "express";
+import { Router } from "express";
 import { prisma } from "@internal/db";
 import type {
   WorkflowRunRow,
@@ -9,34 +9,13 @@ import type {
   DeploymentRow,
   DeploymentState,
 } from "@internal/shared-types";
+import { requireEntityOrgAccess } from "../access";
 import { syncEntityPipelines } from "./sync";
 
 export const pipelinesRouter: Router = Router({ mergeParams: true });
 
-async function ensureEntity(req: Request, res: Response): Promise<string | null> {
-  if (!req.user) {
-    res.status(401).json({ error: "Not authenticated" });
-    return null;
-  }
-  const id = String(req.params.id ?? "");
-  if (!id) {
-    res.status(400).json({ error: "Entity id required" });
-    return null;
-  }
-  const exists = await prisma.catalogEntity.findUnique({
-    where: { id },
-    select: { id: true },
-  });
-  if (!exists) {
-    res.status(404).json({ error: "Catalog entity not found" });
-    return null;
-  }
-  return id;
-}
-
-pipelinesRouter.get("/:id/pipeline-runs", async (req, res) => {
-  const entityId = await ensureEntity(req, res);
-  if (!entityId) return;
+pipelinesRouter.get("/:id/pipeline-runs", requireEntityOrgAccess(), async (req, res) => {
+  const entityId = req.params.id;
 
   const limit = Math.min(Number(req.query.limit ?? 50) || 50, 200);
   const branch = typeof req.query.branch === "string" ? req.query.branch : undefined;
@@ -65,9 +44,8 @@ pipelinesRouter.get("/:id/pipeline-runs", async (req, res) => {
   res.json({ items });
 });
 
-pipelinesRouter.get("/:id/deployments", async (req, res) => {
-  const entityId = await ensureEntity(req, res);
-  if (!entityId) return;
+pipelinesRouter.get("/:id/deployments", requireEntityOrgAccess(), async (req, res) => {
+  const entityId = req.params.id;
 
   const limit = Math.min(Number(req.query.limit ?? 50) || 50, 200);
   const environment = typeof req.query.environment === "string" ? req.query.environment : undefined;
@@ -93,7 +71,7 @@ pipelinesRouter.get("/:id/deployments", async (req, res) => {
   res.json({ items });
 });
 
-pipelinesRouter.post("/:id/pipelines/refresh", async (req, res, next) => {
+pipelinesRouter.post("/:id/pipelines/refresh", requireEntityOrgAccess(), async (req, res, next) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: "Not authenticated" });
@@ -103,8 +81,7 @@ pipelinesRouter.post("/:id/pipelines/refresh", async (req, res, next) => {
       res.status(403).json({ error: "Admin or member only" });
       return;
     }
-    const entityId = await ensureEntity(req, res);
-    if (!entityId) return;
+    const entityId = req.params.id;
 
     const result = await syncEntityPipelines(entityId);
     await prisma.auditEvent.create({

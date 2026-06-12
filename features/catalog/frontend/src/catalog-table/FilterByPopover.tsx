@@ -1,23 +1,19 @@
-// Toolbar popover with multi-select status filters (stale, orphaned) plus an all-orgs scope toggle.
+// Toolbar popover with multi-select status filters (stale, orphaned).
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@internal/i18n";
 
 interface Props {
   hideStale: boolean;
   hideOrphaned: boolean;
-  showAllOrgs: boolean;
   onToggleStale: () => void;
   onToggleOrphaned: () => void;
-  onToggleShowAllOrgs: () => void;
 }
 
 export function FilterByPopover({
   hideStale,
   hideOrphaned,
-  showAllOrgs,
   onToggleStale,
   onToggleOrphaned,
-  onToggleShowAllOrgs,
 }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -39,7 +35,7 @@ export function FilterByPopover({
     };
   }, [open]);
 
-  const activeCount = (hideStale ? 1 : 0) + (hideOrphaned ? 1 : 0) + (showAllOrgs ? 1 : 0);
+  const activeCount = (hideStale ? 1 : 0) + (hideOrphaned ? 1 : 0);
 
   const ariaLabel =
     activeCount > 0
@@ -95,22 +91,6 @@ export function FilterByPopover({
                     className="h-3.5 w-3.5 rounded border-app-border accent-app-primary"
                   />
                   <span className="text-app-text">{t("filterBy.orphaned")}</span>
-                </label>
-              </li>
-            </ul>
-            <div className="mt-2 px-1 text-[10px] uppercase tracking-wide text-app-text-muted">
-              {t("filterBy.sectionScope")}
-            </div>
-            <ul>
-              <li>
-                <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-app-surface-hover">
-                  <input
-                    type="checkbox"
-                    checked={showAllOrgs}
-                    onChange={onToggleShowAllOrgs}
-                    className="h-3.5 w-3.5 rounded border-app-border accent-app-primary"
-                  />
-                  <span className="text-app-text">{t("filterBy.showAllOrgs")}</span>
                 </label>
               </li>
             </ul>

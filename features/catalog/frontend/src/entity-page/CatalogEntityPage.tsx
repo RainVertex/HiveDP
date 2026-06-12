@@ -4,6 +4,7 @@ import { useTranslation } from "@internal/i18n";
 import { KindBadge, LifecycleBadge, OwnerCell } from "../catalog-table/cells";
 import { StarCell } from "../catalog-table/StarCell";
 import { EntityOverviewProvider } from "./EntityOverviewContext";
+import { LockedEntityView } from "./LockedEntityView";
 import { useEntityOverview } from "./useEntityOverview";
 
 export function CatalogEntityPage() {
@@ -36,6 +37,10 @@ export function CatalogEntityPage() {
         </div>
       </PageLayout>
     );
+  }
+
+  if (data.accessible === false) {
+    return <LockedEntityView entity={data.entity} />;
   }
 
   const { entity } = data;

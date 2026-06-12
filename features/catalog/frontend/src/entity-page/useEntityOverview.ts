@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApi } from "@internal/api-client/react";
-import type { CatalogEntityOverview } from "@internal/shared-types";
+import type { CatalogEntityOverviewResponse } from "@internal/shared-types";
 
 export interface UseEntityOverviewResult {
-  data: CatalogEntityOverview | null;
+  data: CatalogEntityOverviewResponse | null;
   error: string | null;
   loading: boolean;
   reload: () => void;
@@ -11,7 +11,7 @@ export interface UseEntityOverviewResult {
 
 export function useEntityOverview(id: string): UseEntityOverviewResult {
   const api = useApi();
-  const [data, setData] = useState<CatalogEntityOverview | null>(null);
+  const [data, setData] = useState<CatalogEntityOverviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 

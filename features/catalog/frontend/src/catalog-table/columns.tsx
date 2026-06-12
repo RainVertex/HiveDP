@@ -1,6 +1,6 @@
 // TanStack column defs and metadata for the catalog table.
 import type { ColumnDef } from "@tanstack/react-table";
-import type { CatalogEntity, Team } from "@internal/shared-types";
+import type { CatalogListItem } from "@internal/shared-types";
 import { useTranslation } from "@internal/i18n";
 import {
   DateCell,
@@ -13,15 +13,14 @@ import {
 } from "./cells";
 import { StarCell } from "./StarCell";
 
-export interface CatalogRow extends CatalogEntity {
-  ownerTeams: Team[];
-}
+export type CatalogRow = CatalogListItem;
 
 export type CatalogColumnId =
   | "star"
   | "name"
   | "kind"
   | "lifecycle"
+  | "org"
   | "owner"
   | "tags"
   | "repoUrl"
@@ -43,6 +42,7 @@ export const COLUMN_META: Record<CatalogColumnId, CatalogColumnMeta> = {
   name: { label: "Name", groupable: false, filterKind: "text", defaultVisible: true },
   kind: { label: "Kind", groupable: true, filterKind: "facet", defaultVisible: true },
   lifecycle: { label: "Lifecycle", groupable: true, filterKind: "facet", defaultVisible: true },
+  org: { label: "Org", groupable: true, filterKind: "facet", defaultVisible: true },
   owner: { label: "Owner", groupable: true, filterKind: "facet", defaultVisible: true },
   tags: { label: "Tags", groupable: true, filterKind: "facet", defaultVisible: true },
   repoUrl: { label: "Repository", groupable: false, filterKind: "text", defaultVisible: false },
@@ -61,6 +61,7 @@ export const COLUMN_ORDER: CatalogColumnId[] = [
   "name",
   "kind",
   "lifecycle",
+  "org",
   "owner",
   "tags",
   "repoUrl",
@@ -94,6 +95,7 @@ export function buildColumns(
   headers: Record<CatalogColumnId, string>,
 ): ColumnDef<CatalogRow>[] {
   const tagsGroupingFn = (originalRow: CatalogRow): string => {
+    if (!originalRow.accessible) return noTagsLabel;
     const tags = originalRow.tags;
     return tags && tags.length > 0 ? tags[0]! : noTagsLabel;
   };
@@ -106,7 +108,7 @@ export function buildColumns(
       enableSorting: false,
       enableHiding: false,
       cell: ({ row }) => {
-        if (row.getIsGrouped()) return null;
+        if (row.getIsGrouped() || row.original.accessible === false) return null;
         return <StarCell entityId={row.original.id} entityName={row.original.name} />;
       },
     },
@@ -123,7 +125,8 @@ export function buildColumns(
           id={row.original.id}
           name={row.original.name}
           description={row.original.description}
-          staleSince={row.original.staleSince}
+          staleSince={row.original.accessible ? row.original.staleSince : null}
+          locked={row.original.accessible === false}
         />
       ),
     },
@@ -154,26 +157,43 @@ export function buildColumns(
       },
     },
     {
+      id: "org",
+      accessorKey: "accountLogin",
+      header: headers.org,
+      enableGrouping: true,
+      enableColumnFilter: true,
+      enableSorting: true,
+      filterFn: arrIncludesAny,
+      cell: ({ getValue, row }) => {
+        if (row.getIsGrouped()) return null;
+        return <span className="text-app-text-muted">{getValue() as string}</span>;
+      },
+    },
+    {
       id: "owner",
       accessorFn: (row) =>
-        row.ownerTeams && row.ownerTeams.length > 0
+        row.accessible && row.ownerTeams && row.ownerTeams.length > 0
           ? row.ownerTeams.map((t) => t.name)
-          : [noOwnerLabel],
+          : row.accessible
+            ? [noOwnerLabel]
+            : [],
       header: headers.owner,
       enableGrouping: true,
       enableColumnFilter: true,
       enableSorting: true,
       filterFn: arrIncludesAny,
       getGroupingValue: (row) =>
-        row.ownerTeams && row.ownerTeams.length > 0 ? row.ownerTeams[0]!.name : noOwnerLabel,
+        row.accessible && row.ownerTeams && row.ownerTeams.length > 0
+          ? row.ownerTeams[0]!.name
+          : noOwnerLabel,
       cell: ({ row }) => {
         if (row.getIsGrouped()) return null;
-        return <OwnerCell teams={row.original.ownerTeams ?? []} />;
+        return <OwnerCell teams={row.original.accessible ? (row.original.ownerTeams ?? []) : []} />;
       },
     },
     {
       id: "tags",
-      accessorFn: (row) => row.tags ?? [],
+      accessorFn: (row) => (row.accessible ? (row.tags ?? []) : []),
       header: headers.tags,
       enableGrouping: true,
       enableColumnFilter: true,
@@ -182,8 +202,8 @@ export function buildColumns(
       getGroupingValue: tagsGroupingFn,
       // Sort by first tag (case-insensitive); rows with no tags sink to the bottom in asc order.
       sortingFn: (a, b) => {
-        const at = (a.original.tags ?? [])[0]?.toLowerCase() ?? "";
-        const bt = (b.original.tags ?? [])[0]?.toLowerCase() ?? "";
+        const at = (a.original.accessible ? (a.original.tags ?? []) : [])[0]?.toLowerCase() ?? "";
+        const bt = (b.original.accessible ? (b.original.tags ?? []) : [])[0]?.toLowerCase() ?? "";
         if (!at && !bt) return 0;
         if (!at) return 1;
         if (!bt) return -1;
@@ -191,12 +211,12 @@ export function buildColumns(
       },
       cell: ({ row }) => {
         if (row.getIsGrouped()) return null;
-        return <TagsCell tags={row.original.tags ?? []} />;
+        return <TagsCell tags={row.original.accessible ? (row.original.tags ?? []) : []} />;
       },
     },
     {
       id: "repoUrl",
-      accessorKey: "repoUrl",
+      accessorFn: (row) => (row.accessible ? (row.repoUrl ?? "") : ""),
       header: headers.repoUrl,
       enableGrouping: false,
       enableColumnFilter: true,
@@ -204,7 +224,7 @@ export function buildColumns(
       filterFn: "includesString",
       cell: ({ row }) => {
         if (row.getIsGrouped()) return null;
-        return <RepoCell url={row.original.repoUrl} />;
+        return <RepoCell url={row.original.accessible ? row.original.repoUrl : null} />;
       },
     },
     {
@@ -229,26 +249,26 @@ export function buildColumns(
     },
     {
       id: "updatedAt",
-      accessorKey: "updatedAt",
+      accessorFn: (row) => (row.accessible ? row.updatedAt : ""),
       header: headers.updatedAt,
       enableGrouping: false,
       enableColumnFilter: false,
       enableSorting: true,
       cell: ({ row }) => {
         if (row.getIsGrouped()) return null;
-        return <DateCell value={row.original.updatedAt} />;
+        return <DateCell value={row.original.accessible ? row.original.updatedAt : null} />;
       },
     },
     {
       id: "createdAt",
-      accessorKey: "createdAt",
+      accessorFn: (row) => (row.accessible ? row.createdAt : ""),
       header: headers.createdAt,
       enableGrouping: false,
       enableColumnFilter: false,
       enableSorting: true,
       cell: ({ row }) => {
         if (row.getIsGrouped()) return null;
-        return <DateCell value={row.original.createdAt} />;
+        return <DateCell value={row.original.accessible ? row.original.createdAt : null} />;
       },
     },
   ];
@@ -269,15 +289,18 @@ export function distinctValues(
       case "lifecycle":
         set.add(r.lifecycle);
         break;
+      case "org":
+        set.add(r.accountLogin);
+        break;
       case "owner":
-        if (r.ownerTeams && r.ownerTeams.length > 0) {
+        if (r.accessible && r.ownerTeams && r.ownerTeams.length > 0) {
           for (const t of r.ownerTeams) set.add(t.name);
         } else {
           set.add(noOwnerLabel);
         }
         break;
       case "tags":
-        if (r.tags && r.tags.length > 0) {
+        if (r.accessible && r.tags && r.tags.length > 0) {
           for (const t of r.tags) set.add(t);
         } else {
           set.add(noTagsLabel);

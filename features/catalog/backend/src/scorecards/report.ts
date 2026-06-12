@@ -14,6 +14,7 @@ import { computeScorePercent, rollupTier } from "./evaluator";
 export interface ScorecardReportFilters {
   kind?: CatalogEntityKind;
   ownerTeamId?: string;
+  accountLogins?: string[];
 }
 
 // Best tier first, so the leaderboard reads top to bottom; stage and threshold palettes share ranks.
@@ -47,6 +48,7 @@ export async function getScorecardReport(
       staleSince: null,
       ...(filters.kind ? { kind: filters.kind } : {}),
       ...(filters.ownerTeamId ? { owners: { some: { teamId: filters.ownerTeamId } } } : {}),
+      ...(filters.accountLogins ? { accountLogin: { in: filters.accountLogins } } : {}),
     },
     include: { owners: true },
   });

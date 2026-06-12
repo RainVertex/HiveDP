@@ -4,6 +4,7 @@ import {
   type DiscoverAndPersistResult,
 } from "@feature/scaffolder-backend/contract";
 import { octokitForInstallation } from "@feature/integrations-backend/contract";
+import { resolveOrgScope, isOrgVisible } from "@feature/catalog-backend/contract";
 import type { RegisteredTool } from "@internal/llm-core";
 import { loadEntityRepo } from "./repo";
 import { getEntityWithOwners } from "./queries";
@@ -26,12 +27,17 @@ export const lookup: RegisteredTool = {
       },
     },
   },
-  handler: async (args) => {
+  handler: async (args, ctx) => {
     const { entityId } = args as { entityId: string };
     if (typeof entityId !== "string" || !entityId) {
       throw new Error("entityId required");
     }
-    return getEntityWithOwners(entityId);
+    const scope = await resolveOrgScope(ctx.userId, ctx.isAdmin);
+    const entity = await getEntityWithOwners(entityId);
+    if (entity && !isOrgVisible(scope, entity.accountLogin)) {
+      return { error: "Org membership required", code: "forbidden" };
+    }
+    return entity;
   },
 };
 
@@ -55,13 +61,20 @@ export const discover: RegisteredTool = {
       },
     },
   },
-  handler: async (args): Promise<DiscoverAndPersistResult> => {
+  handler: async (
+    args,
+    ctx,
+  ): Promise<DiscoverAndPersistResult | { error: string; code: string }> => {
     const { repoUrl } = args as { repoUrl: string };
     if (typeof repoUrl !== "string" || !repoUrl) {
       throw new Error("repoUrl required");
     }
     const parsed = parseGithubUrl(repoUrl);
     if (!parsed) throw new Error(`repoUrl is not a github URL: ${repoUrl}`);
+    const scope = await resolveOrgScope(ctx.userId, ctx.isAdmin);
+    if (!isOrgVisible(scope, parsed.owner)) {
+      return { error: "Org membership required", code: "forbidden" };
+    }
     return discoverAndPersist({
       source: "github",
       target: `${parsed.owner}/${parsed.repo}`,
@@ -85,8 +98,9 @@ export const readRepo: RegisteredTool = {
       },
     },
   },
-  handler: async (args) => {
-    const repo = await loadEntityRepo((args as { entityId?: unknown }).entityId);
+  handler: async (args, ctx) => {
+    const scope = await resolveOrgScope(ctx.userId, ctx.isAdmin);
+    const repo = await loadEntityRepo((args as { entityId?: unknown }).entityId, scope);
     if ("error" in repo) return repo;
     const octo = await octokitForInstallation(repo.installationId);
     const meta = await octo.rest.repos.get({ owner: repo.owner, repo: repo.repo });
@@ -133,10 +147,11 @@ export const readFile: RegisteredTool = {
       },
     },
   },
-  handler: async (args) => {
+  handler: async (args, ctx) => {
     const { entityId, path } = args as { entityId?: unknown; path?: unknown };
     if (typeof path !== "string" || !path) return { error: "path required", code: "bad_args" };
-    const repo = await loadEntityRepo(entityId);
+    const scope = await resolveOrgScope(ctx.userId, ctx.isAdmin);
+    const repo = await loadEntityRepo(entityId, scope);
     if ("error" in repo) return repo;
     const octo = await octokitForInstallation(repo.installationId);
     try {

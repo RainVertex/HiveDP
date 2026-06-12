@@ -1,7 +1,7 @@
 import { Prisma, prisma } from "@internal/db";
+import { resolveOrgScope } from "@feature/catalog-backend/contract";
 import type { SearchHit } from "@internal/shared-types";
 import type { SearchSource } from "./types";
-import { userOrgLogins } from "./scope";
 
 interface Row {
   id: string;
@@ -16,10 +16,10 @@ export const teams: SearchSource = async (query, ctx, limit) => {
     Prisma.sql`("name" % ${query} OR "name" ILIKE ${"%" + query + "%"} OR "description" ILIKE ${"%" + query + "%"})`,
   ];
 
-  if (!ctx.isAdmin) {
-    const logins = await userOrgLogins(ctx.userId);
-    if (logins.length === 0) return [];
-    conditions.push(Prisma.sql`"accountLogin" IN (${Prisma.join(logins)})`);
+  const scope = await resolveOrgScope(ctx.userId, ctx.isAdmin);
+  if (scope !== null) {
+    if (scope.length === 0) return [];
+    conditions.push(Prisma.sql`"accountLogin" IN (${Prisma.join(scope)})`);
   }
 
   const where = Prisma.join(conditions, " AND ");

@@ -44,7 +44,7 @@ export function TemplatePage() {
     if (!needsEntity || entities !== null) return;
     api.catalog
       .list()
-      .then((res) => setEntities(res.items))
+      .then((res) => setEntities(res.items.filter((i) => i.accessible)))
       .catch(() => setEntities([]));
   }, [api, needsEntity, entities]);
 

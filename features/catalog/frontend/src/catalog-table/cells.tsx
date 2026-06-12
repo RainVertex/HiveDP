@@ -94,11 +94,13 @@ export function NameCell({
   name,
   description,
   staleSince,
+  locked,
 }: {
   id?: string;
   name: string;
   description: string | null | undefined;
   staleSince?: string | null;
+  locked?: boolean;
 }) {
   const { t } = useTranslation("catalog");
   return (
@@ -113,6 +115,11 @@ export function NameCell({
           </Link>
         ) : (
           <div className="truncate font-medium text-app-text">{name}</div>
+        )}
+        {locked && (
+          <span className="text-app-text-muted" title={t("cell.lockedTitle")}>
+            🔒
+          </span>
         )}
         {staleSince && (
           <span

@@ -35,7 +35,7 @@ function globalFilterFn(row: Row<CatalogRow>, _columnId: string, filterValue: st
   const r = row.original;
   if (r.name.toLowerCase().includes(q)) return true;
   if (r.description && r.description.toLowerCase().includes(q)) return true;
-  if (r.tags && r.tags.some((t) => t.toLowerCase().includes(q))) return true;
+  if (r.accessible && r.tags && r.tags.some((t) => t.toLowerCase().includes(q))) return true;
   return false;
 }
 
@@ -63,6 +63,7 @@ export function CatalogTable({ data, view, onFilteredCountChange }: Props) {
   const statusFiltered = useMemo<CatalogRow[]>(() => {
     if (!view.hideStale && !view.hideOrphaned) return data;
     return data.filter((r) => {
+      if (!r.accessible) return true;
       if (view.hideStale && r.staleSince) return false;
       if (view.hideOrphaned && r.orphaned) return false;
       return true;
@@ -74,8 +75,8 @@ export function CatalogTable({ data, view, onFilteredCountChange }: Props) {
     if (view.groupBy !== "tags") return statusFiltered;
     const out: CatalogRow[] = [];
     for (const r of statusFiltered) {
-      if (!r.tags || r.tags.length === 0) {
-        out.push({ ...r, tags: [noTagsLabel] });
+      if (!r.accessible || !r.tags || r.tags.length === 0) {
+        out.push(r.accessible ? { ...r, tags: [noTagsLabel] } : r);
       } else {
         for (const tg of r.tags) out.push({ ...r, tags: [tg] });
       }

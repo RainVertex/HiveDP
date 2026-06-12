@@ -8,5 +8,13 @@ export {
   getDevDocsSearchHits,
   expirePendingMemberships,
   runReconciliation,
+  getVisibleOrgLogins,
+  resolveOrgScope,
+  isOrgVisible,
+  canViewEntityDetails,
+  visibleEntityWhere,
+  requireEntityOrgAccess,
   type RegisterCatalogEntityInput,
+  type OrgActor,
+  type EntityOrgRef,
 } from "./index";

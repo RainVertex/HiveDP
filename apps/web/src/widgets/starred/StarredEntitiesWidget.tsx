@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import type { CatalogEntity } from "@internal/shared-types";
+import type { CatalogListItem } from "@internal/shared-types";
 import { useApi, useStarred } from "@internal/api-client/react";
 import { StarIcon } from "./StarIcon";
 
 export function StarredEntitiesWidget() {
   const api = useApi();
   const { starredIds, toggle } = useStarred();
-  const [entities, setEntities] = useState<CatalogEntity[] | null>(null);
+  const [entities, setEntities] = useState<CatalogListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
