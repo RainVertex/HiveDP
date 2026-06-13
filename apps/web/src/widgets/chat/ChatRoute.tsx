@@ -16,7 +16,7 @@ export function ChatRoute() {
     api.chat
       .getConfig()
       .then(setConfig)
-      .catch(() => setConfig({ ready: true, reason: null }));
+      .catch(() => setConfig({ ready: true, reason: null, visionReady: false }));
   }, [api]);
 
   if (config && !config.ready) {

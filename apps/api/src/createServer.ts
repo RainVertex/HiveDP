@@ -50,6 +50,8 @@ export function createServer() {
   // Raw-body feature routes (HMAC webhooks) mount before express.json since they need the exact bytes.
   for (const mount of mountsByPhase.raw) app.use(mount.path, mount.router);
 
+  // Chat accepts base64 image attachments, so it needs a larger limit than the global 100kb parser below.
+  app.use("/api/chat", express.json({ limit: "10mb" }));
   app.use(express.json());
   app.use(cookieParser(env.sessionSecret));
 

@@ -13,11 +13,18 @@ export interface ChatToolCallSummary {
   isError: boolean;
 }
 
+export interface ChatAttachmentDto {
+  dataUrl: string;
+  mimeType: string;
+  extractedText: string | null;
+}
+
 export interface ChatMessageDto {
   id: ID;
   role: ChatRole;
   content: string;
   toolCalls: ChatToolCallSummary[] | null;
+  attachments: ChatAttachmentDto[] | null;
   agentRunId: ID | null;
   reasoning: string | null;
   reasoningDurationMs: number | null;
@@ -39,9 +46,11 @@ export interface ChatConversationDetailDto extends ChatConversationSummaryDto {
 }
 
 // reason is "no_active_model" when none selected, "model_unavailable" when selected model is disabled or lost its key.
+// visionReady is true when a usable vision model is configured, gating image attachments.
 export interface ChatConfigDto {
   ready: boolean;
   reason: string | null;
+  visionReady: boolean;
 }
 
 export interface ChatTokenEvent {

@@ -12,6 +12,8 @@ import { ConversationList } from "./ConversationList";
 import { MessageList } from "./MessageList";
 import { Composer } from "./Composer";
 import { useChatStream } from "./chatStream";
+import { useChatConfig } from "./useChatConfig";
+import type { ChatImageAttachment } from "./chatImage";
 import { MenuIcon } from "./icons";
 
 // Full-page chat surface: resizable two-column layout on desktop, single pane + drawer below md.
@@ -66,6 +68,7 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
   const skipNextLoadRef = useRef<string | null>(null);
 
   const { state: stream, send, abort, reset } = useChatStream(conversationId ?? null);
+  const { visionReady } = useChatConfig();
 
   useEffect(() => {
     api.chat.listConversations().then(setConversations).catch(console.error);
@@ -133,7 +136,7 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
   );
 
   const handleSend = useCallback(
-    async (text: string) => {
+    async (text: string, attachments: ChatImageAttachment[]) => {
       let convId = conversationId;
       if (!convId) {
         // Auto-create when none selected; the ref (not setActive) reliably tells the load effect to skip refetching this new conv.
@@ -150,13 +153,15 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
         role: "user",
         content: text,
         toolCalls: null,
+        attachments:
+          attachments.length > 0 ? attachments.map((a) => ({ ...a, extractedText: null })) : null,
         agentRunId: null,
         reasoning: null,
         reasoningDurationMs: null,
         createdAt: new Date().toISOString(),
       };
       setPendingUserMessage({ conversationId: convId, message: optimistic });
-      await send(text, convId);
+      await send(text, attachments, convId);
     },
     [api, conversationId, navigate, send],
   );
@@ -221,6 +226,7 @@ export function ChatPage({ userName, userAvatarUrl }: ChatPageProps = {}) {
         onStop={abort}
         streaming={stream.status === "streaming"}
         stopDisabled={stream.submitInFlight}
+        visionEnabled={visionReady}
       />
     </main>
   );

@@ -6,6 +6,8 @@ import { useTranslation } from "@internal/i18n";
 import { MessageList } from "./MessageList";
 import { Composer } from "./Composer";
 import { useChatStream } from "./chatStream";
+import { useChatConfig } from "./useChatConfig";
+import type { ChatImageAttachment } from "./chatImage";
 
 const KEY_CONV = (uid: string) => `mep:chat-widget:conversation_id:${uid}`;
 
@@ -28,6 +30,7 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
   const [active, setActive] = useState<ChatConversationDetailDto | null>(null);
 
   const { state: stream, send, abort, reset } = useChatStream(conversationId);
+  const { visionReady } = useChatConfig();
 
   useEffect(() => {
     if (conversationId) window.localStorage.setItem(storageKey, conversationId);
@@ -69,7 +72,7 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
   }, [api, stream.status, conversationId, reset]);
 
   const handleSend = useCallback(
-    async (text: string) => {
+    async (text: string, attachments: ChatImageAttachment[]) => {
       let convId = conversationId;
       if (!convId) {
         const conv = await api.chat.createConversation();
@@ -77,7 +80,7 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
         setActive({ ...conv, messages: [] });
         convId = conv.id;
       }
-      await send(text, convId);
+      await send(text, attachments, convId);
     },
     [api, conversationId, send],
   );
@@ -144,6 +147,7 @@ export function ChatAssistantPanel({ userId, userName, userAvatarUrl }: Props) {
           streaming={stream.status === "streaming"}
           stopDisabled={stream.submitInFlight}
           placeholder={t("composer.widgetPlaceholder")}
+          visionEnabled={visionReady}
         />
       </div>
     </div>

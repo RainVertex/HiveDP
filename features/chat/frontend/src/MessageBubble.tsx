@@ -1,5 +1,6 @@
-// Renders one chat message (user or assistant), wiring up reasoning, tool calls, and avatars.
-import type { ChatMessageDto } from "@internal/shared-types";
+// Renders one chat message (user or assistant), wiring up reasoning, tool calls, attachments, and avatars.
+import { useState } from "react";
+import type { ChatAttachmentDto, ChatMessageDto } from "@internal/shared-types";
 import { ProfileAvatar, AgentAvatar } from "@internal/shared-ui";
 import { useTranslation } from "@internal/i18n";
 import { ToolCallChip } from "./ToolCallChip";
@@ -56,6 +57,7 @@ export function MessageBubble({
       : null;
   const hasReasoning = !isUser && (reasoning.length > 0 || reasoningStartedAt != null);
   const reasoningStreaming = isLive(message) && reasoningDurationMs == null;
+  const attachments = isUser && !isLive(message) ? (message.attachments ?? []) : [];
 
   return (
     <div className={`flex gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
@@ -113,8 +115,30 @@ export function MessageBubble({
             ))}
           </div>
         )}
+        {attachments.length > 0 && (
+          <div className={`flex flex-wrap gap-1 ${message.content ? "mb-2" : ""}`}>
+            {attachments.map((a, i) => (
+              <AttachmentImage key={i} attachment={a} index={i} />
+            ))}
+          </div>
+        )}
         {message.content && <div className="whitespace-pre-wrap">{message.content}</div>}
       </div>
     </div>
+  );
+}
+
+function AttachmentImage({ attachment, index }: { attachment: ChatAttachmentDto; index: number }) {
+  const { t } = useTranslation("chat");
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <img
+      src={attachment.dataUrl}
+      alt={t("message.imageAlt", { index: index + 1 })}
+      onClick={() => setExpanded((v) => !v)}
+      className={`max-w-full rounded-app-md border border-app-border object-contain ${
+        expanded ? "max-h-96 cursor-zoom-out" : "h-24 cursor-zoom-in"
+      }`}
+    />
   );
 }

@@ -1,8 +1,9 @@
 // /api/chat router: conversation CRUD, the SSE message stream, and stream abort. All routes are auth-scoped to req.user.id (cross-user access 404s).
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "@internal/db";
+import { prisma, Prisma } from "@internal/db";
 import type {
+  ChatAttachmentDto,
   ChatConversationSummaryDto,
   ChatConversationDetailDto,
   ChatConfigDto,
@@ -18,6 +19,7 @@ import {
   assistantNotConfiguredMessage,
 } from "@internal/llm-core";
 import { streamAgent } from "./streamExecutor";
+import { composeUserContent, extractAttachmentTexts, visionReady } from "./imageExtraction";
 
 export const chatRouter: Router = Router();
 
@@ -38,7 +40,23 @@ function countInFlightForUser(userId: string): number {
 }
 
 const createConversationSchema = z.object({ title: z.string().min(1).max(200).optional() });
-const sendMessageSchema = z.object({ content: z.string().min(1).max(8000) });
+
+// Anchored data URL regex (no SVG) keeps the stored value safe to render via <img src>.
+const attachmentSchema = z.object({
+  dataUrl: z
+    .string()
+    .max(2_000_000)
+    .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/),
+  mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
+});
+const sendMessageSchema = z
+  .object({
+    content: z.string().max(8000),
+    attachments: z.array(attachmentSchema).max(4).optional(),
+  })
+  .refine((d) => d.content.trim().length > 0 || (d.attachments?.length ?? 0) > 0, {
+    message: "Message needs text or at least one attachment",
+  });
 
 async function getCallerTeamIds(userId: string): Promise<string[]> {
   const memberships = await prisma.teamMembership.findMany({
@@ -57,6 +75,7 @@ function toMessageDto(row: {
   role: string;
   content: string;
   toolCalls: unknown;
+  attachments: unknown;
   agentRunId: string | null;
   reasoning: string | null;
   reasoningDurationMs: number | null;
@@ -67,6 +86,7 @@ function toMessageDto(row: {
     role: toRole(row.role),
     content: row.content,
     toolCalls: (row.toolCalls as ChatToolCallSummary[] | null) ?? null,
+    attachments: (row.attachments as ChatAttachmentDto[] | null) ?? null,
     agentRunId: row.agentRunId,
     reasoning: row.reasoning,
     reasoningDurationMs: row.reasoningDurationMs,
@@ -112,7 +132,7 @@ async function resolveChatReadiness(): Promise<{ ready: boolean; reason: string 
 
 chatRouter.get("/config", async (_req, res) => {
   const { ready, reason } = await resolveChatReadiness();
-  const dto: ChatConfigDto = { ready, reason };
+  const dto: ChatConfigDto = { ready, reason, visionReady: await visionReady() };
   res.json(dto);
 });
 
@@ -182,6 +202,7 @@ chatRouter.get("/conversations/:id", async (req, res) => {
       role: true,
       content: true,
       toolCalls: true,
+      attachments: true,
       agentRunId: true,
       reasoning: true,
       reasoningDurationMs: true,
@@ -255,6 +276,15 @@ chatRouter.post("/conversations/:id/messages", async (req, res) => {
     return;
   }
 
+  const attachments = parsed.attachments ?? [];
+  if (attachments.length > 0 && !(await visionReady())) {
+    res.status(409).json({
+      error: "Image input is not configured. An admin must select a vision model first.",
+      code: "vision_not_configured",
+    });
+    return;
+  }
+
   if (countInFlightForUser(user.id) >= MAX_CONCURRENT_SSE_PER_USER) {
     res.status(429).json({
       error: "Too many concurrent chat streams open",
@@ -264,13 +294,21 @@ chatRouter.post("/conversations/:id/messages", async (req, res) => {
   }
 
   // Persist the user message before streaming so the transcript survives a mid-stream network drop.
-  await prisma.chatMessage.create({
-    data: { conversationId, role: "user", content: parsed.content },
+  const userMsg = await prisma.chatMessage.create({
+    data: {
+      conversationId,
+      role: "user",
+      content: parsed.content,
+      attachments:
+        attachments.length > 0
+          ? (attachments.map((a) => ({ ...a, extractedText: null })) as Prisma.InputJsonValue)
+          : undefined,
+    },
   });
 
   if (conv.title === "New chat") {
-    const trimmed =
-      parsed.content.length > 80 ? parsed.content.slice(0, 77) + "..." : parsed.content;
+    const base = parsed.content.trim() || "Image";
+    const trimmed = base.length > 80 ? base.slice(0, 77) + "..." : base;
     await prisma.chatConversation.update({
       where: { id: conversationId },
       data: { title: trimmed },
@@ -294,10 +332,28 @@ chatRouter.post("/conversations/:id/messages", async (req, res) => {
 
   try {
     const teamIds = await getCallerTeamIds(user.id);
+
+    let effectiveContent = parsed.content;
+    if (attachments.length > 0) {
+      const extracted = await extractAttachmentTexts({
+        attachments,
+        isAdmin: user.role === "admin",
+        signal: controller.signal,
+        onEvent: writeEvent,
+      });
+      const withText = attachments.map((a, i) => ({ ...a, extractedText: extracted[i] ?? null }));
+      await prisma.chatMessage.update({
+        where: { id: userMsg.id },
+        data: { attachments: withText as Prisma.InputJsonValue },
+      });
+      effectiveContent = composeUserContent(parsed.content, withText);
+    }
+
     const result = await streamAgent({
       agentId: PLATFORM_ASSISTANT_AGENT_ID,
       conversationId,
-      userMessageContent: parsed.content,
+      userMessageContent: effectiveContent,
+      currentUserMessageId: userMsg.id,
       callerUserId: user.id,
       callerIsAdmin: user.role === "admin",
       callerTeamIds: teamIds,

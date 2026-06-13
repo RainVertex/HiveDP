@@ -15,6 +15,7 @@ import {
 import type { ChatSseEvent, ChatToolCallSummary, ChatPolicyCheck } from "@internal/shared-types";
 import { platformAssistantReadToolIds } from "@feature/agent-tools-backend/contract";
 import { chatWriteToolIds } from "./tools";
+import { composeUserContent } from "./imageExtraction";
 import { ThinkTagSplitter } from "./thinkTagSplitter";
 
 // SSE streaming chat loop: multi-turn tool dispatch with prepare/submit confirmation, reasoning split, and AgentRun persistence.
@@ -36,6 +37,8 @@ export interface StreamAgentArgs {
   agentId: string;
   conversationId: string;
   userMessageContent: string;
+  // Excludes the already-persisted current user row from history so it is not sent twice.
+  currentUserMessageId?: string;
   callerUserId: string;
   callerIsAdmin: boolean;
   callerTeamIds: string[];
@@ -119,7 +122,7 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
   const tools = resolveTools(toolIds);
   const openaiTools = tools.map((t) => t.openaiDef);
 
-  const history = await loadHistory(args.conversationId);
+  const history = await loadHistory(args.conversationId, args.currentUserMessageId);
 
   const pendingPreviews = await loadPendingPreviews(args.conversationId);
   const pendingPreviewNote = buildPendingPreviewNote(pendingPreviews);
@@ -564,12 +567,14 @@ async function runOne(
 
 async function loadHistory(
   conversationId: string,
+  excludeMessageId?: string,
 ): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
-  const rows = await prisma.chatMessage.findMany({
+  const allRows = await prisma.chatMessage.findMany({
     where: { conversationId },
     orderBy: { createdAt: "asc" },
-    select: { role: true, content: true, toolCalls: true },
+    select: { id: true, role: true, content: true, toolCalls: true, attachments: true },
   });
+  const rows = allRows.filter((r) => r.id !== excludeMessageId);
 
   const userAssistantPairs: { user?: (typeof rows)[number]; assistant?: (typeof rows)[number] }[] =
     [];
@@ -593,7 +598,13 @@ async function loadHistory(
 
   const out: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
   for (const pair of tail) {
-    if (pair.user) out.push({ role: "user", content: pair.user.content });
+    if (pair.user) {
+      // Replays the stored extraction so follow-up questions about an image never re-run the vision model.
+      const attachments = Array.isArray(pair.user.attachments)
+        ? (pair.user.attachments as unknown as { extractedText: string | null }[])
+        : [];
+      out.push({ role: "user", content: composeUserContent(pair.user.content, attachments) });
+    }
     if (pair.assistant) {
       out.push({ role: "assistant", content: pair.assistant.content });
     }

@@ -22,6 +22,10 @@ export const en = {
     send: "Send",
     stop: "Stop",
     stopDisabledTooltip: "submission in progress — wait for it to complete or roll back",
+    attachImage: "Attach image",
+    attachDisabledTooltip: "Image input is not configured. An admin must select a vision model.",
+    attachmentLimit: "Attachment limit reached",
+    removeAttachment: "Remove image",
   },
   welcome: {
     title: "Welcome to the Assistant",
@@ -30,6 +34,7 @@ export const en = {
   message: {
     youFallback: "You",
     assistantFallback: "Assistant",
+    imageAlt: "Attached image {{index}}",
   },
   reasoning: {
     streaming: "Reasoning - {{seconds}}s",

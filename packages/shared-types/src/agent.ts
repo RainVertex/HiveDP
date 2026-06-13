@@ -126,6 +126,7 @@ export interface AdminAiModelRow {
   supportsVision: boolean;
   enabled: boolean;
   isActiveChatModel: boolean;
+  isActiveVisionModel: boolean;
 }
 
 export interface AdminAiProviderGroup {
@@ -141,6 +142,7 @@ export interface AdminAiProviderGroup {
 export interface AdminAiModelsResponse {
   providers: AdminAiProviderGroup[];
   activeChatModelId: ID | null;
+  activeVisionModelId: ID | null;
 }
 
 export interface ActiveChatModelDto {

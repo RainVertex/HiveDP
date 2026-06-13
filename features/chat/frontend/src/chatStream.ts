@@ -44,7 +44,11 @@ export function useChatStream(conversationId: string | null) {
   }, []);
 
   const send = useCallback(
-    async (content: string, overrideConversationId?: string) => {
+    async (
+      content: string,
+      attachments?: { dataUrl: string; mimeType: string }[],
+      overrideConversationId?: string,
+    ) => {
       // Override lets the first message use a freshly-created id, not the stale closure value.
       const cid = overrideConversationId ?? conversationId;
       if (!cid) throw new Error("No conversation selected");
@@ -58,7 +62,10 @@ export function useChatStream(conversationId: string | null) {
           method: "POST",
           credentials: "include",
           headers: { "content-type": "application/json", accept: "text/event-stream" },
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({
+            content,
+            ...(attachments && attachments.length > 0 ? { attachments } : {}),
+          }),
           signal: ac.signal,
         });
         if (!res.ok) {

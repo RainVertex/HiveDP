@@ -229,6 +229,7 @@ async function seedLlmProviders() {
     modelName: string;
     contextWindow: number;
     supportsTools: boolean;
+    supportsVision: boolean;
     costPer1kIn: string | null;
     costPer1kOut: string | null;
   }> = [
@@ -240,6 +241,19 @@ async function seedLlmProviders() {
       modelName: "qwen3:8b",
       contextWindow: 32768,
       supportsTools: true,
+      supportsVision: false,
+      costPer1kIn: null,
+      costPer1kOut: null,
+    },
+    {
+      id: "llmmodel_qwen25vl_7b_local",
+      slug: "qwen2.5vl-7b-local",
+      displayName: "Qwen2.5 VL 7B (local, vision)",
+      providerId: "llmprov_ollama_local",
+      modelName: "qwen2.5vl:7b",
+      contextWindow: 32768,
+      supportsTools: false,
+      supportsVision: true,
       costPer1kIn: null,
       costPer1kOut: null,
     },
@@ -251,6 +265,7 @@ async function seedLlmProviders() {
       modelName: "claude-opus-4-7",
       contextWindow: 200000,
       supportsTools: true,
+      supportsVision: true,
       costPer1kIn: "0.015",
       costPer1kOut: "0.075",
     },
@@ -262,6 +277,7 @@ async function seedLlmProviders() {
       modelName: "claude-sonnet-4-6",
       contextWindow: 200000,
       supportsTools: true,
+      supportsVision: true,
       costPer1kIn: "0.003",
       costPer1kOut: "0.015",
     },
@@ -273,6 +289,7 @@ async function seedLlmProviders() {
       modelName: "claude-haiku-4-5-20251001",
       contextWindow: 200000,
       supportsTools: true,
+      supportsVision: true,
       costPer1kIn: "0.0008",
       costPer1kOut: "0.004",
     },
@@ -284,6 +301,7 @@ async function seedLlmProviders() {
       modelName: "gpt-4o",
       contextWindow: 128000,
       supportsTools: true,
+      supportsVision: true,
       costPer1kIn: "0.0025",
       costPer1kOut: "0.01",
     },
@@ -295,6 +313,7 @@ async function seedLlmProviders() {
       modelName: "gpt-4o-mini",
       contextWindow: 128000,
       supportsTools: true,
+      supportsVision: true,
       costPer1kIn: "0.00015",
       costPer1kOut: "0.0006",
     },
@@ -309,6 +328,7 @@ async function seedLlmProviders() {
         modelName: m.modelName,
         contextWindow: m.contextWindow,
         supportsTools: m.supportsTools,
+        supportsVision: m.supportsVision,
         costPer1kIn: m.costPer1kIn,
         costPer1kOut: m.costPer1kOut,
       },

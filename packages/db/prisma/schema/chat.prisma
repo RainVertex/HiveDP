@@ -27,6 +27,7 @@ model ChatMessage {
   role                String
   content             String
   toolCalls           Json?
+  attachments         Json?
   agentRunId          String?
   reasoning           String?
   reasoningDurationMs Int?

@@ -124,14 +124,22 @@ function convertMessagesToGemini(
     }
 
     if (m.role === "user") {
-      const text =
-        typeof m.content === "string"
-          ? m.content
-          : (m.content ?? [])
-              .map((p) => (p.type === "text" ? p.text : ""))
-              .filter(Boolean)
-              .join("");
-      out.push({ role: "user", parts: [{ text } as Part] });
+      if (typeof m.content === "string") {
+        out.push({ role: "user", parts: [{ text: m.content } as Part] });
+        continue;
+      }
+      const parts: Part[] = [];
+      for (const p of m.content ?? []) {
+        if (p.type === "text" && p.text) {
+          parts.push({ text: p.text } as Part);
+        } else if (p.type === "image_url") {
+          const match = /^data:([^;,]+);base64,(.+)$/.exec(p.image_url.url);
+          if (match) {
+            parts.push({ inlineData: { mimeType: match[1], data: match[2] } } as Part);
+          }
+        }
+      }
+      out.push({ role: "user", parts: parts.length > 0 ? parts : [{ text: "" } as Part] });
       continue;
     }
 

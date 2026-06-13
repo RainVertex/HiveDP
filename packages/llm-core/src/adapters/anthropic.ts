@@ -166,9 +166,25 @@ function convertMessagesToAnthropic(
       const content =
         typeof m.content === "string"
           ? m.content
-          : (m.content ?? []).flatMap((p) =>
-              p.type === "text" ? [{ type: "text" as const, text: p.text }] : [],
-            );
+          : (m.content ?? []).flatMap((p): Anthropic.ContentBlockParam[] => {
+              if (p.type === "text") return [{ type: "text", text: p.text }];
+              if (p.type === "image_url") {
+                const img = parseDataUrl(p.image_url.url);
+                return img
+                  ? [
+                      {
+                        type: "image",
+                        source: {
+                          type: "base64",
+                          media_type: img.mediaType as Anthropic.Base64ImageSource["media_type"],
+                          data: img.data,
+                        },
+                      },
+                    ]
+                  : [];
+              }
+              return [];
+            });
       out.push({ role: "user", content: content as Anthropic.MessageParam["content"] });
       continue;
     }
@@ -225,6 +241,12 @@ function convertMessagesToAnthropic(
     system: systemParts.length > 0 ? systemParts.join("\n\n") : undefined,
     messages: out,
   };
+}
+
+// Anthropic image blocks need raw base64, non-data URLs are dropped like other unsupported parts.
+function parseDataUrl(url: string): { mediaType: string; data: string } | null {
+  const match = /^data:([^;,]+);base64,(.+)$/.exec(url);
+  return match ? { mediaType: match[1], data: match[2] } : null;
 }
 
 function convertToolsToAnthropic(

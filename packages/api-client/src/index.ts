@@ -304,6 +304,12 @@ export function createApiClient(options: ApiClientOptions = {}) {
           method: "PUT",
           body: JSON.stringify({ modelId }),
         }),
+      getActiveVisionModel: () => request<ActiveChatModelDto>(`/api/admin/ai/active-vision-model`),
+      setActiveVisionModel: (modelId: string | null) =>
+        request<void>(`/api/admin/ai/active-vision-model`, {
+          method: "PUT",
+          body: JSON.stringify({ modelId }),
+        }),
       setProviderKey: (slug: string, apiKey: string) =>
         request<void>(`/api/admin/ai/providers/${encodeURIComponent(slug)}/key`, {
           method: "PUT",

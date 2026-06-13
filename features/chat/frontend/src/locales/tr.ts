@@ -24,6 +24,11 @@ export const tr: ChatResources = {
     send: "Gönder",
     stop: "Durdur",
     stopDisabledTooltip: "gönderim devam ediyor, tamamlanmasını bekleyin veya geri alın",
+    attachImage: "Görsel ekle",
+    attachDisabledTooltip:
+      "Görsel girişi yapılandırılmamış. Bir yöneticinin görüntü modeli seçmesi gerekiyor.",
+    attachmentLimit: "Ek sınırına ulaşıldı",
+    removeAttachment: "Görseli kaldır",
   },
   welcome: {
     title: "Asistana Hoş Geldiniz",
@@ -32,6 +37,7 @@ export const tr: ChatResources = {
   message: {
     youFallback: "Siz",
     assistantFallback: "Asistan",
+    imageAlt: "Eklenen görsel {{index}}",
   },
   reasoning: {
     streaming: "Düşünüyor - {{seconds}}s",
