@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { PageLayout, AgentAvatar } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
 import { useTranslation } from "@internal/i18n";
-import type { Agent } from "@internal/shared-types";
+import type { Agent, CurrentUser } from "@internal/shared-types";
 
 const CATEGORY_ORDER = [
   "Plan & Coordinate",
@@ -44,15 +44,21 @@ export function AgentsPage() {
   const api = useApi();
   const { t } = useTranslation("agents");
   const [items, setItems] = useState<Agent[] | null>(null);
+  const [me, setMe] = useState<CurrentUser | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const uncategorized = t("category.uncategorized");
+  const isAdmin = me?.role === "admin";
 
   useEffect(() => {
     api.agents
       .list()
       .then((res) => setItems(res.items))
       .catch((err) => setError(err.message ?? t("errors.failedToLoadAgents")));
+    api.auth
+      .me()
+      .then(setMe)
+      .catch(() => setMe(null));
   }, [api, t]);
 
   const groups = useMemo(() => {
@@ -72,14 +78,16 @@ export function AgentsPage() {
 
   return (
     <PageLayout title={t("page.title")} description={t("page.description")}>
-      <div className="mb-4 flex items-center justify-end gap-2">
-        <Link
-          to="/agents/new"
-          className="rounded-md bg-app-primary px-3 py-1.5 text-sm font-medium text-app-primary-on hover:opacity-90"
-        >
-          + {t("page.newAgent")}
-        </Link>
-      </div>
+      {isAdmin && (
+        <div className="mb-4 flex items-center justify-end gap-2">
+          <Link
+            to="/agents/new"
+            className="rounded-md bg-app-primary px-3 py-1.5 text-sm font-medium text-app-primary-on hover:opacity-90"
+          >
+            + {t("page.newAgent")}
+          </Link>
+        </div>
+      )}
 
       {error && <p className="text-sm text-app-danger">{error}</p>}
       {!error && items === null && (
@@ -87,13 +95,19 @@ export function AgentsPage() {
       )}
       {items && items.length === 0 && (
         <div className="rounded-md border border-app-border bg-app-surface p-6 text-center">
-          <p className="mb-3 text-sm text-app-text-muted">{t("empty.noAgents")}</p>
-          <Link
-            to="/agents/new"
-            className="inline-block rounded-md bg-app-primary px-3 py-1.5 text-sm font-medium text-app-primary-on hover:opacity-90"
+          <p
+            className={isAdmin ? "mb-3 text-sm text-app-text-muted" : "text-sm text-app-text-muted"}
           >
-            {t("actions.createFirst")}
-          </Link>
+            {t("empty.noAgents")}
+          </p>
+          {isAdmin && (
+            <Link
+              to="/agents/new"
+              className="inline-block rounded-md bg-app-primary px-3 py-1.5 text-sm font-medium text-app-primary-on hover:opacity-90"
+            >
+              {t("actions.createFirst")}
+            </Link>
+          )}
         </div>
       )}
 

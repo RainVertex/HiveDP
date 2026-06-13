@@ -24,7 +24,7 @@ export interface FeatureRoutesContext {
 
 export function buildFeatureRoutes(ctx: FeatureRoutesContext): RouteObject[] {
   return [
-    ...agentsRoutes({ avatarPresets: ctx.avatarPresets }),
+    ...agentsRoutes({ avatarPresets: ctx.avatarPresets, AdminRoute: ctx.AdminRoute }),
     ...catalogRoutes,
     ...scorecardsRoutes,
     ...doraMetricsRoutes,
