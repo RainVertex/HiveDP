@@ -73,6 +73,8 @@ export const tr: AgentsResources = {
     systemPromptRequired: "Sistem komutu zorunludur.",
     pickModel: "Bir model seçin.",
     modelNoTools: "Seçilen model araçları desteklemiyor. Araç destekli bir model seçin.",
+    modelProviderNotReady:
+      "Seçilen modelin sağlayıcısının API anahtarı yok, bu yüzden çalışamaz. Yönetim -> Yapay Zeka / Modeller bölümünden bir anahtar ekleyin.",
     avatarReadError: "Bu görsel okunamadı. Farklı bir dosya deneyin.",
   },
   confirm: {
@@ -111,6 +113,7 @@ export const tr: AgentsResources = {
     selectModel: "Bir model seçin…",
     recommendedSuffix: " · Önerilen",
     noToolSupportSuffix: " · araç desteği yok",
+    noProviderKeySuffix: " · API anahtarı yok",
     recommendedFor: "{{kind}} için önerilen: {{names}}",
     requiresTools: " (bu tür, araç destekli bir model gerektirir)",
     noModels:

@@ -171,6 +171,9 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
     if (toolsSelected && selected && !selected.supportsTools) {
       return setError(t("errors.modelNoTools"));
     }
+    if (selected && !selected.providerReady) {
+      return setError(t("errors.modelProviderNotReady"));
+    }
     const body = {
       name: name.trim(),
       description: description.trim() || undefined,
@@ -416,11 +419,13 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
             {sortedModels.map((m) => {
               const recommended = recommendedIds.includes(m.id);
               const incompatible = toolsSelected && !m.supportsTools;
+              const providerNotReady = !m.providerReady;
               return (
-                <option key={m.id} value={m.id} disabled={incompatible}>
+                <option key={m.id} value={m.id} disabled={incompatible || providerNotReady}>
                   {m.displayName} ({m.provider.displayName})
                   {recommended ? t("form.recommendedSuffix") : ""}
                   {incompatible ? t("form.noToolSupportSuffix") : ""}
+                  {providerNotReady ? t("form.noProviderKeySuffix") : ""}
                 </option>
               );
             })}

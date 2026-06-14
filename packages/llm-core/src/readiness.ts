@@ -17,6 +17,6 @@ export function providerKeyMissingMessage(isAdmin: boolean): string {
 
 export function assistantNotConfiguredMessage(isAdmin: boolean): string {
   return isAdmin
-    ? "The assistant isn't set up yet. Go to Admin -> AI / Models to select a chat model and add its API key."
+    ? "The assistant isn't set up yet. Go to Agents -> Platform Assistant and pick an enabled model, then make sure its provider has an API key in Admin -> AI / Models."
     : "The assistant isn't set up yet. Please contact your administrator.";
 }

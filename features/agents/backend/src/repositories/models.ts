@@ -1,7 +1,11 @@
 import { prisma, Prisma } from "@internal/db";
 
 export type ModelListItem = Prisma.LlmModelGetPayload<{
-  include: { provider: { select: { slug: true; displayName: true; kind: true } } };
+  include: {
+    provider: {
+      select: { id: true; slug: true; displayName: true; kind: true; apiKeyEnvVar: true };
+    };
+  };
 }>;
 
 type ModelCapability = Prisma.LlmModelGetPayload<{
@@ -18,7 +22,11 @@ export const modelRepository: ModelRepository = {
   listEnabled() {
     return prisma.llmModel.findMany({
       where: { enabled: true, provider: { enabled: true } },
-      include: { provider: { select: { slug: true, displayName: true, kind: true } } },
+      include: {
+        provider: {
+          select: { id: true, slug: true, displayName: true, kind: true, apiKeyEnvVar: true },
+        },
+      },
       orderBy: [{ provider: { slug: "asc" } }, { slug: "asc" }],
     });
   },

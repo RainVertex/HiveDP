@@ -70,6 +70,8 @@ export const en = {
     systemPromptRequired: "System prompt is required.",
     pickModel: "Pick a model.",
     modelNoTools: "The selected model does not support tools. Pick a tool-capable model.",
+    modelProviderNotReady:
+      "The selected model's provider has no API key, so it cannot run. Add a key in Admin -> AI / Models.",
     avatarReadError: "Could not read that image. Try a different file.",
   },
   confirm: {
@@ -108,6 +110,7 @@ export const en = {
     selectModel: "Select a model…",
     recommendedSuffix: " · Recommended",
     noToolSupportSuffix: " · no tool support",
+    noProviderKeySuffix: " · no API key",
     recommendedFor: "Recommended for {{kind}}: {{names}}",
     requiresTools: " (this kind needs a tool-capable model)",
     noModels:

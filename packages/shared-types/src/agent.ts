@@ -32,6 +32,8 @@ export interface LlmModelSummary {
   costPer1kIn: number | null;
   costPer1kOut: number | null;
   provider: LlmProviderSummary;
+  // False when the model's provider has no usable API key, so the model cannot actually run yet.
+  providerReady: boolean;
 }
 
 export interface AgentToolDescriptor {

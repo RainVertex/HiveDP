@@ -1,4 +1,4 @@
-import { recommendationsForKind } from "@internal/llm-core";
+import { isProviderReady, providerHasStoredKey, recommendationsForKind } from "@internal/llm-core";
 import { BadRequestError } from "../errors";
 import { toModelDto, toRecommendations } from "../mappers";
 import { modelRepository } from "../repositories/models";
@@ -18,7 +18,14 @@ export async function validateModelForTools(modelId: string, toolIds: string[]):
 
 export async function listModels() {
   const models = await modelRepository.listEnabled();
-  return models.map(toModelDto);
+  const readyByProvider = new Map<string, boolean>();
+  for (const m of models) {
+    if (!readyByProvider.has(m.provider.id)) {
+      const hasStoredKey = await providerHasStoredKey(m.provider.id);
+      readyByProvider.set(m.provider.id, isProviderReady(m.provider, hasStoredKey));
+    }
+  }
+  return models.map((m) => toModelDto(m, readyByProvider.get(m.provider.id) ?? false));
 }
 
 export async function recommendations(kind: string) {
