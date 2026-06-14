@@ -4,6 +4,7 @@ import { useTranslation } from "@internal/i18n";
 import { useCurrentUser } from "../auth";
 import { ProfileAvatar } from "../profile";
 import { ThemeSwitcher } from "../theme";
+import { BrandLogo } from "./Brand";
 
 export function Header() {
   const user = useCurrentUser();
@@ -11,8 +12,8 @@ export function Header() {
 
   return (
     <header className="h-14 flex items-center justify-between px-4 border-b border-app-border bg-app-surface">
-      <Link to="/" className="font-semibold text-app-text hover:text-app-primary transition-colors">
-        Vexana
+      <Link to="/" aria-label="HiveDP" className="transition-opacity hover:opacity-80">
+        <BrandLogo />
       </Link>
 
       <div className="flex items-center gap-3">

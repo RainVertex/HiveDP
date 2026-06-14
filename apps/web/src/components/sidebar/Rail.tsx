@@ -1,8 +1,9 @@
 // Collapsible primary navigation rail with hover-peek overlay and a Requests badge.
 import { useMemo, type ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, Link } from "react-router-dom";
 import { useTranslation } from "@internal/i18n";
 import { useCurrentUser } from "../../auth";
+import { BrandMark } from "../Brand";
 import {
   AccountIcon,
   AdminIcon,
@@ -136,6 +137,24 @@ function RailContent({
   const { t } = useTranslation();
   return (
     <nav className="flex h-full flex-col gap-1 p-2">
+      <Link
+        to="/"
+        aria-label="HiveDP"
+        className="flex h-10 items-center gap-2 rounded-md px-2 hover:bg-app-surface-hover"
+      >
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+          <BrandMark className="h-6 w-6 text-app-text" />
+        </span>
+        {expanded && (
+          <span className="text-lg font-bold leading-none tracking-tight">
+            <span className="text-app-text">Hive</span>
+            <span className="text-app-primary">DP</span>
+          </span>
+        )}
+      </Link>
+
+      <div className="my-1 border-t border-app-border" aria-hidden />
+
       <button
         type="button"
         onClick={onTogglePin}
