@@ -1,6 +1,6 @@
 import { PLATFORM_ASSISTANT_AGENT_ID } from "./constants";
 import type { AgentDetailRow, AgentListRow, ConversationTitle } from "./repositories/agents";
-import type { ChatModelDisplay, ModelListItem } from "./repositories/models";
+import type { ModelListItem } from "./repositories/models";
 
 export function toModelDto(m: ModelListItem) {
   return {
@@ -26,30 +26,24 @@ export function toRecommendations(
   return { kind, requiresTools, recommendedModelIds };
 }
 
-export function toAgentListItem(agent: AgentListRow, assistantModel: ChatModelDisplay | null) {
+export function toAgentListItem(agent: AgentListRow) {
   const { runs, ...rest } = agent;
   return {
     ...rest,
     status: runs[0]?.status ?? "idle",
-    // The Platform Assistant ignores its own modelId FK and runs whatever admins pick as the active chat model.
-    llmModel: agent.id === PLATFORM_ASSISTANT_AGENT_ID ? assistantModel : agent.llmModel,
+    llmModel: agent.llmModel,
   };
 }
 
-export function toAgentDetail(
-  agent: AgentDetailRow,
-  conversations: ConversationTitle[],
-  assistantModel: ChatModelDisplay | null,
-) {
+export function toAgentDetail(agent: AgentDetailRow, conversations: ConversationTitle[]) {
   const conversationById = new Map(conversations.map((c) => [c.id, c]));
   const runs = agent.runs.map(({ conversationId, ...run }) => ({
     ...run,
     conversation: conversationId ? (conversationById.get(conversationId) ?? null) : null,
   }));
-  const llmModel = agent.id === PLATFORM_ASSISTANT_AGENT_ID ? assistantModel : agent.llmModel;
   return {
     ...agent,
-    llmModel,
+    llmModel: agent.llmModel,
     runs,
     status: agent.runs[0]?.status ?? "idle",
     toolsManaged: agent.id === PLATFORM_ASSISTANT_AGENT_ID,

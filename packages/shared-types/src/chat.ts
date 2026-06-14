@@ -45,7 +45,7 @@ export interface ChatConversationDetailDto extends ChatConversationSummaryDto {
   messages: ChatMessageDto[];
 }
 
-// reason is "no_active_model" when none selected, "model_unavailable" when selected model is disabled or lost its key.
+// reason is "model_unavailable" when the assistant agent's model is disabled, missing, or its provider lost its key.
 // visionReady is true when a usable vision model is configured, gating image attachments.
 export interface ChatConfigDto {
   ready: boolean;

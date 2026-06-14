@@ -4,14 +4,6 @@ export type ModelListItem = Prisma.LlmModelGetPayload<{
   include: { provider: { select: { slug: true; displayName: true; kind: true } } };
 }>;
 
-export type ChatModelDisplay = Prisma.LlmModelGetPayload<{
-  select: {
-    slug: true;
-    displayName: true;
-    provider: { select: { slug: true; displayName: true } };
-  };
-}>;
-
 type ModelCapability = Prisma.LlmModelGetPayload<{
   select: { id: true; enabled: true; supportsTools: true; provider: { select: { enabled: true } } };
 }>;
@@ -20,7 +12,6 @@ export interface ModelRepository {
   listEnabled(): Promise<ModelListItem[]>;
   findBySlugs(slugs: string[]): Promise<Array<{ id: string; slug: string }>>;
   findCapability(modelId: string): Promise<ModelCapability | null>;
-  findActiveChatModelDisplay(modelId: string): Promise<ChatModelDisplay | null>;
 }
 
 export const modelRepository: ModelRepository = {
@@ -45,16 +36,6 @@ export const modelRepository: ModelRepository = {
         enabled: true,
         supportsTools: true,
         provider: { select: { enabled: true } },
-      },
-    });
-  },
-  findActiveChatModelDisplay(modelId) {
-    return prisma.llmModel.findUnique({
-      where: { id: modelId },
-      select: {
-        slug: true,
-        displayName: true,
-        provider: { select: { slug: true, displayName: true } },
       },
     });
   },

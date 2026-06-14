@@ -8,11 +8,11 @@ export interface KindRecommendation {
 const RECOMMENDATIONS: Record<string, KindRecommendation> = {
   "platform-assistant": {
     requiresTools: true,
-    recommendedModelSlugs: ["claude-sonnet-4-6", "gpt-4o", "qwen3-8b-local"],
+    recommendedModelSlugs: ["o4-mini", "claude-sonnet-4-6", "gpt-4o", "qwen3-8b-local"],
   },
   "catalog-enrichment": {
     requiresTools: true,
-    recommendedModelSlugs: ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+    recommendedModelSlugs: ["o4-mini", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
   },
   custom: {
     requiresTools: false,

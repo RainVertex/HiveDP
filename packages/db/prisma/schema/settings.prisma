@@ -1,7 +1,7 @@
 // Generic key/value store for admin-managed platform settings. Values are
-// JSON so a setting can hold a string, number, or object. The chat feature
-// reads "chat.activeModelId" (the admin-selected active chat model); when the
-// key is unset the assistant is treated as not configured yet.
+// JSON so a setting can hold a string, number, or object. For example the chat
+// feature reads "chat.visionModelId" (the admin-selected vision model for image
+// extraction) when that key is unset image input in chat is disabled.
 model SystemSetting {
   key             String   @id
   value           Json

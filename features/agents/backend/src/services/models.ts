@@ -1,15 +1,7 @@
-import { getSetting, recommendationsForKind } from "@internal/llm-core";
+import { recommendationsForKind } from "@internal/llm-core";
 import { BadRequestError } from "../errors";
 import { toModelDto, toRecommendations } from "../mappers";
 import { modelRepository } from "../repositories/models";
-
-// The Platform Assistant runs whatever admins pick as the active chat model (SystemSetting
-// "chat.activeModelId"). Resolve that live, or null when chat is not yet configured.
-export async function activeChatModelDisplay() {
-  const activeModelId = await getSetting<string>("chat.activeModelId");
-  if (!activeModelId) return null;
-  return modelRepository.findActiveChatModelDisplay(activeModelId);
-}
 
 export async function validateModelForTools(modelId: string, toolIds: string[]): Promise<void> {
   const model = await modelRepository.findCapability(modelId);

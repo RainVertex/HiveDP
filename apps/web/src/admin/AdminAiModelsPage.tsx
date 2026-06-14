@@ -45,19 +45,6 @@ export function AdminAiModelsPage() {
     }
   }
 
-  async function setActive(modelId: string | null) {
-    setBusy(modelId ?? "clear");
-    setError(null);
-    try {
-      await client.adminAi.setActiveChatModel(modelId);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to set active model");
-    } finally {
-      setBusy(null);
-    }
-  }
-
   async function setActiveVision(modelId: string | null) {
     setBusy(`vision:${modelId ?? "clear"}`);
     setError(null);
@@ -107,7 +94,6 @@ export function AdminAiModelsPage() {
     );
   }
 
-  const activeId = data?.activeChatModelId ?? null;
   const activeVisionId = data?.activeVisionModelId ?? null;
 
   return (
@@ -118,36 +104,7 @@ export function AdminAiModelsPage() {
         </div>
       )}
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-2">
-        <section className="rounded-lg border border-app-border bg-app-surface p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-app-text-muted">
-                Active chat model
-              </div>
-              <div className="text-sm text-app-text">
-                {activeId ? (
-                  findModelName(data, activeId)
-                ) : (
-                  <span className="text-app-warning">
-                    Not configured — chat is unavailable to users.
-                  </span>
-                )}
-              </div>
-            </div>
-            {activeId && (
-              <button
-                type="button"
-                disabled={busy === "clear"}
-                onClick={() => void setActive(null)}
-                className="rounded-md border border-app-border bg-app-surface px-3 py-1.5 text-sm text-app-text hover:bg-app-surface-hover disabled:opacity-50"
-              >
-                Clear active model
-              </button>
-            )}
-          </div>
-        </section>
-
+      <div className="mb-6 grid gap-4">
         <section className="rounded-lg border border-app-border bg-app-surface p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -188,11 +145,9 @@ export function AdminAiModelsPage() {
             <ProviderCard
               key={p.slug}
               provider={p}
-              activeId={activeId}
               activeVisionId={activeVisionId}
               busy={busy}
               onToggle={toggleEnabled}
-              onSetActive={setActive}
               onSetActiveVision={setActiveVision}
               onSaveKey={saveKey}
               onRemoveKey={removeKey}
@@ -373,21 +328,17 @@ function findModelName(data: AdminAiModelsResponse | null, id: string): string {
 
 function ProviderCard({
   provider,
-  activeId,
   activeVisionId,
   busy,
   onToggle,
-  onSetActive,
   onSetActiveVision,
   onSaveKey,
   onRemoveKey,
 }: {
   provider: AdminAiProviderGroup;
-  activeId: string | null;
   activeVisionId: string | null;
   busy: string | null;
   onToggle: (m: AdminAiModelRow) => void;
-  onSetActive: (id: string) => void;
   onSetActiveVision: (id: string) => void;
   onSaveKey: (slug: string, apiKey: string) => void;
   onRemoveKey: (slug: string) => void;
@@ -418,15 +369,6 @@ function ProviderCard({
 
       <div className="grid gap-2">
         {provider.models.map((m) => {
-          const isActive = m.id === activeId;
-          const canActivate = provider.ready && m.enabled && m.supportsTools;
-          const activateTitle = !provider.ready
-            ? "Provider is not ready"
-            : !m.enabled
-              ? "Enable the model first"
-              : !m.supportsTools
-                ? "Chat needs a tool-capable model"
-                : "Set as active chat model";
           const isActiveVision = m.id === activeVisionId;
           const canActivateVision = provider.ready && m.enabled && m.supportsVision;
           const activateVisionTitle = !provider.ready
@@ -459,11 +401,6 @@ function ProviderCard({
                       reasoning
                     </span>
                   )}
-                  {isActive && (
-                    <span className="ml-2 rounded-full bg-app-primary/10 px-1.5 py-0.5 text-[10px] text-app-primary">
-                      active chat model
-                    </span>
-                  )}
                   {isActiveVision && (
                     <span className="ml-2 rounded-full bg-app-primary/10 px-1.5 py-0.5 text-[10px] text-app-primary">
                       active vision model
@@ -489,15 +426,6 @@ function ProviderCard({
                   className="rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-text hover:bg-app-surface-hover disabled:opacity-50"
                 >
                   {isActiveVision ? "Vision" : "Set as vision model"}
-                </button>
-                <button
-                  type="button"
-                  disabled={!canActivate || isActive || busy === m.id}
-                  title={activateTitle}
-                  onClick={() => onSetActive(m.id)}
-                  className="rounded-md bg-app-primary px-2.5 py-1 text-xs font-medium text-app-primary-on hover:opacity-90 disabled:opacity-50"
-                >
-                  {isActive ? "Active" : "Set as chat model"}
                 </button>
               </div>
             </div>

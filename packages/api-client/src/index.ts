@@ -327,12 +327,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
           method: "PATCH",
           body: JSON.stringify({ enabled }),
         }),
-      getActiveChatModel: () => request<ActiveChatModelDto>(`/api/admin/ai/active-chat-model`),
-      setActiveChatModel: (modelId: string | null) =>
-        request<void>(`/api/admin/ai/active-chat-model`, {
-          method: "PUT",
-          body: JSON.stringify({ modelId }),
-        }),
       getActiveVisionModel: () => request<ActiveChatModelDto>(`/api/admin/ai/active-vision-model`),
       setActiveVisionModel: (modelId: string | null) =>
         request<void>(`/api/admin/ai/active-vision-model`, {

@@ -2,7 +2,6 @@ import OpenAI from "openai";
 import { prisma, Prisma } from "@internal/db";
 import {
   computeCostUsd,
-  getSetting,
   mcpOAuthRedirectUrl,
   openAgentMcpToolset,
   providerKindFromProvider,
@@ -157,12 +156,7 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
   let finalText = "";
   let containsWrites = false;
 
-  const activeModelId = await getSetting<string>("chat.activeModelId");
-  if (!activeModelId) throw new ChatNotConfiguredError("no_active_model");
-  const model = (await prisma.llmModel.findUnique({
-    where: { id: activeModelId },
-    include: { provider: true },
-  })) as ResolvedModel | null;
+  const model = agent.llmModel as ResolvedModel | null;
   if (!model || !model.enabled || !model.provider.enabled) {
     throw new ChatNotConfiguredError("model_unavailable");
   }

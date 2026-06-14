@@ -8,7 +8,7 @@ import { toAgentDetail, toAgentListItem } from "../mappers";
 import { agentRepository } from "../repositories/agents";
 import { runRepository } from "../repositories/runs";
 import { getCallerTeamIds } from "./callers";
-import { activeChatModelDisplay, validateModelForTools } from "./models";
+import { validateModelForTools } from "./models";
 
 export interface CallerContext {
   id: string;
@@ -19,9 +19,7 @@ type ToolListContext = { userId: string; isAdmin: boolean; teamIds: string[] };
 
 export async function listAgents() {
   const agents = await agentRepository.listWithLatestRunAndModel();
-  const hasAssistant = agents.some((a) => a.id === PLATFORM_ASSISTANT_AGENT_ID);
-  const assistantModel = hasAssistant ? await activeChatModelDisplay() : null;
-  return agents.map((agent) => toAgentListItem(agent, assistantModel));
+  return agents.map((agent) => toAgentListItem(agent));
 }
 
 export function listTools(ctx: ToolListContext) {
@@ -39,9 +37,7 @@ export async function getAgentDetail(id: string, caller: CallerContext) {
   const conversations = conversationIds.length
     ? await agentRepository.findConversationTitles(conversationIds)
     : [];
-  const assistantModel =
-    agent.id === PLATFORM_ASSISTANT_AGENT_ID ? await activeChatModelDisplay() : null;
-  return toAgentDetail(agent, conversations, assistantModel);
+  return toAgentDetail(agent, conversations);
 }
 
 export async function createAgent(input: CreateAgentInput) {

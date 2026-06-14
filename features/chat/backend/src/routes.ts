@@ -13,7 +13,6 @@ import type {
   ChatSseEvent,
 } from "@internal/shared-types";
 import {
-  getSetting,
   isProviderReady,
   providerHasStoredKey,
   assistantNotConfiguredMessage,
@@ -114,12 +113,11 @@ async function loadAgentIdentities(
 }
 
 async function resolveChatReadiness(): Promise<{ ready: boolean; reason: string | null }> {
-  const activeModelId = await getSetting<string>("chat.activeModelId");
-  if (!activeModelId) return { ready: false, reason: "no_active_model" };
-  const model = await prisma.llmModel.findUnique({
-    where: { id: activeModelId },
-    include: { provider: true },
+  const agent = await prisma.agent.findUnique({
+    where: { id: PLATFORM_ASSISTANT_AGENT_ID },
+    include: { llmModel: { include: { provider: true } } },
   });
+  const model = agent?.llmModel ?? null;
   if (!model || !model.enabled || !model.provider.enabled) {
     return { ready: false, reason: "model_unavailable" };
   }

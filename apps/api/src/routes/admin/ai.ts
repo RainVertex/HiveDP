@@ -21,19 +21,18 @@ import { isAppConfigured } from "@feature/integrations-backend";
 import { requireAuth, requireRole } from "../../middleware/requireAuth";
 import { adminLimiter } from "../../middleware/rateLimit";
 
-// Admin "AI / Models" routes: provider/model readiness, enable/disable, active chat model selection, and provider key management.
+// Admin "AI / Models" routes: provider/model readiness, enable/disable, active vision model selection, and provider key management.
+// The chat assistant's model is configured per-agent (Platform Assistant agent's modelId), not here.
 
 export const adminAiRouter = Router();
 
 adminAiRouter.use(adminLimiter, requireAuth, requireRole("admin"));
 
-const ACTIVE_KEY = "chat.activeModelId";
 const VISION_KEY = "chat.visionModelId";
 const SOURCE_REPO_KEY = "chat.sourceRepo";
 
 adminAiRouter.get("/models", async (_req, res, next) => {
   try {
-    const activeChatModelId = await getSetting<string>(ACTIVE_KEY);
     const activeVisionModelId = await getSetting<string>(VISION_KEY);
     const storedKeyProviderIds = await getProviderIdsWithStoredKey();
     const providers = await prisma.llmProvider.findMany({
@@ -56,13 +55,11 @@ adminAiRouter.get("/models", async (_req, res, next) => {
         supportsVision: m.supportsVision,
         supportsReasoning: m.supportsReasoning,
         enabled: m.enabled,
-        isActiveChatModel: m.id === activeChatModelId,
         isActiveVisionModel: m.id === activeVisionModelId,
       })),
     }));
     const body: AdminAiModelsResponse = {
       providers: groups,
-      activeChatModelId: activeChatModelId ?? null,
       activeVisionModelId: activeVisionModelId ?? null,
     };
     res.json(body);
@@ -87,14 +84,6 @@ adminAiRouter.patch("/models/:id", async (req, res, next) => {
       return;
     }
     if (!parsed.data.enabled) {
-      const active = await getSetting<string>(ACTIVE_KEY);
-      if (active === id) {
-        res.status(409).json({
-          error: "This model is the active chat model. Select another active model first.",
-          code: "active_model_in_use",
-        });
-        return;
-      }
       const activeVision = await getSetting<string>(VISION_KEY);
       if (activeVision === id) {
         res.status(409).json({
@@ -111,68 +100,7 @@ adminAiRouter.patch("/models/:id", async (req, res, next) => {
   }
 });
 
-adminAiRouter.get("/active-chat-model", async (_req, res, next) => {
-  try {
-    const modelId = await getSetting<string>(ACTIVE_KEY);
-    const body: ActiveChatModelDto = { modelId: modelId ?? null };
-    res.json(body);
-  } catch (err) {
-    next(err);
-  }
-});
-
 const putActiveSchema = z.object({ modelId: z.string().nullable() });
-
-adminAiRouter.put("/active-chat-model", async (req, res, next) => {
-  try {
-    const parsed = putActiveSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Invalid body" });
-      return;
-    }
-    const { modelId } = parsed.data;
-    if (modelId === null) {
-      await clearSetting(ACTIVE_KEY);
-      res.status(204).end();
-      return;
-    }
-    const model = await prisma.llmModel.findUnique({
-      where: { id: modelId },
-      include: { provider: true },
-    });
-    if (!model) {
-      res.status(400).json({ error: "Model not found", code: "model_not_found" });
-      return;
-    }
-    if (!model.enabled) {
-      res.status(400).json({ error: "Model is disabled", code: "model_disabled" });
-      return;
-    }
-    if (!model.provider.enabled) {
-      res.status(400).json({ error: "Provider is disabled", code: "provider_disabled" });
-      return;
-    }
-    const hasStoredKey = await providerHasStoredKey(model.provider.id);
-    if (!isProviderReady(model.provider, hasStoredKey)) {
-      res.status(400).json({
-        error: `Provider is not ready (no in-app key and ${model.provider.apiKeyEnvVar} is unset)`,
-        code: "provider_not_ready",
-      });
-      return;
-    }
-    if (!model.supportsTools) {
-      res.status(400).json({
-        error: "The chat assistant needs a tool-capable model.",
-        code: "model_lacks_tools",
-      });
-      return;
-    }
-    await setSetting(ACTIVE_KEY, model.id, req.user?.id ?? null);
-    res.status(204).end();
-  } catch (err) {
-    next(err);
-  }
-});
 
 adminAiRouter.get("/active-vision-model", async (_req, res, next) => {
   try {

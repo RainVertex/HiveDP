@@ -12,6 +12,7 @@ async function main() {
 
   // Provider/model registry must exist before any Agent row (Agent.modelId FK).
   await seedLlmProviders();
+  await seedDefaultAiSettings();
 
   await seedDefaultPages();
   await seedTeamPolicies();
@@ -51,7 +52,6 @@ Aim for at most 8 tool calls. Do not loop.`;
     where: { id: "seed-agent-catalog-enricher" },
     update: {
       instructions: enricherInstructions,
-      modelId: "llmmodel_claude_sonnet_4_6",
       toolIds: ["catalog_lookup", "catalog_read_repo", "catalog_read_file", "catalog_open_yaml_pr"],
       approvalMode: "auto",
       category: "Catalog & Quality",
@@ -60,9 +60,9 @@ Aim for at most 8 tool calls. Do not loop.`;
     create: {
       id: "seed-agent-catalog-enricher",
       name: "Catalog Enricher",
-      description: "Fills missing metadata on catalog entities using Claude.",
+      description: "Fills missing metadata on catalog entities by opening a pull request.",
       kind: "catalog-enrichment",
-      modelId: "llmmodel_claude_sonnet_4_6",
+      modelId: "llmmodel_openai_o4_mini",
       instructions: enricherInstructions,
       toolIds: ["catalog_lookup", "catalog_read_repo", "catalog_read_file", "catalog_open_yaml_pr"],
       approvalMode: "auto",
@@ -85,11 +85,20 @@ Aim for at most 8 tool calls. Do not loop.`;
   console.log("Seed complete.");
 }
 
+// Default vision model for chat image extraction. create-only so re-seeding never overrides an admin's later choice.
+async function seedDefaultAiSettings() {
+  await prisma.systemSetting.upsert({
+    where: { key: "chat.visionModelId" },
+    update: {},
+    create: { key: "chat.visionModelId", value: "llmmodel_openai_o4_mini" },
+  });
+}
+
 // The assistant's effective read tools come live from platformAssistantReadToolIds() (agent-tools registry.ts) plus chatWriteToolIds(), the toolIds persisted here are display-only and the instructions below ARE the live system prompt.
 async function seedPlatformAssistant() {
-  // Chat resolves its model from SystemSetting "chat.activeModelId" at request time; this FK value is unused.
-  // chat.activeModelId is deliberately left unseeded so the assistant stays not-configured until an admin picks a model.
-  const placeholderModelId = "llmmodel_qwen3_8b_local";
+  // Chat runs the assistant agent's own modelId FK (configured on the agent page like any other agent).
+  // The assistant is treated as not-configured whenever this model is disabled or its provider has no key.
+  const defaultModelId = "llmmodel_openai_o4_mini";
   const writesEnabled = process.env.CHAT_WRITE_TOOLS_ENABLED !== "false";
 
   const readToolIds = [
@@ -183,7 +192,7 @@ Integrations.`;
       name: "Platform Assistant",
       description: "Interactive chatbot for the engineering platform.",
       kind: "platform-assistant",
-      modelId: placeholderModelId,
+      modelId: defaultModelId,
       instructions,
       toolIds,
       approvalMode: "ask",
