@@ -1,20 +1,13 @@
-import { promises as fs } from "node:fs";
-import { join } from "node:path";
 import { z } from "zod";
-import simpleGit, { type SimpleGit } from "simple-git";
 import type { Octokit as OctokitClient } from "octokit";
+import { octokitForLogin } from "@feature/integrations-backend/contract";
 import type { Action, ReadCtx, WriteCtx } from "@internal/scaffolder-core";
+import { buildTreeFromWorkspace } from "./github-commit";
 
-// publish:github action: creates a GitHub repo and pushes the workspace as an irreversible initial commit.
-
-// octokit v5 is ESM-only and breaks the CJS loader on static import, so defer it to apply().
-async function loadOctokit(): Promise<typeof OctokitClient> {
-  const mod = await import("octokit");
-  return mod.Octokit;
-}
+// publish:github action: creates a GitHub repo and pushes the workspace as the App bot's initial commit.
 
 const publishGithubInput = z.object({
-  org: z.string().min(1).describe("GitHub organization or user login that will own the repo"),
+  org: z.string().min(1).describe("GitHub organization that will own the repo"),
   name: z
     .string()
     .min(1)
@@ -23,10 +16,6 @@ const publishGithubInput = z.object({
   visibility: z.enum(["public", "private"]).default("private").describe("Repository visibility"),
   description: z.string().max(350).optional().describe("Repository description"),
   defaultBranch: z.string().default("main").describe("Branch the initial commit is pushed to"),
-  tokenSecret: z
-    .string()
-    .default("GITHUB_TOKEN")
-    .describe("Name of the platform secret holding the GitHub token"),
 });
 
 type PublishGithubInput = z.infer<typeof publishGithubInput>;
@@ -52,63 +41,14 @@ async function repoExists(octo: OctokitClient, org: string, name: string): Promi
   }
 }
 
-async function createRepo(
-  octo: OctokitClient,
-  input: PublishGithubInput,
-): Promise<{ fullName: string; cloneUrl: string; repoId: number }> {
-  // Try the org endpoint first; on 404 the org is actually a user login, so fall back.
-  try {
-    const { data } = await octo.rest.repos.createInOrg({
-      org: input.org,
-      name: input.name,
-      private: input.visibility === "private",
-      description: input.description,
-      auto_init: false,
-    });
-    return { fullName: data.full_name, cloneUrl: data.clone_url, repoId: data.id };
-  } catch (err) {
-    const status = (err as { status?: number }).status;
-    if (status !== 404) throw err;
-    const { data } = await octo.rest.repos.createForAuthenticatedUser({
-      name: input.name,
-      private: input.visibility === "private",
-      description: input.description,
-      auto_init: false,
-    });
-    return { fullName: data.full_name, cloneUrl: data.clone_url, repoId: data.id };
-  }
-}
-
-async function pushInitialCommit(
-  workspacePath: string,
-  remoteUrl: string,
-  defaultBranch: string,
-  token: string,
-  authoredBy: string,
-): Promise<string> {
-  // GitHub's recommended x-access-token form for fine-scoped tokens over HTTPS.
-  const authedUrl = remoteUrl.replace(/^https:\/\//, `https://x-access-token:${token}@`);
-  const git: SimpleGit = simpleGit(workspacePath);
-  await git.init();
-  await git.addConfig("user.email", `${authoredBy}@scaffolder.platform`);
-  await git.addConfig("user.name", "Scaffolder");
-  await git.add(".");
-  // --allow-empty so a misconfigured (zero-file) template still yields a real repo head.
-  const commit = await git.commit("Initial scaffold", { "--allow-empty": null });
-  await git.branch(["-M", defaultBranch]);
-  await git.addRemote("origin", authedUrl);
-  await git.push(["-u", "origin", defaultBranch]);
-  return commit.commit;
-}
-
 export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput> = {
   id: "publish:github",
-  description: "Create a GitHub repo and push the workspace as the initial commit.",
+  description: "Create a GitHub repo and push the workspace as the App bot's initial commit.",
   schema: publishGithubInput,
-  capabilities: ["network:external", "repo:public", "secrets:read:GITHUB_TOKEN"],
+  capabilities: ["network:external", "repo:public"],
   irreversible: true,
   async match(_input, _ctx: ReadCtx) {
-    // Without a token we cannot probe, so treat as absent; apply refuses if the repo exists.
+    // Without an installation we cannot probe, so treat as absent; apply refuses if the repo exists.
     return "absent";
   },
   async diff(input) {
@@ -129,11 +69,6 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
     ];
   },
   async apply(input, ctx: WriteCtx) {
-    const token = ctx.secrets.read(input.tokenSecret);
-    if (token.length >= 4) {
-      ctx.logger.info(`publish:github authenticating as token "${token.slice(0, 4)}***"`);
-    }
-
     if (ctx.dryRun) {
       ctx.logger.info(
         `[dry-run] publish:github would create ${input.org}/${input.name} and push ${input.defaultBranch}`,
@@ -151,63 +86,76 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
       };
     }
 
-    const Octokit = await loadOctokit();
-    const octo = new Octokit({ auth: token });
+    const octo = await octokitForLogin(input.org);
+    if (!octo) {
+      throw new Error(
+        `publish:github: the GitHub App is not installed on "${input.org}". Install it on that organization (Administration + Contents write) before scaffolding.`,
+      );
+    }
+
     if (await repoExists(octo, input.org, input.name)) {
       throw new Error(
         `publish:github: ${input.org}/${input.name} already exists; refusing to overwrite`,
       );
     }
-    const { fullName, cloneUrl, repoId } = await createRepo(octo, input);
-    ctx.logger.info(`publish:github created ${fullName}`);
 
-    // Count only for the audit trail; never log file contents.
-    const fileCount = await countWorkspaceFiles(ctx.workspacePath);
+    const { data: repo } = await octo.rest.repos.createInOrg({
+      org: input.org,
+      name: input.name,
+      private: input.visibility === "private",
+      description: input.description,
+      auto_init: false,
+    });
+    ctx.logger.info(`publish:github created ${repo.full_name}`);
 
-    const sha = await pushInitialCommit(
-      ctx.workspacePath,
-      cloneUrl,
-      input.defaultBranch,
-      token,
-      ctx.actor.userId,
-    );
+    const { treeSha, fileCount } = await buildTreeFromWorkspace({
+      octo,
+      owner: input.org,
+      repo: input.name,
+      dir: ctx.workspacePath,
+    });
+    if (fileCount === 0) {
+      throw new Error("publish:github: template rendered no files to commit");
+    }
+
+    const commit = await octo.rest.git.createCommit({
+      owner: input.org,
+      repo: input.name,
+      message: "Initial scaffold",
+      tree: treeSha,
+      parents: [],
+    });
+    await octo.rest.git.createRef({
+      owner: input.org,
+      repo: input.name,
+      ref: `refs/heads/${input.defaultBranch}`,
+      sha: commit.data.sha,
+    });
+    if (input.defaultBranch !== repo.default_branch) {
+      await octo.rest.repos.update({
+        owner: input.org,
+        repo: input.name,
+        default_branch: input.defaultBranch,
+      });
+    }
     ctx.logger.info(`publish:github pushed ${fileCount} files to ${input.defaultBranch}`);
 
     return {
       output: {
-        remoteUrl: cloneUrl,
+        remoteUrl: repo.clone_url,
         defaultBranch: input.defaultBranch,
         repoVisibility: input.visibility,
-        repoFullName: fullName,
-        repoId,
-        initialCommitSha: sha,
+        repoFullName: repo.full_name,
+        repoId: repo.id,
+        initialCommitSha: commit.data.sha,
       },
       // Irreversible: a public push cannot be auto-rolled-back, so cleanup is left to the operator.
       compensation: {
         kind: "noop",
-        reason: `irreversible: github repo ${fullName} created and pushed; manual cleanup required if rollback is needed`,
+        reason: `irreversible: github repo ${repo.full_name} created and pushed; manual cleanup required if rollback is needed`,
       },
     };
   },
 };
-
-async function countWorkspaceFiles(root: string): Promise<number> {
-  let count = 0;
-  async function walk(dir: string): Promise<void> {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.name === ".git") continue;
-      const abs = join(dir, entry.name);
-      if (entry.isDirectory()) await walk(abs);
-      else if (entry.isFile()) count++;
-    }
-  }
-  try {
-    await walk(root);
-  } catch {
-    // empty workspace
-  }
-  return count;
-}
 
 export { publishGithubInput };

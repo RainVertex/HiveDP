@@ -47,8 +47,8 @@ export const en = {
   empty: {
     noAgents: "No agents yet.",
     noRuns: "No runs yet.",
-    noTools: "No tools.",
-    noToolsRegistered: "No tools registered.",
+    noSkills: "No skills.",
+    noSkillsRegistered: "No skills registered.",
     noText: "(no text)",
     noToolCalls: "No tool calls.",
   },
@@ -73,6 +73,10 @@ export const en = {
     modelProviderNotReady:
       "The selected model's provider has no API key, so it cannot run. Add a key in Admin -> AI / Models.",
     avatarReadError: "Could not read that image. Try a different file.",
+    failedToLoadSkills: "Failed to load skills",
+    skillNameRequired: "Name is required.",
+    saveSkillFailed: "Save failed",
+    deleteSkillFailed: "Delete failed",
   },
   confirm: {
     deleteTitle: "Delete agent",
@@ -86,7 +90,7 @@ export const en = {
     avatar: "Avatar",
     kind: "Kind",
     systemPrompt: "System prompt",
-    tools: "Tools",
+    skills: "Skills",
     model: "Model",
     approvalMode: "Approval mode",
     maxToolCalls: "Max tool calls",
@@ -120,12 +124,35 @@ export const en = {
     temperaturePlaceholder: "Recommended",
     temperatureHint:
       "Higher is more creative, lower is more deterministic. Leave blank to use the recommended default for the model.",
-    toolsManagedNote:
-      "Tools for this built-in assistant are managed by the platform and cannot be edited here.",
+  },
+  skills: {
+    title: "Skills",
+    description: "Reusable bundles of tools that agents can be granted.",
+    new: "New skill",
+    create: "Create skill",
+    empty: "No skills yet.",
+    builtin: "Built-in",
+    whenToUse: "When to use:",
+    editLink: "View tools →",
+    toolCount_one: "{{count}} tool",
+    toolCount_other: "{{count}} tools",
+    newTitle: "New skill",
+    editTitle: "Edit skill",
+    formDescription:
+      "A skill is a named bundle of tools, optionally with guidance for when to use it.",
+    guidanceHint:
+      "Optional. Appended to the agent's system prompt so the model knows when to use this skill.",
+    deleteTitle: "Delete skill",
+    deleteMessage: 'Delete "{{name}}"? Agents that reference it will lose those tools.',
+    fields: {
+      label: "Name",
+      description: "Description",
+      guidance: "Guidance",
+      tools: "Tools",
+    },
   },
   detail: {
-    tools: "Tools",
-    otherTools: "Other",
+    skills: "Skills",
     systemPrompt: "System prompt",
     tryItOut: "Try it out",
     testPlaceholder: "Prompt to test this agent…",

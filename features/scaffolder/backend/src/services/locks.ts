@@ -36,15 +36,19 @@ export async function acquireTargetLock(
   let acquired = false;
   let lockError: Error | null = null;
 
-  const txPromise = prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRawUnsafe<Array<{ ok: boolean }>>(
-      `SELECT pg_try_advisory_lock($1::bigint) AS ok`,
-      key.toString(),
-    );
-    acquired = rows[0]?.ok === true;
-    if (!acquired) return;
-    await txDone;
-  });
+  const txPromise = prisma.$transaction(
+    async (tx) => {
+      const rows = await tx.$queryRawUnsafe<Array<{ ok: boolean }>>(
+        `SELECT pg_try_advisory_lock($1::bigint) AS ok`,
+        key.toString(),
+      );
+      acquired = rows[0]?.ok === true;
+      if (!acquired) return;
+      await txDone;
+    },
+    // Held open for the whole apply (repo creation, file uploads, push), well past Prisma's 5s default.
+    { maxWait: 10_000, timeout: 600_000 },
+  );
 
   txPromise.catch((err) => {
     lockError = err instanceof Error ? err : new Error(String(err));

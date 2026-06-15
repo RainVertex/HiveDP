@@ -13,14 +13,12 @@ import {
   type StepEvent,
   type StepTemplateContext,
 } from "@internal/scaffolder-core";
-import { applyPlan, ApprovalsMissingError, PlanExpiredError } from "./services/apply";
+import { applyPlan, PlanExpiredError } from "./services/apply";
 import { StalePlanError, TargetLockBusyError } from "./services/locks";
 import { taskEventBus } from "./services/events";
 import { actorFromRequest } from "./services/actor";
 import { getActionRegistry, getTemplates, invalidateTemplateCache } from "./services/registry";
 import { buildPlanCtx } from "./services/plan-ctx";
-import { loadCapabilityPolicy } from "./services/policy";
-import { createApprovalSigner, type ApprovalGrant } from "./services/approvals";
 import { getScaffolderTools } from "./services/agent-tools";
 import { loadEnvSecrets } from "./services/secrets";
 import { filterByTemplateAcl } from "./services/acl";
@@ -71,10 +69,6 @@ const applyRequestSchema = z
   })
   .optional();
 
-const approveRequestSchema = z.object({
-  capabilities: z.array(z.string().min(1)).min(1),
-});
-
 const driftPatchSchema = z.object({
   status: z.enum(["ignored", "applied", "superseded"]),
 });
@@ -101,8 +95,6 @@ async function persistPlan(
       irreversible: plan.irreversible,
       bindingId: plan.bindingId,
       artifact: { steps: plan.steps, resolvedSteps, templateContext } as never,
-      requiresApproval: plan.requiresApproval as never,
-      approvalsGranted: [] as never,
       createdByUserId,
       actorKind: plan.actor.kind,
       requestId,
@@ -140,7 +132,6 @@ async function loadPlan(planId: string): Promise<PersistedPlanShape | null> {
     target: row.target as SandboxTarget,
     capabilities: row.capabilities as Plan["capabilities"],
     irreversible: row.irreversible,
-    requiresApproval: row.requiresApproval as unknown as Plan["requiresApproval"],
     steps: artifact.steps,
     actor: {
       kind: row.actorKind as Plan["actor"]["kind"],
@@ -182,7 +173,6 @@ export function createScaffolderRouter(): Router {
           requiredRole: t.metadata.requiredRole,
           capabilities: t.capabilities,
           operation: t.resolvedOperation,
-          requiredApproval: t.metadata.requiredApproval ?? false,
         })),
       });
     } catch (err) {
@@ -246,7 +236,6 @@ export function createScaffolderRouter(): Router {
         parametersJsonSchema: form.schema,
         uiSchema: form.uiSchema,
         operation: tpl.resolvedOperation,
-        requiredApproval: tpl.metadata.requiredApproval ?? false,
         defaultTarget: tpl.resolvedDefaultTarget,
         planTtlSeconds: tpl.resolvedPlanTtlSeconds,
       });
@@ -290,7 +279,6 @@ export function createScaffolderRouter(): Router {
       const target = resolveTarget(tpl, "human");
       const planCtx = buildPlanCtx({ actor, target });
 
-      const policy = loadCapabilityPolicy();
       const contentHash = contentHashForTemplate(tpl);
       const phash = computeParamsHash(parsed.data.params);
       const existingBinding = await prisma.scaffoldBinding.findFirst({
@@ -306,7 +294,6 @@ export function createScaffolderRouter(): Router {
         templateContentHash: contentHash,
         target,
         bindingId: existingBinding?.id ?? null,
-        policy,
         actions,
         user,
         entity,
@@ -336,7 +323,6 @@ export function createScaffolderRouter(): Router {
               mode: built.plan.mode,
               target: built.plan.target,
               actorKind: actor.kind,
-              requiresApproval: built.plan.requiresApproval.length,
             },
           },
         });
@@ -426,8 +412,6 @@ export function createScaffolderRouter(): Router {
         target: loaded.plan.target,
       });
 
-      const approvals = (planRow.approvalsGranted ?? []) as unknown as ApprovalGrant[];
-
       let result;
       try {
         result = await applyPlan({
@@ -439,7 +423,6 @@ export function createScaffolderRouter(): Router {
           triggeredByUserId: actor.userId,
           dryRun,
           requestId: req.id != null ? String(req.id) : undefined,
-          approvals,
           secrets: loadEnvSecrets(),
         });
       } catch (err) {
@@ -453,13 +436,6 @@ export function createScaffolderRouter(): Router {
         }
         if (err instanceof PlanExpiredError) {
           res.status(410).json({ error: "Plan expired" });
-          return;
-        }
-        if (err instanceof ApprovalsMissingError) {
-          res.status(403).json({
-            error: "Approvals missing",
-            missingCapabilities: err.missingCapabilities,
-          });
           return;
         }
         throw err;
@@ -503,97 +479,6 @@ export function createScaffolderRouter(): Router {
       }
 
       res.status(202).json(result);
-    } catch (err) {
-      next(err);
-    }
-  });
-
-  // POST /approvals/:planId, admin grants capability approvals and refreshes expiresAt.
-  router.post("/approvals/:planId", async (req, res, next) => {
-    try {
-      const actor = await actorFromRequest(req);
-      if (!actor) {
-        res.status(401).json({ error: "Not authenticated" });
-        return;
-      }
-      if (req.user?.role !== "admin") {
-        res.status(403).json({ error: "Admin only" });
-        return;
-      }
-      const parsed = approveRequestSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({ error: "Invalid body", issues: parsed.error.issues });
-        return;
-      }
-      const planRow = await prisma.scaffoldPlan.findUnique({
-        where: { id: req.params.planId! },
-      });
-      if (!planRow) {
-        res.status(404).json({ error: "Plan not found" });
-        return;
-      }
-      const requiresApproval = planRow.requiresApproval as unknown as Plan["requiresApproval"];
-      const requestedCaps = new Set(parsed.data.capabilities);
-      const validCaps = requiresApproval.filter((r) => requestedCaps.has(r.capability));
-      if (validCaps.length === 0) {
-        res.status(400).json({ error: "No matching capabilities to approve" });
-        return;
-      }
-
-      const tpl = (await getTemplates()).get(planRow.templateId);
-      const ttlSeconds = tpl?.resolvedPlanTtlSeconds ?? 1800;
-      const newExpires = new Date(Date.now() + ttlSeconds * 1000);
-
-      const signer = createApprovalSigner();
-      const existing = (planRow.approvalsGranted ?? []) as unknown as ApprovalGrant[];
-      const existingCaps = new Set(existing.map((g) => g.capability));
-      const newGrants = validCaps
-        .filter((r) => !existingCaps.has(r.capability))
-        .map((r) =>
-          signer.sign({
-            planId: planRow.id,
-            capability: r.capability,
-            approverUserId: actor.userId,
-            approverIsAdmin: true,
-            expiresAt: newExpires,
-          }),
-        );
-      const allGrants = [...existing, ...newGrants];
-
-      await prisma.scaffoldPlan.update({
-        where: { id: planRow.id },
-        data: {
-          approvalsGranted: allGrants as never,
-          expiresAt: newExpires,
-        },
-      });
-
-      try {
-        await prisma.auditEvent.create({
-          data: {
-            actorUserId: actor.userId,
-            actorIp: req.ip ?? null,
-            requestId: req.id != null ? String(req.id) : null,
-            kind: "scaffolder.approval.granted",
-            targetKind: "scaffolder.plan",
-            targetId: planRow.id,
-            payload: {
-              planId: planRow.id,
-              capabilities: newGrants.map((g) => g.capability),
-              approverUserId: actor.userId,
-              expiresAt: newExpires.toISOString(),
-            },
-          },
-        });
-      } catch {
-        // ignored
-      }
-
-      const refreshed = await loadPlan(planRow.id);
-      res.json({
-        plan: refreshed?.plan,
-        approvalsGranted: allGrants,
-      });
     } catch (err) {
       next(err);
     }
@@ -739,7 +624,6 @@ export function createScaffolderRouter(): Router {
       }
       const target = resolveTarget(tpl, "human");
       const planCtx = buildPlanCtx({ actor, target });
-      const policy = loadCapabilityPolicy();
       const contentHash = contentHashForTemplate(tpl);
       const user = await buildUserContext(actor.userId);
       const entity = await buildEntityContext(binding.catalogEntityId);
@@ -751,7 +635,6 @@ export function createScaffolderRouter(): Router {
         templateContentHash: contentHash,
         target,
         bindingId: binding.id,
-        policy,
         actions,
         user,
         entity,

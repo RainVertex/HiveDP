@@ -22,8 +22,6 @@ export interface TemplateMetadata {
   defaultTarget?: DefaultTargetMap;
   // Defaults to "create". day2/delete templates run against an existing catalog entity.
   operation?: TemplateOperation;
-  // Port-style requiredApproval, every plan needs an explicit admin grant before apply.
-  requiredApproval?: boolean;
 }
 
 export interface Step {

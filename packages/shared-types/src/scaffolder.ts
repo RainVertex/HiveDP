@@ -9,7 +9,6 @@ export type ScaffolderCapability =
   | "network:external"
   | "repo:public"
   | "repo:private"
-  | "approval:manual"
   | `secrets:read:${string}`;
 
 export type ScaffolderActorKind = "human" | "agent" | "external-agent";
@@ -41,7 +40,6 @@ export interface ScaffolderTemplateSummary {
   requiredRole: UserRole;
   capabilities: ScaffolderCapability[];
   operation: ScaffolderOperation;
-  requiredApproval: boolean;
 }
 
 // Resolved wizard state after evaluating jqQuery dynamic fields server-side.
@@ -76,11 +74,6 @@ export interface ScaffolderActionDoc {
   capabilities: ScaffolderCapability[];
   irreversible: boolean;
   inputJsonSchema: Record<string, unknown>;
-}
-
-export interface ScaffolderApprovalRequirement {
-  capability: ScaffolderCapability;
-  reason: string;
 }
 
 export interface ScaffolderUnifiedDiff {
@@ -128,7 +121,6 @@ export interface ScaffolderPlan {
   target: ScaffolderTarget;
   capabilities: ScaffolderCapability[];
   irreversible: boolean;
-  requiresApproval: ScaffolderApprovalRequirement[];
   steps: ScaffolderPlanStep[];
 }
 

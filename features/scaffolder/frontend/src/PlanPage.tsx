@@ -4,7 +4,6 @@ import { PageLayout } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
 import { useTranslation } from "@internal/i18n";
 import type {
-  CurrentUser,
   ScaffolderMutation,
   ScaffolderPlan,
   ScaffolderPlanStep,
@@ -17,10 +16,8 @@ export function PlanPage() {
   const navigate = useNavigate();
   const { t } = useTranslation("scaffolder");
   const [plan, setPlan] = useState<ScaffolderPlan | null>(null);
-  const [me, setMe] = useState<CurrentUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
-  const [approving, setApproving] = useState(false);
 
   useEffect(() => {
     if (!planId) return;
@@ -28,28 +25,7 @@ export function PlanPage() {
       .getPlan(planId)
       .then(setPlan)
       .catch((err) => setError(err.message ?? t("errors.loadPlan")));
-    api.auth
-      .me()
-      .then(setMe)
-      .catch(() => setMe(null));
   }, [api, planId, t]);
-
-  async function approveAll() {
-    if (!plan || plan.requiresApproval.length === 0) return;
-    setApproving(true);
-    setError(null);
-    try {
-      const result = await api.scaffolder.approvePlan(
-        plan.id,
-        plan.requiresApproval.map((r) => r.capability),
-      );
-      if (result.plan) setPlan(result.plan);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.approvalFailed"));
-    } finally {
-      setApproving(false);
-    }
-  }
 
   async function apply(dryRun: boolean) {
     if (!plan) return;
@@ -79,8 +55,6 @@ export function PlanPage() {
     );
 
   const expired = new Date(plan.expiresAt).getTime() <= Date.now();
-  const blocked = plan.requiresApproval.length > 0 || expired;
-  const canApprove = me?.role === "admin" && plan.requiresApproval.length > 0;
 
   return (
     <PageLayout
@@ -92,18 +66,6 @@ export function PlanPage() {
       })}
       actions={
         <>
-          {canApprove && (
-            <button
-              type="button"
-              disabled={approving}
-              onClick={approveAll}
-              className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
-            >
-              {approving
-                ? t("form.approving")
-                : t("form.approve", { count: plan.requiresApproval.length })}
-            </button>
-          )}
           <button
             type="button"
             disabled={applying}
@@ -114,7 +76,7 @@ export function PlanPage() {
           </button>
           <button
             type="button"
-            disabled={applying || blocked}
+            disabled={applying || expired}
             onClick={() => apply(false)}
             className="rounded-md bg-app-primary px-3 py-1.5 text-sm font-medium text-app-primary-foreground disabled:opacity-50"
           >
@@ -156,16 +118,6 @@ export function PlanPage() {
             </span>
           )}
         </div>
-        {plan.requiresApproval.length > 0 && (
-          <div className="mt-2 rounded bg-amber-50 p-2 text-amber-800">
-            {t("plan.requiresApprovalFor")}{" "}
-            {plan.requiresApproval.map((r) => (
-              <span key={r.capability} className="mr-2 font-mono">
-                {r.capability}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       <ol className="space-y-4">

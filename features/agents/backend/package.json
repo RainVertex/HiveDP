@@ -12,6 +12,10 @@
     "./contract": {
       "types": "./src/contract.ts",
       "default": "./src/contract.ts"
+    },
+    "./skills": {
+      "types": "./src/services/skills.ts",
+      "default": "./src/services/skills.ts"
     }
   },
   "dependencies": {

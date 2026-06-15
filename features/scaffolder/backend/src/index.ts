@@ -1,5 +1,5 @@
 /** Public surface of the scaffolder backend feature. */
-export { applyPlan, PlanExpiredError, ApprovalsMissingError } from "./services/apply";
+export { applyPlan, PlanExpiredError } from "./services/apply";
 export {
   acquireTargetLock,
   ensurePlanFresh,
@@ -21,13 +21,7 @@ export {
   type YamlTemplate,
 } from "./services/template-defs";
 export { buildPlanCtx } from "./services/plan-ctx";
-export { loadCapabilityPolicy } from "./services/policy";
 export { actorFromRequest } from "./services/actor";
-export {
-  createApprovalSigner,
-  residualMissingApprovals,
-  type ApprovalGrant,
-} from "./services/approvals";
 export { getScaffolderTools } from "./services/agent-tools";
 export {
   mintMcpToken,

@@ -17,6 +17,9 @@ import type {
   CatalogListItem,
   CatalogRelationsResponse,
   CreateAgentInput,
+  CreateSkillInput,
+  UpdateSkillInput,
+  SkillSummary,
   CurrentUser,
   DocCommentRow,
   DocPageDetail,
@@ -311,6 +314,20 @@ export function createApiClient(options: ApiClientOptions = {}) {
           `/api/agents/${encodeURIComponent(id)}/mcp-servers/${encodeURIComponent(sid)}/probe`,
           { method: "POST" },
         ),
+    },
+
+    skills: {
+      list: () => request<ListResponse<SkillSummary>>(`/api/skills`),
+      get: (id: string) => request<SkillSummary>(`/api/skills/${encodeURIComponent(id)}`),
+      create: (body: CreateSkillInput) =>
+        request<SkillSummary>(`/api/skills`, { method: "POST", body: JSON.stringify(body) }),
+      update: (id: string, body: UpdateSkillInput) =>
+        request<SkillSummary>(`/api/skills/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        }),
+      delete: (id: string) =>
+        request<void>(`/api/skills/${encodeURIComponent(id)}`, { method: "DELETE" }),
     },
 
     llm: {
@@ -974,14 +991,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
           method: "POST",
           body: JSON.stringify(opts),
         }),
-      approvePlan: (id: string, capabilities: string[]) =>
-        request<{ plan: ScaffolderPlan; approvalsGranted: unknown[] }>(
-          `/api/scaffolder/approvals/${encodeURIComponent(id)}`,
-          {
-            method: "POST",
-            body: JSON.stringify({ capabilities }),
-          },
-        ),
       getTask: (id: string) =>
         request<ScaffolderTask>(`/api/scaffolder/tasks/${encodeURIComponent(id)}`),
       taskEventsUrl: (id: string) =>

@@ -6,7 +6,6 @@ import {
   openAgentMcpToolset,
   providerKindFromProvider,
   resolveProviderApiKey,
-  resolveTools,
   selectAdapter,
   type AdapterRequest,
   type McpToolset,
@@ -15,14 +14,11 @@ import {
   type ToolContext,
 } from "@internal/llm-core";
 import type { ChatSseEvent, ChatToolCallSummary, ChatPolicyCheck } from "@internal/shared-types";
-import { platformAssistantReadToolIds } from "@feature/agent-tools-backend/contract";
-import { chatWriteToolIds } from "./tools";
+import { resolveAgentSkills, appendSkillGuidance } from "@feature/agents-backend/skills";
 import { buildUserContent } from "./imageContent";
 import { ThinkTagSplitter } from "./thinkTagSplitter";
 
 // SSE streaming chat loop: multi-turn tool dispatch with prepare/submit confirmation, reasoning split, and AgentRun persistence.
-
-const PLATFORM_ASSISTANT_AGENT_ID = "seed-agent-assistant";
 
 export class ChatNotConfiguredError extends Error {
   readonly code = "not_configured";
@@ -118,12 +114,8 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
   chatCtx.conversationId = args.conversationId;
   chatCtx.agentRunId = run.id;
 
-  const persistedIds = Array.isArray(agent.toolIds) ? (agent.toolIds as unknown as string[]) : [];
-  const toolIds =
-    args.agentId === PLATFORM_ASSISTANT_AGENT_ID
-      ? [...platformAssistantReadToolIds(), ...chatWriteToolIds()]
-      : persistedIds;
-  const baseTools = resolveTools(toolIds);
+  const skillIds = Array.isArray(agent.skillIds) ? (agent.skillIds as unknown as string[]) : [];
+  const { tools: baseTools, guidance: skillGuidance } = await resolveAgentSkills(skillIds);
   // Merged with the agent's attached external MCP server tools just below, inside the try so the
   // toolset is always torn down in finally.
   let tools = baseTools;
@@ -146,7 +138,7 @@ export async function streamAgent(args: StreamAgentArgs): Promise<StreamAgentRes
   }
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: agent.instructions },
+    { role: "system", content: appendSkillGuidance(agent.instructions, skillGuidance) },
     ...history,
     ...(pendingPreviewNote ? [{ role: "system" as const, content: pendingPreviewNote }] : []),
     { role: "user", content: buildUserContent(args.userMessageContent, args.attachments ?? []) },

@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { PageLayout, AgentAvatar } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
 import { useTranslation } from "@internal/i18n";
-import type { Agent, AgentToolGroup, ApprovalMode, LlmModelSummary } from "@internal/shared-types";
+import type { Agent, ApprovalMode, LlmModelSummary, SkillSummary } from "@internal/shared-types";
 import { fileToAvatarDataUrl } from "./avatarImage";
 import { AvatarPickerDialog } from "./AvatarPickerDialog";
 import type { AvatarPreset } from "./avatarPresets";
@@ -26,8 +26,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
   const isEdit = Boolean(id);
 
   const [models, setModels] = useState<LlmModelSummary[]>([]);
-  const [toolGroups, setToolGroups] = useState<AgentToolGroup[]>([]);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [recommendedIds, setRecommendedIds] = useState<string[]>([]);
   const [requiresTools, setRequiresTools] = useState(false);
@@ -41,8 +40,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
   const [kind, setKind] = useState("custom");
   const [instructions, setInstructions] = useState("");
   const [modelId, setModelId] = useState("");
-  const [toolIds, setToolIds] = useState<string[]>([]);
-  const [toolsManaged, setToolsManaged] = useState(false);
+  const [skillIds, setSkillIds] = useState<string[]>([]);
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>("ask");
   const [maxToolCalls, setMaxToolCalls] = useState(10);
   const [tokenBudget, setTokenBudget] = useState<string>("");
@@ -57,9 +55,9 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
       .listModels()
       .then((res) => setModels(res.items))
       .catch((err) => setError(err.message ?? t("errors.failedToLoadModels")));
-    api.agents
-      .listTools()
-      .then((res) => setToolGroups(res.groups))
+    api.skills
+      .list()
+      .then((res) => setSkills(res.items))
       .catch(() => {});
     api.agents
       .list()
@@ -86,8 +84,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
         setKind(a.kind);
         setInstructions(a.instructions);
         setModelId(a.modelId);
-        setToolIds(Array.isArray(a.toolIds) ? a.toolIds : []);
-        setToolsManaged(Boolean(a.toolsManaged));
+        setSkillIds(Array.isArray(a.skillIds) ? a.skillIds : []);
         setApprovalMode(a.approvalMode);
         setMaxToolCalls(a.maxToolCalls);
         setTokenBudget(a.tokenBudget != null ? String(a.tokenBudget) : "");
@@ -117,7 +114,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
     loadRecommendations(kind);
   }, [kind, loadRecommendations]);
 
-  const toolsSelected = toolIds.length > 0;
+  const skillsSelected = skillIds.length > 0;
 
   const sortedModels = useMemo(() => {
     const rank = (m: LlmModelSummary) => (recommendedIds.includes(m.id) ? 0 : 1);
@@ -132,24 +129,10 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
     [recommendedIds, models],
   );
 
-  function toggleTool(tid: string) {
-    setToolIds((prev) => (prev.includes(tid) ? prev.filter((t) => t !== tid) : [...prev, tid]));
-  }
-
-  // One checkbox per group: if all are selected it clears the group, otherwise it adds the missing ones.
-  function toggleGroup(group: AgentToolGroup) {
-    const ids = group.tools.map((tool) => tool.id);
-    const allSelected = ids.every((gid) => toolIds.includes(gid));
-    setToolIds((prev) => {
-      if (allSelected) return prev.filter((gid) => !ids.includes(gid));
-      const next = new Set(prev);
-      ids.forEach((gid) => next.add(gid));
-      return [...next];
-    });
-  }
-
-  function toggleGroupOpen(groupId: string) {
-    setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+  function toggleSkill(skillId: string) {
+    setSkillIds((prev) =>
+      prev.includes(skillId) ? prev.filter((s) => s !== skillId) : [...prev, skillId],
+    );
   }
 
   async function onPickAvatar(file: File | undefined) {
@@ -168,7 +151,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
     if (!instructions.trim()) return setError(t("errors.systemPromptRequired"));
     if (!modelId) return setError(t("errors.pickModel"));
     const selected = models.find((m) => m.id === modelId);
-    if (toolsSelected && selected && !selected.supportsTools) {
+    if (skillsSelected && selected && !selected.supportsTools) {
       return setError(t("errors.modelNoTools"));
     }
     if (selected && !selected.providerReady) {
@@ -182,7 +165,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
       kind,
       modelId,
       instructions: instructions.trim(),
-      ...(toolsManaged ? {} : { toolIds }),
+      skillIds,
       approvalMode,
       maxToolCalls,
       tokenBudget: tokenBudget.trim() ? Number(tokenBudget) : null,
@@ -319,94 +302,44 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
           />
         </Labeled>
 
-        <Labeled label={t("fields.tools")}>
-          {toolsManaged ? (
-            <div className="rounded-md border border-app-border bg-app-surface px-3 py-2">
-              <p className="mb-2 text-xs text-app-text-muted">{t("form.toolsManagedNote")}</p>
-              {toolIds.length === 0 ? (
-                <p className="text-xs text-app-text-muted">{t("empty.noTools")}</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {toolIds.map((tid) => (
-                    <span
-                      key={tid}
-                      className="rounded-full border border-app-border bg-app-surface px-2 py-0.5 font-mono text-xs text-app-text-muted"
-                    >
-                      {tid}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : toolGroups.length === 0 ? (
-            <p className="text-xs text-app-text-muted">{t("empty.noToolsRegistered")}</p>
+        <Labeled label={t("fields.skills")}>
+          {skills.length === 0 ? (
+            <p className="text-xs text-app-text-muted">{t("empty.noSkillsRegistered")}</p>
           ) : (
             <div className="grid gap-2">
-              {toolGroups.map((group) => {
-                const ids = group.tools.map((tool) => tool.id);
-                const selectedCount = ids.filter((gid) => toolIds.includes(gid)).length;
-                const allSelected = ids.length > 0 && selectedCount === ids.length;
-                const someSelected = selectedCount > 0 && !allSelected;
-                const open = Boolean(openGroups[group.id]);
+              {skills.map((skill) => {
+                const selected = skillIds.includes(skill.id);
                 return (
-                  <div
-                    key={group.id}
-                    className="overflow-hidden rounded-md border border-app-border"
+                  <label
+                    key={skill.id}
+                    className="flex cursor-pointer items-start gap-2 rounded-md border border-app-border bg-app-surface px-2 py-1.5"
                   >
-                    <div className="flex items-start gap-2 bg-app-surface px-2 py-1.5">
-                      <TristateCheckbox
-                        checked={allSelected}
-                        indeterminate={someSelected}
-                        onChange={() => toggleGroup(group)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => toggleGroupOpen(group.id)}
-                        aria-expanded={open}
-                        className="flex flex-1 items-start gap-2 text-left text-sm font-medium text-app-text"
-                      >
-                        <span className="mt-0.5 w-3 shrink-0 text-xs text-app-text-muted">
-                          {open ? "▾" : "▸"}
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleSkill(skill.id)}
+                      className="mt-0.5 text-app-primary focus:ring-app-primary"
+                    />
+                    <span className="min-w-0">
+                      <span className="text-sm font-medium text-app-text">{skill.label}</span>
+                      <span className="ml-1 text-xs font-normal text-app-text-muted">
+                        ({t("skills.toolCount", { count: skill.tools.length })})
+                      </span>
+                      {skill.description && (
+                        <span className="block text-xs font-normal text-app-text-muted">
+                          {skill.description}
                         </span>
-                        <span>
-                          {group.label}
-                          <span className="ml-1 text-xs font-normal text-app-text-muted">
-                            ({selectedCount}/{ids.length})
+                      )}
+                      {skill.guidance && (
+                        <span className="block text-xs font-normal text-app-text-muted">
+                          <span className="font-medium text-app-text">
+                            {t("skills.whenToUse")}{" "}
                           </span>
-                          {group.description && (
-                            <span className="block text-xs font-normal text-app-text-muted">
-                              {group.description}
-                            </span>
-                          )}
+                          {skill.guidance}
                         </span>
-                      </button>
-                    </div>
-                    {open && (
-                      <div className="grid gap-1.5 border-t border-app-border px-2 py-2">
-                        {group.tools.map((tool) => (
-                          <label
-                            key={tool.id}
-                            className="flex items-start gap-2 text-sm text-app-text"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={toolIds.includes(tool.id)}
-                              onChange={() => toggleTool(tool.id)}
-                              className="mt-0.5 text-app-primary focus:ring-app-primary"
-                            />
-                            <span>
-                              <span className="font-mono text-xs">{tool.id}</span>
-                              {tool.description && (
-                                <span className="block text-xs text-app-text-muted">
-                                  {tool.description}
-                                </span>
-                              )}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </span>
+                  </label>
                 );
               })}
             </div>
@@ -418,7 +351,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
             <option value="">{t("form.selectModel")}</option>
             {sortedModels.map((m) => {
               const recommended = recommendedIds.includes(m.id);
-              const incompatible = toolsSelected && !m.supportsTools;
+              const incompatible = skillsSelected && !m.supportsTools;
               const providerNotReady = !m.providerReady;
               return (
                 <option key={m.id} value={m.id} disabled={incompatible || providerNotReady}>
@@ -590,31 +523,6 @@ function CategoryCombobox({
         </ul>
       )}
     </div>
-  );
-}
-
-// Native checkboxes can't show the indeterminate state via props, so set it on the DOM node.
-function TristateCheckbox({
-  checked,
-  indeterminate,
-  onChange,
-}: {
-  checked: boolean;
-  indeterminate: boolean;
-  onChange: () => void;
-}) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = indeterminate;
-  }, [indeterminate]);
-  return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      className="mt-0.5 text-app-primary focus:ring-app-primary"
-    />
   );
 }
 

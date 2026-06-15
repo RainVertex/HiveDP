@@ -1,6 +1,6 @@
 import type { PageSection } from "@internal/shared-types";
 
-export type SidebarSection = PageSection | "home" | "account" | "integrations" | "chat";
+export type SidebarSection = PageSection | "home" | "account" | "integrations" | "chat" | "skills";
 
 // Maps a URL pathname to its rail section.
 export function sectionFromPath(pathname: string): SidebarSection {
@@ -13,6 +13,7 @@ export function sectionFromPath(pathname: string): SidebarSection {
   if (path.startsWith("/catalog") || path.startsWith("/scorecards")) return "catalog";
   if (path.startsWith("/scaffolder") || path.startsWith("/self-service")) return "selfservice";
   if (path.startsWith("/requests") || path.startsWith("/approvals")) return "requests";
+  if (path.startsWith("/skills")) return "skills";
   if (path.startsWith("/agents")) return "agents";
   if (path.startsWith("/search")) return "catalog";
   if (path.startsWith("/teams")) return "teams";
@@ -28,6 +29,10 @@ export function sectionFromPath(pathname: string): SidebarSection {
 
 export function sectionHasTree(section: SidebarSection): section is PageSection {
   return (
-    section !== "home" && section !== "account" && section !== "integrations" && section !== "chat"
+    section !== "home" &&
+    section !== "account" &&
+    section !== "integrations" &&
+    section !== "chat" &&
+    section !== "skills"
   );
 }

@@ -21,7 +21,11 @@ export interface RegisteredTool {
 const REGISTRY: Map<string, RegisteredTool> = new Map();
 
 export function registerTools(tools: RegisteredTool[]): void {
-  for (const t of tools) REGISTRY.set(t.id, t);
+  for (const t of tools) {
+    // Under the skills model every tool must belong to a group (a skill), else it is unreachable.
+    if (!t.group) throw new Error(`Tool "${t.id}" was registered without a group`);
+    REGISTRY.set(t.id, t);
+  }
 }
 
 // Display metadata for a tool group; tools reference a group by its id.
@@ -104,4 +108,21 @@ export function resolveTools(toolIds: string[]): RegisteredTool[] {
     if (!t) throw new Error(`Unknown tool: ${id}`);
     return t;
   });
+}
+
+// Resolve tool ids to their registered tools, skipping any id that is not currently registered.
+// Skills reference tool ids that may be env-gated off (e.g. chat writes) or removed, so resolution
+// must be lenient: a missing tool is dropped rather than throwing. Order follows the input, and a
+// tool id repeated across the input appears once.
+export function getRegisteredTools(toolIds: string[]): RegisteredTool[] {
+  const seen = new Set<string>();
+  const out: RegisteredTool[] = [];
+  for (const id of toolIds) {
+    if (seen.has(id)) continue;
+    const tool = REGISTRY.get(id);
+    if (!tool) continue;
+    seen.add(id);
+    out.push(tool);
+  }
+  return out;
 }

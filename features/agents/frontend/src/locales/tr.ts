@@ -50,8 +50,8 @@ export const tr: AgentsResources = {
   empty: {
     noAgents: "Henüz ajan yok.",
     noRuns: "Henüz çalıştırma yok.",
-    noTools: "Araç yok.",
-    noToolsRegistered: "Kayıtlı araç yok.",
+    noSkills: "Beceri yok.",
+    noSkillsRegistered: "Kayıtlı beceri yok.",
     noText: "(metin yok)",
     noToolCalls: "Araç çağrısı yok.",
   },
@@ -76,6 +76,10 @@ export const tr: AgentsResources = {
     modelProviderNotReady:
       "Seçilen modelin sağlayıcısının API anahtarı yok, bu yüzden çalışamaz. Yönetim -> Yapay Zeka / Modeller bölümünden bir anahtar ekleyin.",
     avatarReadError: "Bu görsel okunamadı. Farklı bir dosya deneyin.",
+    failedToLoadSkills: "Beceriler yüklenemedi",
+    skillNameRequired: "Ad zorunludur.",
+    saveSkillFailed: "Kaydetme başarısız oldu",
+    deleteSkillFailed: "Silme başarısız oldu",
   },
   confirm: {
     deleteTitle: "Ajanı sil",
@@ -89,7 +93,7 @@ export const tr: AgentsResources = {
     avatar: "Avatar",
     kind: "Tür",
     systemPrompt: "Sistem komutu",
-    tools: "Araçlar",
+    skills: "Beceriler",
     model: "Model",
     approvalMode: "Onay modu",
     maxToolCalls: "Maksimum araç çağrısı",
@@ -123,12 +127,35 @@ export const tr: AgentsResources = {
     temperaturePlaceholder: "Önerilen",
     temperatureHint:
       "Yüksek değer daha yaratıcı, düşük değer daha deterministik sonuç üretir. Model için önerilen varsayılanı kullanmak üzere boş bırakın.",
-    toolsManagedNote:
-      "Bu yerleşik asistanın araçları platform tarafından yönetilir ve burada düzenlenemez.",
+  },
+  skills: {
+    title: "Beceriler",
+    description: "Ajanlara verilebilen, yeniden kullanılabilir araç paketleri.",
+    new: "Yeni beceri",
+    create: "Beceri oluştur",
+    empty: "Henüz beceri yok.",
+    builtin: "Yerleşik",
+    whenToUse: "Ne zaman kullanılır:",
+    editLink: "Araçları görüntüle →",
+    toolCount_one: "{{count}} araç",
+    toolCount_other: "{{count}} araç",
+    newTitle: "Yeni beceri",
+    editTitle: "Beceriyi düzenle",
+    formDescription:
+      "Beceri, araçlardan oluşan adlandırılmış bir pakettir, isteğe bağlı olarak ne zaman kullanılacağına dair bir yönerge içerir.",
+    guidanceHint:
+      "İsteğe bağlı. Modelin bu beceriyi ne zaman kullanacağını bilmesi için ajanın sistem komutuna eklenir.",
+    deleteTitle: "Beceriyi sil",
+    deleteMessage: '"{{name}}" silinsin mi? Bu beceriye atıf yapan ajanlar bu araçları kaybeder.',
+    fields: {
+      label: "Ad",
+      description: "Açıklama",
+      guidance: "Yönerge",
+      tools: "Araçlar",
+    },
   },
   detail: {
-    tools: "Araçlar",
-    otherTools: "Diğer",
+    skills: "Beceriler",
     systemPrompt: "Sistem komutu",
     tryItOut: "Deneyin",
     testPlaceholder: "Bu ajanı test etmek için bir komut girin…",

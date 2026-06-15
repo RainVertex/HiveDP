@@ -10,8 +10,9 @@ import { integrationsGroup } from "./groups/integrations";
 import { catalogEnrichGroup } from "./groups/catalog-enrich";
 import { platformSourceGroup } from "./groups/platform-source";
 
-// Read-only groups the Platform Assistant gets by default. The agent-only groups are opt-in per agent.
-const PLATFORM_ASSISTANT_READ_GROUPS: ToolGroup[] = [
+// Every tool group. Groups only organize tools for the catalog shown in the skill editor; they are
+// not skills. Skills are admin-managed rows (see features/agents) that reference tool ids directly.
+const ALL_GROUPS: ToolGroup[] = [
   coreGroup,
   teamsGroup,
   requestsGroup,
@@ -20,11 +21,8 @@ const PLATFORM_ASSISTANT_READ_GROUPS: ToolGroup[] = [
   notificationsGroup,
   integrationsGroup,
   platformSourceGroup,
+  catalogEnrichGroup,
 ];
-
-const AGENT_GROUPS: ToolGroup[] = [catalogEnrichGroup];
-
-const ALL_GROUPS: ToolGroup[] = [...PLATFORM_ASSISTANT_READ_GROUPS, ...AGENT_GROUPS];
 
 // Stamp each tool with its group id.
 function tagged(group: ToolGroup): RegisteredTool[] {
@@ -32,10 +30,7 @@ function tagged(group: ToolGroup): RegisteredTool[] {
 }
 
 export function registerAllTools(): void {
+  // Register every skill's meta so its id is always recognized, but only enabled skills' tools.
   registerToolGroups(ALL_GROUPS.map((g) => g.meta));
-  registerTools(ALL_GROUPS.flatMap(tagged));
-}
-
-export function platformAssistantReadToolIds(): string[] {
-  return PLATFORM_ASSISTANT_READ_GROUPS.flatMap((g) => g.tools.map((t) => t.id));
+  registerTools(ALL_GROUPS.filter((g) => g.enabled?.() !== false).flatMap(tagged));
 }

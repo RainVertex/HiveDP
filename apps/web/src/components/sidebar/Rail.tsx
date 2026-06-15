@@ -25,6 +25,7 @@ import {
   PinOffIcon,
   PlugIcon,
   ScaffolderIcon,
+  SkillIcon,
   SparklesIcon,
   TeamsIcon,
 } from "../../widgets/toolkit/icons";
@@ -48,6 +49,7 @@ const SECTIONS: SectionDef[] = [
   { key: "requests", to: "/requests/team", label: "Requests", icon: InboxIcon },
   { key: "workspace", to: "/projects", label: "Projects", icon: BoardIcon },
   { key: "agents", to: "/agents", label: "Agents", icon: SparklesIcon },
+  { key: "skills", to: "/skills", label: "Skills", icon: SkillIcon, adminOnly: true },
   { key: "teams", to: "/teams", label: "Teams", icon: TeamsIcon },
   {
     key: "observability",

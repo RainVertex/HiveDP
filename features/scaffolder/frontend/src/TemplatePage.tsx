@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Form from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
@@ -11,6 +11,11 @@ import type { ScaffolderTemplateDetail } from "@internal/api-client";
 import type { CatalogEntityWithOwners } from "@internal/shared-types";
 import { TemplateDriftBadge } from "./TemplateDriftBadge";
 import { themeTemplates, themeWidgets } from "./rjsfTheme";
+import {
+  orgLoginsFromInstallations,
+  schemaUsesGithubOrgs,
+  withGithubOrgEnum,
+} from "./githubOrgField";
 
 export function TemplatePage() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -23,8 +28,15 @@ export function TemplatePage() {
   const [uiSchema, setUiSchema] = useState<Record<string, unknown>>({});
   const [entities, setEntities] = useState<CatalogEntityWithOwners[] | null>(null);
   const [entityId, setEntityId] = useState<string>("");
+  const [orgLogins, setOrgLogins] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const needsOrgs = useMemo(() => schemaUsesGithubOrgs(schema), [schema]);
+  const effectiveSchema = useMemo(
+    () => withGithubOrgEnum(schema, orgLogins ?? []),
+    [schema, orgLogins],
+  );
 
   useEffect(() => {
     if (!templateId) return;
@@ -47,6 +59,14 @@ export function TemplatePage() {
       .then((res) => setEntities(res.items.filter((i) => i.accessible)))
       .catch(() => setEntities([]));
   }, [api, needsEntity, entities]);
+
+  useEffect(() => {
+    if (!needsOrgs || orgLogins !== null) return;
+    api.integrations
+      .githubInstallations()
+      .then((res) => setOrgLogins(orgLoginsFromInstallations(res.items)))
+      .catch(() => setOrgLogins([]));
+  }, [api, needsOrgs, orgLogins]);
 
   async function handleSubmit(e: IChangeEvent<Record<string, unknown>>) {
     if (!template) return;
@@ -72,7 +92,7 @@ export function TemplatePage() {
         <p className="text-sm text-red-600">{error}</p>
       </PageLayout>
     );
-  if (!template || !schema)
+  if (!template || !schema || (needsOrgs && orgLogins === null))
     return (
       <PageLayout title={t("page.createTitle")}>
         <p className="text-sm text-app-text-muted">{t("loading.generic")}</p>
@@ -89,11 +109,6 @@ export function TemplatePage() {
     >
       <div className="max-w-2xl">
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-        {template.requiredApproval && (
-          <p className="mb-3 rounded bg-amber-50 p-2 text-xs text-amber-800">
-            {t("form.requiredApprovalNote")}
-          </p>
-        )}
         {needsEntity && (
           <div className="mb-4">
             <label htmlFor="scaffolder-entity" className="mb-1 block text-xs text-app-text-muted">
@@ -115,7 +130,7 @@ export function TemplatePage() {
           </div>
         )}
         <Form
-          schema={schema as RJSFSchema}
+          schema={effectiveSchema as RJSFSchema}
           uiSchema={uiSchema as UiSchema}
           formData={formData}
           validator={validator}

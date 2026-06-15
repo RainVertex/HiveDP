@@ -2,6 +2,7 @@
 // Keep this surface small and intentional. The main barrel (./index) is for the api shell only.
 export {
   octokitForInstallation,
+  octokitForLogin,
   octokitForToken,
   openOrUpdateFilePr,
   GitHubAppNotConfiguredError,

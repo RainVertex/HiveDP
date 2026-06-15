@@ -3,14 +3,16 @@ import { BadRequestError } from "../errors";
 import { toModelDto, toRecommendations } from "../mappers";
 import { modelRepository } from "../repositories/models";
 
-export async function validateModelForTools(modelId: string, toolIds: string[]): Promise<void> {
+// Gates on whether any skill is selected, not on the expanded tool count, so the same agent config
+// validates identically regardless of an env flag that gates a skill's tools (e.g. chat writes).
+export async function validateModelForSkills(modelId: string, skillIds: string[]): Promise<void> {
   const model = await modelRepository.findCapability(modelId);
   if (!model || !model.enabled || !model.provider.enabled) {
     throw new BadRequestError("modelId is not a registered, enabled model");
   }
-  if (toolIds.length > 0 && !model.supportsTools) {
+  if (skillIds.length > 0 && !model.supportsTools) {
     throw new BadRequestError(
-      "This model does not support tools. Pick a tool-capable model or remove the tools.",
+      "This model does not support tools. Pick a tool-capable model or remove the skills.",
       "model_lacks_tools",
     );
   }

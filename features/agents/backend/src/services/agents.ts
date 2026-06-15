@@ -1,6 +1,6 @@
 import { ensureAgentBackingUser } from "@internal/db";
-import { listAvailableTools, listToolGroups, resolveTools } from "@internal/llm-core";
-import { PLATFORM_ASSISTANT_AGENT_ID, PROTECTED_AGENT_IDS } from "../constants";
+import { listAvailableTools, listToolGroups } from "@internal/llm-core";
+import { PROTECTED_AGENT_IDS } from "../constants";
 import type { CreateAgentInput, UpdateAgentInput } from "../dto";
 import { BadRequestError, ConflictError, NotFoundError } from "../errors";
 import { cancelAgentRun, runAgent, startAgentRun, type RunAgentInput } from "../executor";
@@ -8,7 +8,8 @@ import { toAgentDetail, toAgentListItem } from "../mappers";
 import { agentRepository } from "../repositories/agents";
 import { runRepository } from "../repositories/runs";
 import { getCallerTeamIds } from "./callers";
-import { validateModelForTools } from "./models";
+import { validateModelForSkills } from "./models";
+import { assertSkillsExist } from "./skills";
 
 export interface CallerContext {
   id: string;
@@ -41,8 +42,8 @@ export async function getAgentDetail(id: string, caller: CallerContext) {
 }
 
 export async function createAgent(input: CreateAgentInput) {
-  await validateModelForTools(input.modelId, input.toolIds);
-  assertToolsResolve(input.toolIds);
+  await validateModelForSkills(input.modelId, input.skillIds);
+  await assertSkillsExist(input.skillIds);
 
   const created = await agentRepository.create({
     name: input.name,
@@ -52,7 +53,7 @@ export async function createAgent(input: CreateAgentInput) {
     kind: input.kind,
     modelId: input.modelId,
     instructions: input.instructions,
-    toolIds: input.toolIds,
+    skillIds: input.skillIds,
     approvalMode: input.approvalMode,
     maxToolCalls: input.maxToolCalls,
     tokenBudget: input.tokenBudget ?? null,
@@ -69,15 +70,13 @@ export async function updateAgent(id: string, input: UpdateAgentInput) {
   const existing = await agentRepository.findBasic(id);
   if (!existing) throw new NotFoundError("Agent not found");
 
-  // The assistant's tools are code-owned. Drop any toolIds edit so the DB never holds a set that does not match what streamAgent runs.
-  const toolIds = id === PLATFORM_ASSISTANT_AGENT_ID ? undefined : input.toolIds;
-
   const effectiveModelId = input.modelId ?? existing.modelId;
-  const effectiveToolIds =
-    toolIds ?? (Array.isArray(existing.toolIds) ? (existing.toolIds as unknown as string[]) : []);
-  await validateModelForTools(effectiveModelId, effectiveToolIds);
+  const effectiveSkillIds =
+    input.skillIds ??
+    (Array.isArray(existing.skillIds) ? (existing.skillIds as unknown as string[]) : []);
+  await validateModelForSkills(effectiveModelId, effectiveSkillIds);
 
-  if (toolIds && toolIds.length > 0) assertToolsResolve(toolIds);
+  if (input.skillIds && input.skillIds.length > 0) await assertSkillsExist(input.skillIds);
 
   const updated = await agentRepository.update(id, {
     name: input.name,
@@ -87,7 +86,7 @@ export async function updateAgent(id: string, input: UpdateAgentInput) {
     kind: input.kind,
     modelId: input.modelId,
     instructions: input.instructions,
-    toolIds,
+    skillIds: input.skillIds,
     approvalMode: input.approvalMode,
     maxToolCalls: input.maxToolCalls,
     tokenBudget: input.tokenBudget,
@@ -152,13 +151,4 @@ export async function runAgentManual(id: string, input: RunAgentInput, caller: C
     trigger: "manual",
   });
   return { runId: kicked.runId, agentId: id, status: "running" as const };
-}
-
-function assertToolsResolve(toolIds: string[]) {
-  if (toolIds.length === 0) return;
-  try {
-    resolveTools(toolIds);
-  } catch (err) {
-    throw new BadRequestError((err as Error).message);
-  }
 }

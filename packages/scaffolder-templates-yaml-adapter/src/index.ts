@@ -13,7 +13,6 @@ import {
 export const TEMPLATE_API_VERSION = "scaffolder.platform/v1";
 
 const VERSION_ANNOTATION = "scaffolder.platform/version";
-const REQUIRED_APPROVAL_ANNOTATION = "scaffolder.platform/requiredApproval";
 const AUDIENCE_ANNOTATION = "scaffolder.platform/audience";
 const REQUIRED_ROLE_ANNOTATION = "scaffolder.platform/requiredRole";
 
@@ -150,7 +149,6 @@ export function compileYamlTemplate(
       tags: template.metadata.tags ?? [],
       audience: audienceFor(template),
       requiredRole: annotation(template, REQUIRED_ROLE_ANNOTATION) === "admin" ? "admin" : "member",
-      requiredApproval: annotation(template, REQUIRED_APPROVAL_ANNOTATION) === "true",
     },
     parameters: buildPermissiveParams(template),
     capabilities: [],

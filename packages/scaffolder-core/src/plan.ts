@@ -1,18 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type {
-  Actor,
-  ApprovalRequirement,
-  Capability,
-  Plan,
-  PlanMode,
-  PlanStep,
-  SandboxTarget,
-} from "./types";
+import type { Actor, Capability, Plan, PlanMode, PlanStep, SandboxTarget } from "./types";
 import type { CompiledTemplate } from "./template";
 import type { ActionRegistry } from "./actions/registry";
 import type { ReadCtx } from "./actions/types";
-import type { CapabilityPolicy } from "./policy";
-import { computeApprovalRequirements } from "./policy";
 // Walks a template's plan(), resolves each step, and assembles an immutable Plan artifact.
 import { paramsHash } from "./fingerprint";
 import { containsToken, resolveTokens, type StepTemplateContext } from "./tokens";
@@ -25,7 +15,6 @@ export interface BuildPlanInput<TParams> {
   templateContentHash: string;
   target: SandboxTarget;
   bindingId?: string | null;
-  policy: CapabilityPolicy;
   actions: ActionRegistry;
   // jq context for {{ }} step-input templating, user/entity halves of StepTemplateContext.
   user?: Record<string, unknown> | null;
@@ -52,7 +41,6 @@ export async function buildPlan<TParams>(input: BuildPlanInput<TParams>): Promis
     templateContentHash,
     target,
     bindingId = null,
-    policy,
     actions,
     user = null,
     entity = null,
@@ -124,18 +112,6 @@ export async function buildPlan<TParams>(input: BuildPlanInput<TParams>): Promis
   const mode: PlanMode = !anyAbsent && !anyDrift ? "no-op" : bindingId ? "update" : "create";
 
   const capabilities = [...allCapabilities];
-  const requiresApproval: ApprovalRequirement[] = computeApprovalRequirements(
-    capabilities,
-    actor,
-    policy,
-  );
-  if (template.metadata.requiredApproval) {
-    requiresApproval.push({
-      capability: "approval:manual",
-      reason: `Template ${template.metadata.id} requires manual approval`,
-    });
-    capabilities.push("approval:manual");
-  }
 
   const expiresAt = new Date(now.getTime() + template.resolvedPlanTtlSeconds * 1000);
 
@@ -153,7 +129,6 @@ export async function buildPlan<TParams>(input: BuildPlanInput<TParams>): Promis
     target,
     capabilities,
     irreversible,
-    requiresApproval,
     steps: planSteps,
     actor,
   };

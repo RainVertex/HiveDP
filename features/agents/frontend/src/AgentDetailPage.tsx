@@ -3,13 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageLayout, ConfirmDialog, AgentAvatar } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
 import { useTranslation } from "@internal/i18n";
-import type {
-  Agent,
-  AgentRun,
-  AgentToolDescriptor,
-  AgentToolGroup,
-  CurrentUser,
-} from "@internal/shared-types";
+import type { Agent, AgentRun, CurrentUser, SkillSummary } from "@internal/shared-types";
 import { McpServersEditor } from "./McpServersEditor";
 
 const KIND_LABEL_KEY: Record<string, "custom" | "catalogEnrichment" | "platformAssistant"> = {
@@ -39,8 +33,8 @@ export function AgentDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
   const [agent, setAgent] = useState<AgentDetail | null>(null);
   const [me, setMe] = useState<CurrentUser | null>(null);
-  const [toolGroups, setToolGroups] = useState<AgentToolGroup[]>([]);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [skills, setSkills] = useState<SkillSummary[]>([]);
+  const [openSkills, setOpenSkills] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -61,14 +55,14 @@ export function AgentDetailPage() {
       .me()
       .then(setMe)
       .catch(() => setMe(null));
-    api.agents
-      .listTools()
-      .then((res) => setToolGroups(res.groups))
+    api.skills
+      .list()
+      .then((res) => setSkills(res.items))
       .catch(() => {});
   }, [api, load]);
 
-  function toggleGroupOpen(groupId: string) {
-    setOpenGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+  function toggleSkillOpen(skillId: string) {
+    setOpenSkills((prev) => ({ ...prev, [skillId]: !prev[skillId] }));
   }
 
   async function onDelete() {
@@ -112,9 +106,21 @@ export function AgentDetailPage() {
     );
   }
 
-  const toolIds = Array.isArray(agent.toolIds) ? agent.toolIds : [];
+  const skillIds = Array.isArray(agent.skillIds) ? agent.skillIds : [];
   const isAdmin = me?.role === "admin";
-  const toolGroupSections = groupSelectedTools(toolIds, toolGroups, t("detail.otherTools"));
+  // Each skill id maps to its catalog entry (label + the tools it grants); an unknown id shows bare.
+  const skillSections: SkillSummary[] = skillIds.map(
+    (sid) =>
+      skills.find((s) => s.id === sid) ?? {
+        id: sid,
+        label: sid,
+        description: null,
+        guidance: null,
+        toolIds: [],
+        builtin: false,
+        tools: [],
+      },
+  );
 
   return (
     <PageLayout
@@ -172,19 +178,19 @@ export function AgentDetailPage() {
       </section>
 
       <section className="mb-6">
-        <h2 className="mb-2 text-sm font-semibold text-app-text">{t("detail.tools")}</h2>
-        {toolIds.length === 0 ? (
-          <p className="text-sm text-app-text-muted">{t("empty.noTools")}</p>
+        <h2 className="mb-2 text-sm font-semibold text-app-text">{t("detail.skills")}</h2>
+        {skillIds.length === 0 ? (
+          <p className="text-sm text-app-text-muted">{t("empty.noSkills")}</p>
         ) : (
           <div>
             <div className="flex flex-wrap gap-1.5">
-              {toolGroupSections.map((group) => {
-                const open = Boolean(openGroups[group.id]);
+              {skillSections.map((group) => {
+                const open = Boolean(openSkills[group.id]);
                 return (
                   <button
                     key={group.id}
                     type="button"
-                    onClick={() => toggleGroupOpen(group.id)}
+                    onClick={() => toggleSkillOpen(group.id)}
                     aria-expanded={open}
                     title={group.description || undefined}
                     className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm ${
@@ -201,37 +207,40 @@ export function AgentDetailPage() {
                 );
               })}
             </div>
-            {toolGroupSections.some((group) => openGroups[group.id]) && (
+            {skillSections.some((skill) => openSkills[skill.id]) && (
               <div className="mt-2 grid gap-2">
-                {toolGroupSections
-                  .filter((group) => openGroups[group.id])
-                  .map((group) => (
-                    <div
-                      key={group.id}
-                      className="rounded-md border border-app-border bg-app-surface px-3 py-2"
-                    >
-                      <div className="mb-1 text-xs font-semibold text-app-text">
-                        {group.label}
-                        {group.description && (
-                          <span className="ml-1 font-normal text-app-text-muted">
-                            {group.description}
-                          </span>
+                {skillSections
+                  .filter((skill) => openSkills[skill.id])
+                  .map((skill) => {
+                    const known = skills.some((s) => s.id === skill.id);
+                    return (
+                      <div
+                        key={skill.id}
+                        className="rounded-md border border-app-border bg-app-surface px-3 py-2"
+                      >
+                        <div className="text-xs font-semibold text-app-text">{skill.label}</div>
+                        {skill.description && (
+                          <p className="mt-0.5 text-xs text-app-text-muted">{skill.description}</p>
+                        )}
+                        {skill.guidance && (
+                          <p className="mt-1 text-xs text-app-text-muted">
+                            <span className="font-medium text-app-text">
+                              {t("skills.whenToUse")}{" "}
+                            </span>
+                            {skill.guidance}
+                          </p>
+                        )}
+                        {isAdmin && known && (
+                          <Link
+                            to={`/skills/${skill.id}/edit`}
+                            className="mt-1 inline-block text-xs text-app-primary hover:underline"
+                          >
+                            {t("skills.editLink")}
+                          </Link>
                         )}
                       </div>
-                      <div className="grid gap-1.5">
-                        {group.tools.map((tool) => (
-                          <div key={tool.id} className="text-sm text-app-text">
-                            <span className="font-mono text-xs">{tool.id}</span>
-                            {tool.description && (
-                              <span className="block text-xs text-app-text-muted">
-                                {tool.description}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             )}
           </div>
@@ -354,50 +363,6 @@ export function AgentDetailPage() {
       />
     </PageLayout>
   );
-}
-
-interface ToolGroupSection {
-  id: string;
-  label: string;
-  description: string;
-  tools: AgentToolDescriptor[];
-}
-
-// Buckets the agent's selected tool ids into their registered groups, keeping group order.
-// Tool ids that match no known group fall into a trailing "other" section so nothing is hidden.
-function groupSelectedTools(
-  toolIds: string[],
-  toolGroups: AgentToolGroup[],
-  otherLabel: string,
-): ToolGroupSection[] {
-  const selected = new Set(toolIds);
-  const claimed = new Set<string>();
-  const sections: ToolGroupSection[] = [];
-
-  for (const group of toolGroups) {
-    const tools = group.tools.filter((tool) => selected.has(tool.id));
-    tools.forEach((tool) => claimed.add(tool.id));
-    if (tools.length > 0) {
-      sections.push({
-        id: group.id,
-        label: group.label,
-        description: group.description,
-        tools,
-      });
-    }
-  }
-
-  const orphans = toolIds.filter((tid) => !claimed.has(tid));
-  if (orphans.length > 0) {
-    sections.push({
-      id: "__other__",
-      label: otherLabel,
-      description: "",
-      tools: orphans.map((tid) => ({ id: tid, name: tid, description: "" })),
-    });
-  }
-
-  return sections;
 }
 
 function Field({ label, value }: { label: string; value: string }) {

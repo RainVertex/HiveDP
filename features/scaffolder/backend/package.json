@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@feature/catalog-backend": "0.1.0",
+    "@feature/integrations-backend": "0.1.0",
     "@internal/db": "0.1.0",
     "@internal/feature-host": "0.1.0",
     "@internal/scaffolder-core": "0.1.0",

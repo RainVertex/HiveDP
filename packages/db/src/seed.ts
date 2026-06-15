@@ -16,6 +16,7 @@ async function main() {
   await seedDefaultPages();
   await seedTeamPolicies();
   await seedDefaultScorecards();
+  await seedSkills();
 
   // Catalog Enricher system prompt. seed.ts is the sole source the agent reads it from the DB row at runtime.
   const enricherInstructions = `You are the Catalog Enricher.
@@ -51,7 +52,7 @@ Aim for at most 8 tool calls. Do not loop.`;
     where: { id: "seed-agent-catalog-enricher" },
     update: {
       instructions: enricherInstructions,
-      toolIds: ["catalog_lookup", "catalog_read_repo", "catalog_read_file", "catalog_open_yaml_pr"],
+      skillIds: ["skill-catalog-enrich"],
       approvalMode: "auto",
       category: "Catalog & Quality",
       avatarUrl: "/agents/presets/catalog-enricher.svg",
@@ -63,7 +64,7 @@ Aim for at most 8 tool calls. Do not loop.`;
       kind: "catalog-enrichment",
       modelId: "llmmodel_openai_o4_mini",
       instructions: enricherInstructions,
-      toolIds: ["catalog_lookup", "catalog_read_repo", "catalog_read_file", "catalog_open_yaml_pr"],
+      skillIds: ["skill-catalog-enrich"],
       approvalMode: "auto",
       maxToolCalls: 10,
       category: "Catalog & Quality",
@@ -84,36 +85,91 @@ Aim for at most 8 tool calls. Do not loop.`;
   console.log("Seed complete.");
 }
 
-// The assistant's effective read tools come live from platformAssistantReadToolIds() (agent-tools registry.ts) plus chatWriteToolIds(), the toolIds persisted here are display-only and the instructions below ARE the live system prompt.
+// Built-in skills. These reproduce the exact tool sets the built-in agents used before skills existed,
+// so behavior is unchanged. Admins can edit them or add their own. Tools self-gate at resolve time, so
+// a skill listing a write tool simply yields nothing when CHAT_WRITE_TOOLS_ENABLED is "false".
+async function seedSkills() {
+  const skills: Array<{
+    id: string;
+    label: string;
+    description: string;
+    guidance: string;
+    toolIds: string[];
+  }> = [
+    {
+      id: "skill-platform-read",
+      label: "Platform read",
+      description:
+        "Read-only access to the user, teams, requests, catalog, org, and platform source.",
+      guidance:
+        "Use for general read-only questions about the user, their teams, requests, and the catalog.",
+      toolIds: [
+        "whoami",
+        "get_today",
+        "teams_list_mine",
+        "teams_get",
+        "teams_list_members",
+        "requests_my_pending",
+        "requests_my_team_requests",
+        "requests_my_maintainer_requests",
+        "catalog_search",
+        "catalog_get_entity",
+        "catalog_owned_by_team",
+        "org_list_departments",
+        "org_get_department",
+        "notifications_my_unread",
+        "integrations_list_github",
+        "platform_source_info",
+        "platform_source_search",
+        "platform_source_list_dir",
+        "platform_source_read_file",
+      ],
+    },
+    {
+      id: "skill-team-requests",
+      label: "Team requests",
+      description: "Prepare and submit team creation requests on the user's behalf.",
+      guidance:
+        "Use when the user wants to create or submit a team request (prepare, confirm, then submit).",
+      toolIds: ["team_request_prepare", "team_request_submit"],
+    },
+    {
+      id: "skill-catalog-enrich",
+      label: "Catalog enrichment",
+      description:
+        "Inspect a catalog entity's repository and open a catalog-info.yaml pull request.",
+      guidance:
+        "Use to enrich a catalog entity by inspecting its repo and opening a catalog-info.yaml PR.",
+      toolIds: ["catalog_lookup", "catalog_read_repo", "catalog_read_file", "catalog_open_yaml_pr"],
+    },
+  ];
+
+  for (const s of skills) {
+    // Create-only: once seeded, admin edits to a built-in skill are preserved across reboots.
+    await prisma.skill.upsert({
+      where: { id: s.id },
+      update: {},
+      create: {
+        id: s.id,
+        label: s.label,
+        description: s.description,
+        guidance: s.guidance,
+        toolIds: s.toolIds,
+        builtin: true,
+      },
+    });
+  }
+}
+
+// The assistant is a normal agent now: it holds skill ids and chat resolves them like any agent.
+// The team-requests skill's write tools self-gate on CHAT_WRITE_TOOLS_ENABLED at registration, so
+// the skill simply resolves to no tools when writes are disabled. The instructions below ARE the prompt.
 async function seedPlatformAssistant() {
   // Chat runs the assistant agent's own modelId FK (configured on the agent page like any other agent).
   // The assistant is treated as not-configured whenever this model is disabled or its provider has no key.
   const defaultModelId = "llmmodel_openai_o4_mini";
-  const writesEnabled = process.env.CHAT_WRITE_TOOLS_ENABLED !== "false";
 
-  const readToolIds = [
-    "whoami",
-    "get_today",
-    "teams_list_mine",
-    "teams_get",
-    "teams_list_members",
-    "requests_my_pending",
-    "requests_my_team_requests",
-    "requests_my_maintainer_requests",
-    "catalog_search",
-    "catalog_get_entity",
-    "catalog_owned_by_team",
-    "org_list_departments",
-    "org_get_department",
-    "notifications_my_unread",
-    "integrations_list_github",
-    "platform_source_info",
-    "platform_source_search",
-    "platform_source_list_dir",
-    "platform_source_read_file",
-  ];
-  const writeToolIds = ["team_request_prepare", "team_request_submit"];
-  const toolIds = writesEnabled ? [...readToolIds, ...writeToolIds] : [...readToolIds];
+  const skillIds = ["skill-platform-read", "skill-team-requests"];
 
   const instructions = `You are the engineering platform assistant.
 You help the current user with their work, teams, requests, and catalog,
@@ -172,7 +228,7 @@ Integrations.`;
     where: { id: "seed-agent-assistant" },
     update: {
       instructions,
-      toolIds,
+      skillIds,
       approvalMode: "ask",
       category: "Plan & Coordinate",
       avatarUrl: "/agents/presets/platform-assistant.svg",
@@ -184,7 +240,7 @@ Integrations.`;
       kind: "platform-assistant",
       modelId: defaultModelId,
       instructions,
-      toolIds,
+      skillIds,
       approvalMode: "ask",
       maxToolCalls: 12,
       category: "Plan & Coordinate",

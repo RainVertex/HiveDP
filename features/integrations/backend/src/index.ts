@@ -64,6 +64,7 @@ export { loadGitHubAppConfig, isAppConfigured } from "./github-app/config";
 export type { GitHubAppConfig, GitHubAppConfigResult } from "./github-app/config";
 export {
   octokitForInstallation,
+  octokitForLogin,
   octokitForToken,
   octokitAsApp,
   GitHubAppNotConfiguredError,

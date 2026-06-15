@@ -4,7 +4,6 @@ export * from "./plan-ctx";
 export * from "./template";
 export * from "./fingerprint";
 export * from "./redact";
-export * from "./policy";
 export * from "./diff";
 export * from "./plan";
 export * from "./executor";

@@ -33,8 +33,6 @@ model ScaffoldPlan {
   irreversible     Boolean          @default(false)
   bindingId        String?
   artifact         Json
-  requiresApproval Json
-  approvalsGranted Json             @default("[]")
   createdByUserId  String
   actorKind        String           @default("human")
   requestId        String?

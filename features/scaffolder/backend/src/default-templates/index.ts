@@ -52,6 +52,7 @@ spec:
           type: string
           title: GitHub organization
           description: Organization or user that will own the new repository.
+          x-github-orgs: true
         visibility:
           type: string
           title: Repository visibility
@@ -79,7 +80,6 @@ spec:
         description: \${{ parameters.description }}
         visibility: \${{ parameters.visibility }}
         defaultBranch: main
-        tokenSecret: GITHUB_TOKEN
     - id: register
       name: Register in catalog
       action: catalog:register

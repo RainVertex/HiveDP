@@ -15,7 +15,6 @@ import {
 import type { PlanCtx } from "@internal/scaffolder-core";
 import { acquireTargetLock, ensurePlanFresh, StalePlanError } from "./locks";
 import { taskEventBus } from "./events";
-import { createApprovalSigner, residualMissingApprovals, type ApprovalGrant } from "./approvals";
 
 // Orchestrates applying a scaffolder plan: gates, lock, sandbox, execute, persist.
 export interface ApplyInput {
@@ -34,7 +33,6 @@ export interface ApplyInput {
   targetRef?: string;
   /** Same id propagated through all generated rows for audit/observability. */
   requestId?: string;
-  approvals?: ApprovalGrant[];
 }
 
 export interface ApplyResult {
@@ -52,13 +50,6 @@ export class PlanExpiredError extends Error {
   ) {
     super(`Plan ${planId} expired at ${expiredAt.toISOString()}`);
     this.name = "PlanExpiredError";
-  }
-}
-
-export class ApprovalsMissingError extends Error {
-  constructor(public readonly missingCapabilities: string[]) {
-    super(`Approvals missing for capabilities: ${missingCapabilities.join(", ")}`);
-    this.name = "ApprovalsMissingError";
   }
 }
 
@@ -80,17 +71,11 @@ export async function applyPlan(input: ApplyInput): Promise<ApplyResult> {
     dryRun = false,
     targetRef = defaultTargetRef(plan),
     requestId,
-    approvals = [],
   } = input;
 
   const now = new Date();
   if (new Date(plan.expiresAt).getTime() <= now.getTime()) {
     throw new PlanExpiredError(plan.id, new Date(plan.expiresAt));
-  }
-  const signer = createApprovalSigner();
-  const residual = residualMissingApprovals(plan.requiresApproval, approvals, signer, plan.id);
-  if (residual.length > 0) {
-    throw new ApprovalsMissingError(residual.map((r) => r.capability));
   }
   const fresh = await ensurePlanFresh(plan.bindingId, new Date(plan.createdAt));
   if (fresh.stale && fresh.bindingUpdatedAt) {

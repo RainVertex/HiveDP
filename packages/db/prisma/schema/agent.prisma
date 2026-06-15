@@ -80,7 +80,7 @@ model Agent {
   kind         String
   modelId      String
   instructions String
-  toolIds      Json              @default("[]")
+  skillIds     Json              @default("[]")
   approvalMode AgentApprovalMode @default(ask)
   maxToolCalls Int               @default(10)
   tokenBudget  Int?
@@ -96,6 +96,20 @@ model Agent {
   mcpServers        AgentMcpServer[]
 
   @@index([modelId])
+}
+
+// A named, admin-composed bundle of registry tools (a "skill"). Agents reference skills by id in
+// their skillIds; at run time a skill resolves to whichever of its tools are currently registered.
+// guidance is optional prose appended to the agent's system prompt so the model knows when to use it.
+model Skill {
+  id          String   @id @default(cuid())
+  label       String
+  description String?
+  guidance    String?
+  toolIds     Json     @default("[]")
+  builtin     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // An external MCP server attached to an agent. Its tools are fetched at resolve time and merged

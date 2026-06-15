@@ -120,7 +120,6 @@ export interface AuditPayloads {
     mode: string;
     target: string;
     actorKind: string;
-    requiresApproval: number;
   };
   "scaffolder.task.applied": {
     taskId: string;
@@ -135,12 +134,6 @@ export interface AuditPayloads {
     planId: string;
     templateId: string;
     error: string;
-  };
-  "scaffolder.approval.granted": {
-    planId: string;
-    capabilities: string[];
-    approverUserId: string;
-    expiresAt: string;
   };
   "scaffolder.mcp_token.minted": {
     tokenId: string;

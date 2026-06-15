@@ -7,8 +7,6 @@ export type Capability =
   | "network:external"
   | "repo:public"
   | "repo:private"
-  // Pseudo-capability, never grantable via policy, forces an admin approval on the plan.
-  | "approval:manual"
   | `secrets:read:${string}`;
 
 export type ActorKind = "human" | "agent" | "external-agent";
@@ -36,11 +34,6 @@ export interface Actor {
   userId: string;
   agentId?: string;
   teamIds: string[];
-}
-
-export interface ApprovalRequirement {
-  capability: Capability;
-  reason: string;
 }
 
 export interface UnifiedDiff {
@@ -117,7 +110,6 @@ export interface Plan {
   target: SandboxTarget;
   capabilities: Capability[];
   irreversible: boolean;
-  requiresApproval: ApprovalRequirement[];
   steps: PlanStep[];
   actor: Actor;
 }

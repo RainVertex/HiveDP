@@ -9,6 +9,7 @@ export {
   registerTools,
   registerToolGroups,
   resolveTools,
+  getRegisteredTools,
   listAvailableTools,
   listToolGroups,
   _resetExtraTools,

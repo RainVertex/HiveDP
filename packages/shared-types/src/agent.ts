@@ -54,6 +54,27 @@ export interface AgentToolsResponse {
   groups: AgentToolGroup[];
 }
 
+// An admin-composed bundle of registry tools. tools are resolved from toolIds against the current
+// registry for display, so a tool that is unregistered (env-gated off) simply does not appear.
+export interface SkillSummary {
+  id: ID;
+  label: string;
+  description: string | null;
+  guidance: string | null;
+  toolIds: string[];
+  builtin: boolean;
+  tools: AgentToolDescriptor[];
+}
+
+export interface CreateSkillInput {
+  label: string;
+  description?: string | null;
+  guidance?: string | null;
+  toolIds?: string[];
+}
+
+export type UpdateSkillInput = Partial<CreateSkillInput>;
+
 export type McpAuthKind = "none" | "bearer" | "oauth";
 
 export interface McpToolInfo {
@@ -105,13 +126,11 @@ export interface Agent extends NamedEntity {
   status: AgentStatus;
   modelId: ID;
   instructions: string;
-  toolIds: string[];
+  skillIds: string[];
   approvalMode: ApprovalMode;
   maxToolCalls: number;
   tokenBudget: number | null;
   temperature: number | null;
-  // True when the tool set is code-owned (the Platform Assistant). Some agents tools are not editable.
-  toolsManaged?: boolean;
   mcpServers?: AgentMcpServerSummary[];
   llmModel?: {
     slug: string;
@@ -149,7 +168,7 @@ export interface CreateAgentInput {
   kind?: string;
   modelId: ID;
   instructions: string;
-  toolIds?: string[];
+  skillIds?: string[];
   approvalMode?: ApprovalMode;
   maxToolCalls?: number;
   tokenBudget?: number | null;

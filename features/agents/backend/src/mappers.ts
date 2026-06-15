@@ -1,4 +1,3 @@
-import { PLATFORM_ASSISTANT_AGENT_ID } from "./constants";
 import type { AgentDetailRow, AgentListRow, ConversationTitle } from "./repositories/agents";
 import type { ModelListItem } from "./repositories/models";
 
@@ -47,6 +46,5 @@ export function toAgentDetail(agent: AgentDetailRow, conversations: Conversation
     llmModel: agent.llmModel,
     runs,
     status: agent.runs[0]?.status ?? "idle",
-    toolsManaged: agent.id === PLATFORM_ASSISTANT_AGENT_ID,
   };
 }

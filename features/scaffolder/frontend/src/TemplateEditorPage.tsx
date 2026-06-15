@@ -15,6 +15,7 @@ import type {
 } from "@internal/shared-types";
 import { themeTemplates, themeWidgets } from "./rjsfTheme";
 import { ActionsDocDrawer } from "./ActionsDocDrawer";
+import { orgLoginsFromInstallations, withGithubOrgEnum } from "./githubOrgField";
 
 const PREVIEW_DEBOUNCE_MS = 400;
 
@@ -95,6 +96,7 @@ export function TemplateEditorPage() {
   const [preview, setPreview] = useState<ScaffolderTemplateDefPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [playgroundData, setPlaygroundData] = useState<Record<string, unknown>>({});
+  const [orgLogins, setOrgLogins] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +119,14 @@ export function TemplateEditorPage() {
       .then((res) => setDefs(res.items))
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, [api, isAdmin, defs]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    api.integrations
+      .githubInstallations()
+      .then((res) => setOrgLogins(orgLoginsFromInstallations(res.items)))
+      .catch(() => setOrgLogins([]));
+  }, [api, isAdmin]);
 
   // Live validation of the draft template.yaml plus the resolved wizard form.
   useEffect(() => {
@@ -335,7 +345,12 @@ export function TemplateEditorPage() {
               </div>
               <PreviewErrorBoundary resetKey={preview} fallback={t("editor.previewRenderError")}>
                 <Form
-                  schema={preview.schema as RJSFSchema}
+                  schema={
+                    withGithubOrgEnum(
+                      preview.schema as Record<string, unknown>,
+                      orgLogins,
+                    ) as RJSFSchema
+                  }
                   uiSchema={preview.uiSchema as UiSchema}
                   formData={playgroundData}
                   validator={validator}

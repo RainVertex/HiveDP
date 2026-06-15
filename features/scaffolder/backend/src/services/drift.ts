@@ -3,7 +3,6 @@ import { prisma } from "@internal/db";
 import { buildPlan, contentHashForTemplate, type Actor } from "@internal/scaffolder-core";
 import { getActionRegistry, getTemplates } from "./registry";
 import { buildPlanCtx } from "./plan-ctx";
-import { loadCapabilityPolicy } from "./policy";
 import { buildEntityContext } from "./jq-context";
 
 // One-pass drift detection: replans every active binding and opens (or coalesces) ScaffoldDrift rows for non-no-op plans.
@@ -51,7 +50,6 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
 
   const registry = await getTemplates();
   const actions = getActionRegistry();
-  const policy = loadCapabilityPolicy();
   const actor = systemActor(input.systemUserId);
 
   for (const binding of bindings) {
@@ -85,7 +83,6 @@ export async function runDriftSweep(input: DriftSweepInput): Promise<DriftSweepR
         templateContentHash: contentHash,
         target: "worktree",
         bindingId: binding.id,
-        policy,
         actions,
         entity,
       });

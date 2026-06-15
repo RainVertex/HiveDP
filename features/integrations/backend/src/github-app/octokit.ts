@@ -1,6 +1,7 @@
 // Octokit factories for GitHub App auth: as-app (install callback) and as-installation.
 
 import type { Octokit as OctokitClient } from "octokit";
+import { prisma } from "@internal/db";
 import { loadGitHubAppConfig } from "./config";
 
 // `octokit` v5 is ESM-only and the api backend is CJS; defer the import so module load survives the CJS loader.
@@ -59,4 +60,33 @@ export async function octokitForInstallation(installationId: number): Promise<Oc
       installationId,
     },
   });
+}
+
+// Resolves the GitHub App installation id for an org/user login from the stored Integration rows
+// (accountLogin + installationId live in plaintext config, only secrets are encrypted).
+export async function installationIdForLogin(login: string): Promise<number | null> {
+  const rows = await prisma.integration.findMany({
+    where: { kind: "github", enabled: true },
+    select: { config: true },
+  });
+  for (const row of rows) {
+    const cfg = row.config;
+    if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) continue;
+    const record = cfg as Record<string, unknown>;
+    if (record.accountLogin !== login) continue;
+    const id =
+      typeof record.installationId === "number"
+        ? record.installationId
+        : Number(record.installationId);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  }
+  return null;
+}
+
+// Installation-scoped Octokit for the org/user that owns a target repo, or null if the App
+// is not installed there. Commits made with this client are attributed to the App bot.
+export async function octokitForLogin(login: string): Promise<OctokitClient | null> {
+  const installationId = await installationIdForLogin(login);
+  if (installationId == null) return null;
+  return octokitForInstallation(installationId);
 }

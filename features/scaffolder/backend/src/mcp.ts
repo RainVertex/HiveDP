@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { Router, type Request, type RequestHandler, type Response } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -19,10 +18,8 @@ import { verifyMcpToken } from "./services/mcp-tokens";
 import { getActionRegistry, getTemplates } from "./services/registry";
 import { buildPlanCtx } from "./services/plan-ctx";
 import { buildUserContext } from "./services/jq-context";
-import { loadCapabilityPolicy } from "./services/policy";
-import { applyPlan, ApprovalsMissingError, PlanExpiredError } from "./services/apply";
+import { applyPlan, PlanExpiredError } from "./services/apply";
 import { StalePlanError, TargetLockBusyError } from "./services/locks";
-import { createApprovalSigner, type ApprovalGrant } from "./services/approvals";
 import { loadEnvSecrets } from "./services/secrets";
 
 // MCP HTTP router exposing scaffolder templates as tools for external agents over bearer-token auth.
@@ -129,7 +126,6 @@ async function buildMcpServer(req: Request): Promise<McpServer> {
           mode: plan.mode,
           target: plan.target,
           actorKind: "external-agent",
-          requiresApproval: plan.requiresApproval.length,
         });
         return {
           content: [{ type: "text" as const, text: JSON.stringify(plan, null, 2) }],
@@ -196,9 +192,10 @@ async function buildMcpServer(req: Request): Promise<McpServer> {
 async function runBuildPlan(templateId: string, rawParams: unknown, auth: McpAuthContext) {
   const template = (await getTemplates()).get(templateId);
   if (!template) throw new Error(`Unknown template: ${templateId}`);
+  const allowed = await filterByTemplateAcl([template], auth.actor, false, true);
+  if (allowed.length === 0) throw new Error("Forbidden");
   const target = resolveTarget(template, "agent");
   const planCtx = buildPlanCtx({ actor: auth.actor, target });
-  const policy = loadCapabilityPolicy();
   const contentHash = contentHashForTemplate(template);
   const user = await buildUserContext(auth.userId);
   const phash = computeParamsHash(rawParams);
@@ -214,7 +211,6 @@ async function runBuildPlan(templateId: string, rawParams: unknown, auth: McpAut
     templateContentHash: contentHash,
     target,
     bindingId: existingBinding?.id ?? null,
-    policy,
     actions: getActionRegistry(),
     user,
   });
@@ -236,8 +232,6 @@ async function runBuildPlan(templateId: string, rawParams: unknown, auth: McpAut
         resolvedSteps: built.resolvedSteps,
         templateContext: built.templateContext,
       } as never,
-      requiresApproval: built.plan.requiresApproval as never,
-      approvalsGranted: [] as never,
       createdByUserId: auth.userId,
       actorKind: auth.actor.kind,
       createdAt: new Date(built.plan.createdAt),
@@ -256,7 +250,7 @@ type ApplyPlanOutcome =
       error: string | null;
       rolledBack: boolean;
     }
-  | { kind: "error"; reason: string; missingCapabilities?: string[] };
+  | { kind: "error"; reason: string };
 
 async function runApplyPlan(
   planId: string,
@@ -290,9 +284,6 @@ async function runApplyPlan(
       ReturnType<typeof buildPlan>
     >["plan"]["capabilities"],
     irreversible: planRow.irreversible,
-    requiresApproval: planRow.requiresApproval as unknown as Awaited<
-      ReturnType<typeof buildPlan>
-    >["plan"]["requiresApproval"],
     steps: artifact.steps,
     actor: auth.actor,
   };
@@ -300,8 +291,6 @@ async function runApplyPlan(
     actor: auth.actor,
     target: plan.target,
   });
-  const approvals = (planRow.approvalsGranted ?? []) as unknown as ApprovalGrant[];
-
   try {
     const result = await applyPlan({
       plan,
@@ -312,7 +301,6 @@ async function runApplyPlan(
       triggeredByUserId: auth.userId,
       dryRun,
       requestId: req.id != null ? String(req.id) : undefined,
-      approvals,
       secrets: loadEnvSecrets(),
     });
     if (!dryRun) {
@@ -338,13 +326,6 @@ async function runApplyPlan(
       rolledBack: result.rolledBack,
     };
   } catch (err) {
-    if (err instanceof ApprovalsMissingError) {
-      return {
-        kind: "error",
-        reason: "Approvals missing",
-        missingCapabilities: err.missingCapabilities,
-      };
-    }
     if (err instanceof PlanExpiredError) return { kind: "error", reason: "Plan expired" };
     if (err instanceof StalePlanError)
       return { kind: "error", reason: "Plan stale, replan required" };
@@ -355,10 +336,6 @@ async function runApplyPlan(
     };
   }
 }
-
-// Referenced to keep the approvals module imported so the bundler resolves applyPlan's paths.
-void createApprovalSigner;
-void randomUUID;
 
 export function createScaffolderMcpRouter(): Router {
   const router = Router();

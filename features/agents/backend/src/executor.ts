@@ -5,7 +5,6 @@ import {
   selectAdapter,
   providerKindFromProvider,
   resolveProviderApiKey,
-  resolveTools,
   openAgentMcpToolset,
   mcpOAuthRedirectUrl,
   type ChatRequest,
@@ -14,6 +13,7 @@ import {
   type ToolContext,
   type McpToolset,
 } from "@internal/llm-core";
+import { resolveAgentSkills, appendSkillGuidance } from "./services/skills";
 
 // Generic agent execution loop (runAgent) plus the async kickoff and catalog-enricher wrapper.
 
@@ -112,8 +112,8 @@ export async function runAgent(
         apiKey,
       }) as Promise<ChatResult>);
 
-  const toolIds = Array.isArray(agent.toolIds) ? (agent.toolIds as unknown as string[]) : [];
-  const baseTools = resolveTools(toolIds);
+  const skillIds = Array.isArray(agent.skillIds) ? (agent.skillIds as unknown as string[]) : [];
+  const { tools: baseTools, guidance } = await resolveAgentSkills(skillIds);
 
   // Merge tools from the agent's attached external MCP servers. Autonomous runs (no caller user)
   // skip OAuth servers, an unreachable server is skipped with a warning, so the loop runs with
@@ -130,7 +130,7 @@ export async function runAgent(
   );
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: agent.instructions },
+    { role: "system", content: appendSkillGuidance(agent.instructions, guidance) },
     { role: "user", content: JSON.stringify(input) },
   ];
 
