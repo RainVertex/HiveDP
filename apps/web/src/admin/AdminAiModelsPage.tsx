@@ -113,8 +113,7 @@ export function AdminAiModelsPage() {
 
 const CREDENTIAL_HINT: Record<ChatSourceRepoDto["credentialSource"], string> = {
   github_app: "Reads via the GitHub App installed on this owner.",
-  pat: "No GitHub App for this owner, will read via the GITHUB_TOKEN env var.",
-  none: "No GitHub App and no GITHUB_TOKEN, the assistant cannot read this repo yet.",
+  none: "No GitHub App installed on this owner, the assistant cannot read this repo yet.",
 };
 
 function SourceRepoSection() {

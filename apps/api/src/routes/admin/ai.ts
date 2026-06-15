@@ -87,7 +87,7 @@ adminAiRouter.patch("/models/:id", async (req, res, next) => {
 // Stored as a SystemSetting so an admin (or a fork operator) can repoint it without a code change.
 
 // Mirrors loadSourceRepoClient in the agent-tools platform-source group, an installation is only
-// usable when the App env is configured, otherwise the runtime falls back to the PAT (or none).
+// usable when the App env is configured, otherwise the runtime has no GitHub credentials.
 async function resolveCredentialSource(
   owner: string,
 ): Promise<ChatSourceRepoDto["credentialSource"]> {
@@ -109,7 +109,7 @@ async function resolveCredentialSource(
     }
   }
   if (hasInstallation && isAppConfigured()) return "github_app";
-  return process.env.GITHUB_TOKEN ? "pat" : "none";
+  return "none";
 }
 
 adminAiRouter.get("/source-repo", async (_req, res, next) => {

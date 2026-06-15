@@ -124,7 +124,6 @@ export function catalogDiscoverySweepJob(): ScaffolderJobDefinition {
         select: { id: true, repoUrl: true },
         orderBy: { lastSeenAt: "asc" },
       });
-      const token = process.env.GITHUB_TOKEN;
       let scanned = 0;
       let created = 0;
       let updated = 0;
@@ -140,7 +139,6 @@ export function catalogDiscoverySweepJob(): ScaffolderJobDefinition {
           const result = await discoverAndPersist({
             source: "github",
             target: `${parsed.owner}/${parsed.repo}`,
-            token,
           });
           created += result.created;
           updated += result.updated;

@@ -11,7 +11,7 @@ export interface RepoTarget {
   owner: string;
   repo: string;
   ref?: string;
-  // Falls back to GITHUB_TOKEN when omitted.
+  // Optional explicit token, otherwise the client is unauthenticated (public repos only).
   token?: string;
 }
 
@@ -40,7 +40,7 @@ export class RepoFetchClient {
   private async getOcto(): Promise<OctokitClient> {
     if (this.octo) return this.octo;
     const Octokit = await loadOctokit();
-    const token = this.target.token ?? process.env.GITHUB_TOKEN ?? undefined;
+    const token = this.target.token ?? undefined;
     this.octo = new Octokit(token ? { auth: token } : {});
     return this.octo;
   }

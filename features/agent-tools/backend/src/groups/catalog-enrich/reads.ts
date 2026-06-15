@@ -78,7 +78,6 @@ export const discover: RegisteredTool = {
     return discoverAndPersist({
       source: "github",
       target: `${parsed.owner}/${parsed.repo}`,
-      token: process.env.GITHUB_TOKEN,
     });
   },
 };

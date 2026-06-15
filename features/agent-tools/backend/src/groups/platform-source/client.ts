@@ -1,6 +1,6 @@
 import { prisma } from "@internal/db";
 import { getSetting } from "@internal/llm-core";
-import { octokitForInstallation, octokitForToken } from "@feature/integrations-backend/contract";
+import { octokitForInstallation } from "@feature/integrations-backend/contract";
 
 // Resolves the configured platform source repo and a GitHub client for it.
 // Repo coordinates live in the SystemSetting "chat.sourceRepo" so an admin (or a fork operator)
@@ -53,7 +53,7 @@ export interface SourceRepoToolError {
 }
 
 // Returns a ready GitHub client plus repo coordinates, or a structured error the model can relay.
-// Prefers the GitHub App installation for the owner, falling back to a GITHUB_TOKEN PAT.
+// Uses the GitHub App installation for the owner.
 export async function loadSourceRepoClient() {
   const cfg = await getSourceRepoConfig();
   if (!cfg) {
@@ -69,16 +69,11 @@ export async function loadSourceRepoClient() {
       const octo = await octokitForInstallation(installationId);
       return { octo, owner: cfg.owner, repo: cfg.repo, ref: cfg.ref };
     } catch {
-      // octokitForInstallation throws only when the GitHub App env is missing, fall back to the PAT path below.
+      // octokitForInstallation throws only when the GitHub App env is missing.
     }
   }
-  const token = process.env.GITHUB_TOKEN;
-  if (token) {
-    const octo = await octokitForToken(token);
-    return { octo, owner: cfg.owner, repo: cfg.repo, ref: cfg.ref };
-  }
   return {
-    error: `No GitHub credentials available for ${cfg.owner}/${cfg.repo}. Install the GitHub App on ${cfg.owner}, or set GITHUB_TOKEN.`,
+    error: `No GitHub App installation for ${cfg.owner}. Install the GitHub App on ${cfg.owner} to enable this.`,
     code: "no_credentials" as const,
   };
 }
