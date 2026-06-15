@@ -37,7 +37,7 @@ export const en = {
   },
   home: {
     welcome: "Welcome back, {{name}}",
-    subtitle: "Your Vexana dashboard at a glance.",
+    subtitle: "Your HiveDP dashboard at a glance.",
     emptyTitle: "No widgets on your home page",
     emptyHint: 'Enter edit mode and click "Add widget" to get started.',
   },

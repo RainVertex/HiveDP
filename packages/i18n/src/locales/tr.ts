@@ -41,7 +41,7 @@ export const tr: ShellResources = {
   },
   home: {
     welcome: "Tekrar hoş geldiniz, {{name}}",
-    subtitle: "Vexana panonuza genel bakış.",
+    subtitle: "HiveDP panonuza genel bakış.",
     emptyTitle: "Ana sayfanızda widget yok",
     emptyHint: 'Düzenleme moduna geçin ve başlamak için "Widget ekle" düğmesine tıklayın.',
   },

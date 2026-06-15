@@ -19,7 +19,7 @@ export function SignInPage() {
       <div className="w-full max-w-md rounded-lg border border-app-border bg-app-surface p-8 shadow-sm">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold text-app-text mb-1">Vexana</h1>
+            <h1 className="text-xl font-semibold text-app-text mb-1">HiveDP</h1>
             <p className="text-sm text-app-text-muted">{t("auth.tagline")}</p>
           </div>
           <LanguageSwitcher variant="select" />

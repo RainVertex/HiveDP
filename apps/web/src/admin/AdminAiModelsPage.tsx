@@ -265,7 +265,7 @@ function SourceRepoSection() {
           <input
             value={repo}
             onChange={(e) => setRepo(e.target.value)}
-            placeholder="vexana"
+            placeholder="HiveDP"
             className="w-48 rounded-md border border-app-border bg-app-bg-sunken px-2 py-1 text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-primary"
           />
         </label>

@@ -160,7 +160,7 @@ export const sourceSearch: RegisteredTool = {
           query: {
             type: "string",
             description:
-              'Search terms, e.g. "Vexana", "ThemeSwitcher", "favicon". Plain words, not GitHub search qualifiers.',
+              'Search terms, e.g. "HiveDP", "ThemeSwitcher", "favicon". Plain words, not GitHub search qualifiers.',
           },
         },
         required: ["query"],
