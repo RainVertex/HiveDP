@@ -128,6 +128,7 @@ export const tr: AgentsResources = {
   },
   detail: {
     tools: "Araçlar",
+    otherTools: "Diğer",
     systemPrompt: "Sistem komutu",
     tryItOut: "Deneyin",
     testPlaceholder: "Bu ajanı test etmek için bir komut girin…",

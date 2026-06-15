@@ -176,49 +176,64 @@ export function AgentDetailPage() {
         {toolIds.length === 0 ? (
           <p className="text-sm text-app-text-muted">{t("empty.noTools")}</p>
         ) : (
-          <div className="grid gap-2">
-            {toolGroupSections.map((group) => {
-              const open = Boolean(openGroups[group.id]);
-              return (
-                <div key={group.id} className="overflow-hidden rounded-md border border-app-border">
+          <div>
+            <div className="flex flex-wrap gap-1.5">
+              {toolGroupSections.map((group) => {
+                const open = Boolean(openGroups[group.id]);
+                return (
                   <button
+                    key={group.id}
                     type="button"
                     onClick={() => toggleGroupOpen(group.id)}
                     aria-expanded={open}
-                    className="flex w-full items-start gap-2 bg-app-surface px-2 py-1.5 text-left text-sm font-medium text-app-text"
+                    title={group.description || undefined}
+                    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm ${
+                      open
+                        ? "border-app-primary bg-app-primary/10 text-app-text"
+                        : "border-app-border bg-app-surface text-app-text hover:bg-app-surface-hover"
+                    }`}
                   >
-                    <span className="mt-0.5 w-3 shrink-0 text-xs text-app-text-muted">
-                      {open ? "▾" : "▸"}
-                    </span>
-                    <span>
-                      {group.label}
-                      <span className="ml-1 text-xs font-normal text-app-text-muted">
-                        ({group.tools.length})
-                      </span>
-                      {group.description && (
-                        <span className="block text-xs font-normal text-app-text-muted">
-                          {group.description}
-                        </span>
-                      )}
+                    <span>{group.label}</span>
+                    <span className="rounded-full bg-app-bg-sunken px-1.5 text-xs text-app-text-muted">
+                      {group.tools.length}
                     </span>
                   </button>
-                  {open && (
-                    <div className="grid gap-1.5 border-t border-app-border px-2 py-2">
-                      {group.tools.map((tool) => (
-                        <div key={tool.id} className="text-sm text-app-text">
-                          <span className="font-mono text-xs">{tool.id}</span>
-                          {tool.description && (
-                            <span className="block text-xs text-app-text-muted">
-                              {tool.description}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                );
+              })}
+            </div>
+            {toolGroupSections.some((group) => openGroups[group.id]) && (
+              <div className="mt-2 grid gap-2">
+                {toolGroupSections
+                  .filter((group) => openGroups[group.id])
+                  .map((group) => (
+                    <div
+                      key={group.id}
+                      className="rounded-md border border-app-border bg-app-surface px-3 py-2"
+                    >
+                      <div className="mb-1 text-xs font-semibold text-app-text">
+                        {group.label}
+                        {group.description && (
+                          <span className="ml-1 font-normal text-app-text-muted">
+                            {group.description}
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid gap-1.5">
+                        {group.tools.map((tool) => (
+                          <div key={tool.id} className="text-sm text-app-text">
+                            <span className="font-mono text-xs">{tool.id}</span>
+                            {tool.description && (
+                              <span className="block text-xs text-app-text-muted">
+                                {tool.description}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  ))}
+              </div>
+            )}
           </div>
         )}
       </section>

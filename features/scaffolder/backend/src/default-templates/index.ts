@@ -15,7 +15,6 @@ interface DefaultTemplateSpec {
 }
 
 const SKELETON_REPO = "RainVertex/scaffolder-templates";
-const SKELETON_REF = "v1.0.0";
 
 // Nunjucks tokens are escaped (\${{) so the template literal emits them verbatim instead of
 // interpolating them as JavaScript.
@@ -66,7 +65,6 @@ spec:
       action: fetch:remote-template
       input:
         repo: ${SKELETON_REPO}
-        ref: ${SKELETON_REF}
         path: ${t.identifier}/skeleton
         tokenSecret: GITHUB_TOKEN
         values:

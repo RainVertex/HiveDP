@@ -631,13 +631,6 @@ async function seedDefaultPages() {
       url: "/admin/team-requests",
       order: 5120,
     },
-    {
-      id: "__page_admin_team_templates__",
-      section: "admin",
-      title: "Team templates",
-      url: "/admin/team-templates",
-      order: 6144,
-    },
   ];
 
   for (const p of defaults) {

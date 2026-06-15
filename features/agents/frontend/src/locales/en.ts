@@ -125,6 +125,7 @@ export const en = {
   },
   detail: {
     tools: "Tools",
+    otherTools: "Other",
     systemPrompt: "System prompt",
     tryItOut: "Try it out",
     testPlaceholder: "Prompt to test this agent…",
