@@ -2,7 +2,7 @@ import { prisma } from "@internal/db";
 import { decryptSecret } from "./crypto";
 import { providerKeyMissingMessage } from "./readiness";
 
-// Resolve a provider's API key: stored encrypted credential first, then its env var, else null.
+// Resolve a provider's API key from its stored encrypted credential, or null when no key is needed.
 export async function resolveProviderApiKey(args: {
   providerId: string;
   providerSlug: string;
@@ -15,12 +15,9 @@ export async function resolveProviderApiKey(args: {
   });
   if (stored) return decryptSecret(stored.encryptedValue);
 
+  // A provider that declares an apiKeyEnvVar needs a key, without a stored one it is unconfigured.
   if (args.apiKeyEnvVar) {
-    const fromEnv = process.env[args.apiKeyEnvVar];
-    if (!fromEnv) {
-      throw new Error(providerKeyMissingMessage(args.isAdmin ?? false));
-    }
-    return fromEnv;
+    throw new Error(providerKeyMissingMessage(args.isAdmin ?? false));
   }
   return null;
 }

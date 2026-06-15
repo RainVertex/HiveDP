@@ -5,8 +5,7 @@ export function isProviderReady(
   hasStoredKey: boolean,
 ): boolean {
   if (!provider.apiKeyEnvVar) return true;
-  if (hasStoredKey) return true;
-  return Boolean(process.env[provider.apiKeyEnvVar]);
+  return hasStoredKey;
 }
 
 export function providerKeyMissingMessage(isAdmin: boolean): string {

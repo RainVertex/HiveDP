@@ -1,5 +1,5 @@
 // @internal/llm-core: shared LLM plumbing (adapters, chat client, tool registry, key resolution, settings/readiness) for chat and agents.
-export { chat, computeCostUsd } from "./client";
+export { computeCostUsd } from "./client";
 export type { ChatRequest, ChatResult, ResolvedModel } from "./client";
 
 export { selectAdapter, providerKindFromProvider } from "./adapters";

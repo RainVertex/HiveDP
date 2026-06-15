@@ -19,11 +19,10 @@ class GeminiAdapter implements ProviderAdapter {
 
   async stream(req: AdapterRequest): Promise<AdapterResult> {
     const provider = req.model.provider;
-    const apiKey =
-      req.apiKey ?? (provider.apiKeyEnvVar ? process.env[provider.apiKeyEnvVar] : null);
+    const apiKey = req.apiKey;
     if (!apiKey) {
       throw new Error(
-        `Missing API key for provider '${provider.slug}' (no Secret attached and env var ${provider.apiKeyEnvVar ?? "GOOGLE_GENAI_API_KEY"} is unset)`,
+        `Missing API key for provider '${provider.slug}' (add one in Admin -> AI / Models)`,
       );
     }
     const client = new GoogleGenAI({ apiKey });

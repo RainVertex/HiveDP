@@ -14,16 +14,16 @@ class OpenAICompatAdapter implements ProviderAdapter {
 
   async stream(req: AdapterRequest): Promise<AdapterResult> {
     const provider = req.model.provider;
-    let apiKey: string | null | undefined = req.apiKey;
+    let apiKey = req.apiKey ?? undefined;
     if (apiKey === undefined) {
-      apiKey = provider.apiKeyEnvVar ? process.env[provider.apiKeyEnvVar] : "ollama";
-      if (provider.apiKeyEnvVar && !apiKey) {
+      if (provider.apiKeyEnvVar) {
         throw new Error(
-          `Missing env var ${provider.apiKeyEnvVar} required by provider '${provider.slug}'`,
+          `Missing API key for provider '${provider.slug}' (add one in Admin -> AI / Models)`,
         );
       }
+      apiKey = "ollama";
     }
-    const client = new OpenAI({ baseURL: provider.baseUrl, apiKey: apiKey ?? "ollama" });
+    const client = new OpenAI({ baseURL: provider.baseUrl, apiKey });
 
     const sampling = samplingDefaults(req.model.slug);
     const isQwen3 = req.model.slug.startsWith("qwen3-");

@@ -1,5 +1,6 @@
 // Scheduled agent jobs: the catalog enricher workers that drain the CatalogAgentTask queue.
 import { prisma, Prisma } from "@internal/db";
+import { providerHasStoredKey } from "@internal/llm-core";
 import { runAgent } from "./executor";
 
 export interface AgentJobLogger {
@@ -39,9 +40,9 @@ async function drainCatalogTasks(ctx: AgentJobContext, maxTasks: number): Promis
     log.info({}, "Skipping enricher: agent row not seeded");
     return;
   }
-  const envVar = agent.llmModel.provider.apiKeyEnvVar;
-  if (envVar && !process.env[envVar]) {
-    log.info({ envVar }, `Skipping enricher: ${envVar} not set`);
+  const provider = agent.llmModel.provider;
+  if (provider.apiKeyEnvVar && !(await providerHasStoredKey(provider.id))) {
+    log.info({ provider: provider.slug }, "Skipping enricher: provider has no API key configured");
     return;
   }
 

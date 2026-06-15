@@ -10,13 +10,10 @@ class OpenAIResponsesAdapter implements ProviderAdapter {
 
   async stream(req: AdapterRequest): Promise<AdapterResult> {
     const provider = req.model.provider;
-    let apiKey: string | null | undefined = req.apiKey;
-    if (apiKey === undefined) {
-      apiKey = provider.apiKeyEnvVar ? process.env[provider.apiKeyEnvVar] : null;
-    }
+    const apiKey = req.apiKey;
     if (!apiKey) {
       throw new Error(
-        `Missing API key for provider '${provider.slug}' (no Secret attached and env var ${provider.apiKeyEnvVar ?? "OPENAI_API_KEY"} is unset)`,
+        `Missing API key for provider '${provider.slug}' (add one in Admin -> AI / Models)`,
       );
     }
     const client = new OpenAI({ baseURL: provider.baseUrl, apiKey });
