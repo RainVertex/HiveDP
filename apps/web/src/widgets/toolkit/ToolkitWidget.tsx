@@ -28,16 +28,16 @@ const tools: Tool[] = [
 
 export function ToolkitWidget() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-3">
       {tools.map((tool) => (
         <Link
           key={tool.to}
           to={tool.to}
-          className="flex flex-col gap-1 rounded-lg border border-app-border bg-app-bg p-3 hover:border-app-primary hover:bg-app-surface-hover transition-colors"
+          className="flex min-w-0 flex-col gap-1 rounded-lg border border-app-border bg-app-bg p-3 hover:border-app-primary hover:bg-app-surface-hover transition-colors"
         >
           <span className="text-app-primary">{tool.icon}</span>
-          <span className="text-sm font-medium text-app-text">{tool.label}</span>
-          <span className="text-xs text-app-text-muted">{tool.description}</span>
+          <span className="text-sm font-medium text-app-text break-words">{tool.label}</span>
+          <span className="text-xs text-app-text-muted break-words">{tool.description}</span>
         </Link>
       ))}
     </div>
