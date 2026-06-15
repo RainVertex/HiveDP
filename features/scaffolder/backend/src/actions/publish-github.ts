@@ -99,12 +99,13 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
       );
     }
 
+    // auto_init seeds one commit so the Git Data API works (it rejects an empty repo with 409).
     const { data: repo } = await octo.rest.repos.createInOrg({
       org: input.org,
       name: input.name,
       private: input.visibility === "private",
       description: input.description,
-      auto_init: false,
+      auto_init: true,
     });
     ctx.logger.info(`publish:github created ${repo.full_name}`);
 
@@ -118,6 +119,8 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
       throw new Error("publish:github: template rendered no files to commit");
     }
 
+    // A parentless commit makes the scaffold the repo's single root commit, orphaning the auto-init
+    // README. Committing through the API attributes it to the App bot.
     const commit = await octo.rest.git.createCommit({
       owner: input.org,
       repo: input.name,
@@ -125,18 +128,31 @@ export const publishGithubAction: Action<PublishGithubInput, PublishGithubOutput
       tree: treeSha,
       parents: [],
     });
-    await octo.rest.git.createRef({
-      owner: input.org,
-      repo: input.name,
-      ref: `refs/heads/${input.defaultBranch}`,
-      sha: commit.data.sha,
-    });
-    if (input.defaultBranch !== repo.default_branch) {
+
+    const autoBranch = repo.default_branch;
+    if (input.defaultBranch === autoBranch) {
+      await octo.rest.git.updateRef({
+        owner: input.org,
+        repo: input.name,
+        ref: `heads/${autoBranch}`,
+        sha: commit.data.sha,
+        force: true,
+      });
+    } else {
+      await octo.rest.git.createRef({
+        owner: input.org,
+        repo: input.name,
+        ref: `refs/heads/${input.defaultBranch}`,
+        sha: commit.data.sha,
+      });
       await octo.rest.repos.update({
         owner: input.org,
         repo: input.name,
         default_branch: input.defaultBranch,
       });
+      await octo.rest.git
+        .deleteRef({ owner: input.org, repo: input.name, ref: `heads/${autoBranch}` })
+        .catch(() => {});
     }
     ctx.logger.info(`publish:github pushed ${fileCount} files to ${input.defaultBranch}`);
 
