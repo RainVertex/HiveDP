@@ -11,7 +11,7 @@ interface DefaultTemplateSpec {
   description: string;
   tags: string[];
   type: string;
-  catalogKind: "service" | "website";
+  catalogKind: "service" | "website" | "api" | "library";
 }
 
 const SKELETON_REPO = "RainVertex/scaffolder-templates";
@@ -122,6 +122,33 @@ const SPECS: DefaultTemplateSpec[] = [
     tags: ["typescript", "cms", "strapi", "react"],
     type: "service",
     catalogKind: "service",
+  },
+  {
+    identifier: "next-ts-app",
+    title: "Next.js app (App Router + TypeScript)",
+    description:
+      "A Next.js App Router app in TypeScript with a typed API route, pushed to a new GitHub repository and registered in the catalog.",
+    tags: ["recommended", "typescript", "react", "nextjs", "fullstack"],
+    type: "website",
+    catalogKind: "website",
+  },
+  {
+    identifier: "ts-library",
+    title: "TypeScript library (tsup)",
+    description:
+      "A publishable TypeScript npm package built with tsup, pushed to a new GitHub repository and registered in the catalog.",
+    tags: ["recommended", "typescript", "library", "package"],
+    type: "library",
+    catalogKind: "library",
+  },
+  {
+    identifier: "graphql-ts-api",
+    title: "GraphQL API (TypeScript + GraphQL Yoga)",
+    description:
+      "A TypeScript GraphQL API built on GraphQL Yoga with a typed schema and a Dockerfile, pushed to a new GitHub repository and registered in the catalog.",
+    tags: ["recommended", "typescript", "graphql", "api"],
+    type: "graphql",
+    catalogKind: "api",
   },
 ];
 
