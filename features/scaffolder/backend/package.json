@@ -23,8 +23,8 @@
     "@internal/scaffolder-templates-yaml-adapter": "0.1.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "express": "^5.2.1",
+    "nanotar": "^0.3.0",
     "octokit": "^5.0.5",
-    "simple-git": "^3.36.0",
     "yaml": "^2.8.3",
     "zod": "^4.3.6"
   },

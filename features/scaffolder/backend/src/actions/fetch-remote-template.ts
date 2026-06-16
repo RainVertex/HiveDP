@@ -1,14 +1,12 @@
-// fetch:remote-template: clones a skeleton from a GitHub repo at a ref into a temp dir outside the
-// workspace (so publish steps never commit it), then renders it into the workspace via Nunjucks.
-import { promises as fs } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve, sep } from "node:path";
+// fetch:remote-template: downloads a skeleton from a GitHub repo as a tarball, extracts and renders it
+// in memory, then writes only the rendered output into the workspace (skeleton bytes never touch disk).
 import { z } from "zod";
-import simpleGit, { type SimpleGit } from "simple-git";
+import { parseTarGzip } from "nanotar";
 import {
   renderSkeletonInto,
   type Action,
   type Mutation,
+  type SkeletonFile,
   type WriteCtx,
 } from "@internal/scaffolder-core";
 
@@ -21,7 +19,7 @@ const fetchRemoteTemplateInput = z.object({
     .string()
     .min(1)
     .optional()
-    .describe("Branch or tag to clone, pin to a tag for reproducible plans"),
+    .describe("Branch or tag to fetch, pin to a tag for reproducible plans"),
   path: z
     .string()
     .default(".")
@@ -45,21 +43,24 @@ const fetchRemoteTemplateInput = z.object({
 
 type FetchRemoteTemplateInput = z.infer<typeof fetchRemoteTemplateInput>;
 
-const CLONE_PREFIX = "scaffolder-skeleton-";
-
-// Keep the rendered subtree inside the clone, never above it.
-function resolveSkeletonRoot(cloneDir: string, subPath: string): string {
-  const root = resolve(cloneDir, subPath);
-  if (root !== cloneDir && !root.startsWith(cloneDir + sep)) {
-    throw new Error(`fetch:remote-template path escapes the repo: ${subPath}`);
+function normalizeSubPath(path: string): string {
+  const trimmed = path === "." ? "" : path.replace(/^\/+|\/+$/g, "");
+  if (trimmed.split("/").includes("..")) {
+    throw new Error(`fetch:remote-template path escapes the repo: ${path}`);
   }
-  return root;
+  return trimmed;
+}
+
+// GitHub wraps tarball contents in a generated "owner-repo-<sha>/" top-level directory.
+function stripArchivePrefix(name: string): string {
+  const slash = name.indexOf("/");
+  return slash === -1 ? "" : name.slice(slash + 1);
 }
 
 export const fetchRemoteTemplateAction: Action<FetchRemoteTemplateInput, { files: string[] }> = {
   id: "fetch:remote-template",
   description:
-    "Clone a skeleton from a GitHub repo at a ref and render it into the workspace via Nunjucks.",
+    "Download a skeleton from a GitHub repo at a ref and render it into the workspace via Nunjucks.",
   schema: fetchRemoteTemplateInput,
   capabilities: ["fs:write", "repo:read", "network:external", "secrets:read:GITHUB_TOKEN"],
   async match() {
@@ -74,53 +75,66 @@ export const fetchRemoteTemplateAction: Action<FetchRemoteTemplateInput, { files
   async apply(input, ctx: WriteCtx) {
     const at = input.ref ? `@${input.ref}` : "";
     if (ctx.dryRun) {
-      ctx.logger.info(`[dry-run] fetch:remote-template would clone ${input.repo}${at}`);
+      ctx.logger.info(`[dry-run] fetch:remote-template would fetch ${input.repo}${at}`);
       return { output: { files: [] }, compensation: { kind: "noop", reason: "dry run" } };
     }
 
+    const [owner, repo] = input.repo.split("/");
     const token = ctx.secrets.tryRead(input.tokenSecret);
-    const remoteUrl = `https://github.com/${input.repo}.git`;
-    const cloneUrl = token
-      ? remoteUrl.replace(/^https:\/\//, `https://x-access-token:${token}@`)
-      : remoteUrl;
-
-    const cloneDir = await fs.mkdtemp(join(tmpdir(), CLONE_PREFIX));
-    try {
-      const cloneArgs = ["--depth", "1", "--single-branch"];
-      if (input.ref) cloneArgs.push("--branch", input.ref);
-      const git: SimpleGit = simpleGit();
-      await git.clone(cloneUrl, cloneDir, cloneArgs);
-      // Drop git metadata so a path of "." never renders the repo's .git into the workspace.
-      await fs.rm(join(cloneDir, ".git"), { recursive: true, force: true });
-
-      const skeletonRoot = resolveSkeletonRoot(cloneDir, input.path);
-      const stat = await fs.stat(skeletonRoot).catch(() => null);
-      if (!stat?.isDirectory()) {
-        throw new Error(
-          `fetch:remote-template: path "${input.path}" not found in ${input.repo}${at}`,
-        );
-      }
-
-      const written = await renderSkeletonInto({
-        skeletonPath: skeletonRoot,
-        values: input.values,
-        skipRender: input.skipRender,
-        pathSubstitutions: input.pathSubstitutions,
-        workspacePath: ctx.workspacePath,
-        dryRun: false,
-        signal: ctx.signal,
-        logger: ctx.logger,
-      });
-      ctx.logger.info(
-        `fetch:remote-template rendered ${written.length} files from ${input.repo}${at}`,
+    const refPath = input.ref ? "/" + input.ref.split("/").map(encodeURIComponent).join("/") : "";
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/tarball${refPath}`, {
+      headers: {
+        "User-Agent": "scaffolder-fetch-remote-template",
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      signal: ctx.signal,
+    });
+    if (!res.ok) {
+      throw new Error(
+        `fetch:remote-template: GitHub returned ${res.status} for ${input.repo}${at}`,
       );
-      return {
-        output: { files: written },
-        compensation: { kind: "noop", reason: "workspace cleared by executor" },
-      };
-    } finally {
-      await fs.rm(cloneDir, { recursive: true, force: true });
     }
+    const archive = new Uint8Array(await res.arrayBuffer());
+
+    const subPath = normalizeSubPath(input.path);
+    const entries = await parseTarGzip(archive);
+    const files: SkeletonFile[] = [];
+    for (const entry of entries) {
+      if (entry.type !== "file") continue;
+      const full = stripArchivePrefix(entry.name);
+      if (!full) continue;
+      if (subPath) {
+        if (!full.startsWith(`${subPath}/`)) continue;
+        files.push({ relativePath: full.slice(subPath.length + 1), source: entry.text });
+      } else {
+        files.push({ relativePath: full, source: entry.text });
+      }
+    }
+
+    if (subPath && files.length === 0) {
+      throw new Error(
+        `fetch:remote-template: path "${input.path}" not found in ${input.repo}${at}`,
+      );
+    }
+
+    const written = await renderSkeletonInto({
+      files,
+      values: input.values,
+      skipRender: input.skipRender,
+      pathSubstitutions: input.pathSubstitutions,
+      workspacePath: ctx.workspacePath,
+      dryRun: false,
+      signal: ctx.signal,
+      logger: ctx.logger,
+    });
+    ctx.logger.info(
+      `fetch:remote-template rendered ${written.length} files from ${input.repo}${at}`,
+    );
+    return {
+      output: { files: written },
+      compensation: { kind: "noop", reason: "workspace cleared by executor" },
+    };
   },
 };
 

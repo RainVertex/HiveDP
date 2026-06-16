@@ -1,55 +1,12 @@
-// Action that renders a skeleton directory into the workspace via Nunjucks.
+// Shared skeleton renderer: renders an in-memory list of skeleton files into the workspace via Nunjucks.
 
 import { promises as fs } from "node:fs";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
-import { z } from "zod";
 import { hasTemplating, renderTemplate } from "../render";
-import type { Mutation } from "../types";
-import { makeUnifiedDiff } from "../diff";
-import type { Action, ReadCtx, WriteCtx } from "./types";
 
-const fetchTemplateInput = z.object({
-  // Absolute path so this action stays filesystem-agnostic.
-  skeletonPath: z.string().min(1).describe("Absolute path of the skeleton directory to render"),
-  values: z
-    .record(z.string(), z.unknown())
-    .describe("Values exposed to skeleton files as ${{ values.* }}"),
-  // Substring-matched files copied verbatim (skip Nunjucks); useful for binary fixtures.
-  skipRender: z
-    .array(z.string())
-    .optional()
-    .describe("Substring-matched files copied verbatim without rendering"),
-  // Filename markers like __PASCAL__ since filenames cannot hold Nunjucks expressions on Windows.
-  pathSubstitutions: z
-    .record(z.string(), z.string())
-    .optional()
-    .describe("Filename marker replacements, e.g. __PASCAL__"),
-});
-
-type FetchInput = z.infer<typeof fetchTemplateInput>;
-
-interface SkeletonFile {
+export interface SkeletonFile {
   relativePath: string;
   source: string;
-}
-
-async function readSkeleton(skeletonPath: string): Promise<SkeletonFile[]> {
-  const out: SkeletonFile[] = [];
-  async function walk(dir: string): Promise<void> {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const abs = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(abs);
-      } else if (entry.isFile()) {
-        const source = await fs.readFile(abs, "utf8");
-        out.push({ relativePath: relative(skeletonPath, abs), source });
-      }
-    }
-  }
-  await walk(skeletonPath);
-  out.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
-  return out;
 }
 
 function shouldSkipRender(relPath: string, skipRender?: string[]): boolean {
@@ -74,18 +31,18 @@ function renderRelativePath(
 
 function ensureWorkspaceRelative(workspacePath: string, requested: string): string {
   if (isAbsolute(requested)) {
-    throw new Error(`fetch:template output path must be relative: ${requested}`);
+    throw new Error(`skeleton output path must be relative: ${requested}`);
   }
   const abs = join(workspacePath, requested);
   const rel = relative(workspacePath, abs);
   if (rel.startsWith("..") || rel.split(sep).includes("..")) {
-    throw new Error(`fetch:template output path escapes workspace: ${requested}`);
+    throw new Error(`skeleton output path escapes workspace: ${requested}`);
   }
   return abs;
 }
 
 export interface RenderSkeletonOptions {
-  skeletonPath: string;
+  files: SkeletonFile[];
   values: Record<string, unknown>;
   skipRender?: string[];
   pathSubstitutions?: Record<string, string>;
@@ -95,12 +52,10 @@ export interface RenderSkeletonOptions {
   logger: { info(msg: string): void };
 }
 
-// Walks a local skeleton dir, renders each file via Nunjucks and writes it into the workspace.
-// Shared by fetch:template and any action that first stages a skeleton onto local disk.
+// Renders an in-memory skeleton file list via Nunjucks and writes each result into the workspace.
 export async function renderSkeletonInto(opts: RenderSkeletonOptions): Promise<string[]> {
-  const files = await readSkeleton(opts.skeletonPath);
   const written: string[] = [];
-  for (const f of files) {
+  for (const f of opts.files) {
     if (opts.signal.aborted) throw new Error("cancelled");
     const outRel = renderRelativePath(f.relativePath, opts.values, opts.pathSubstitutions);
     const outAbs = ensureWorkspaceRelative(opts.workspacePath, outRel);
@@ -118,48 +73,3 @@ export async function renderSkeletonInto(opts: RenderSkeletonOptions): Promise<s
   }
   return written;
 }
-
-export const fetchTemplateAction: Action<FetchInput, { files: string[] }> = {
-  id: "fetch:template",
-  description: "Renders a skeleton directory into the workspace via Nunjucks.",
-  schema: fetchTemplateInput,
-  capabilities: ["fs:write"],
-  async match() {
-    return "absent";
-  },
-  async diff(input, _ctx: ReadCtx) {
-    const files = await readSkeleton(input.skeletonPath);
-    const mutations: Mutation[] = [];
-    for (const f of files) {
-      const outPath = renderRelativePath(f.relativePath, input.values, input.pathSubstitutions);
-      const rendered = shouldSkipRender(f.relativePath, input.skipRender)
-        ? f.source
-        : renderTemplate(f.source, input.values);
-      mutations.push({
-        kind: "fs.write",
-        path: outPath,
-        contentDiff: makeUnifiedDiff(null, rendered, outPath),
-      });
-    }
-    return mutations;
-  },
-  async apply(input, ctx: WriteCtx) {
-    const written = await renderSkeletonInto({
-      skeletonPath: input.skeletonPath,
-      values: input.values,
-      skipRender: input.skipRender,
-      pathSubstitutions: input.pathSubstitutions,
-      workspacePath: ctx.workspacePath,
-      dryRun: ctx.dryRun,
-      signal: ctx.signal,
-      logger: ctx.logger,
-    });
-    return {
-      output: { files: written },
-      // Executor disposes the whole workspace, so no per-file compensation is needed.
-      compensation: { kind: "noop", reason: "workspace cleared by executor" },
-    };
-  },
-};
-
-export { fetchTemplateInput };
