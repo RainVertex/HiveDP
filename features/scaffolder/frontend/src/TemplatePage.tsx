@@ -16,7 +16,11 @@ import {
   schemaUsesGithubOrgs,
   withGithubOrgEnum,
 } from "./githubOrgField";
-import { schemaUsesPlatformTeams, withPlatformTeamsOneOf } from "./platformTeamsField";
+import {
+  platformTeamsUiSchema,
+  schemaUsesPlatformTeams,
+  withPlatformTeamsOneOf,
+} from "./platformTeamsField";
 
 export function TemplatePage() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -42,6 +46,10 @@ export function TemplatePage() {
     () =>
       withPlatformTeamsOneOf(withGithubOrgEnum(schema, orgLogins ?? []), teams ?? [], selectedOrg),
     [schema, orgLogins, teams, selectedOrg],
+  );
+  const effectiveUiSchema = useMemo(
+    () => ({ ...uiSchema, ...platformTeamsUiSchema(schema) }),
+    [uiSchema, schema],
   );
 
   useEffect(() => {
@@ -157,7 +165,7 @@ export function TemplatePage() {
         )}
         <Form
           schema={effectiveSchema as RJSFSchema}
-          uiSchema={uiSchema as UiSchema}
+          uiSchema={effectiveUiSchema as UiSchema}
           formData={formData}
           validator={validator}
           templates={themeTemplates}

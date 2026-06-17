@@ -80,6 +80,7 @@ spec:
         values:
           name: \${{ parameters.name }}
           description: \${{ parameters.description }}
+          owners: \${{ parameters.owners }}
     - id: publish
       name: Create GitHub repository
       action: publish:github

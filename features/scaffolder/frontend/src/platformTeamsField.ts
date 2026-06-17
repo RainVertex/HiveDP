@@ -16,6 +16,19 @@ export function schemaUsesPlatformTeams(schema: SchemaObject | null | undefined)
   return Object.values(schema.properties).some((p) => isObject(p) && p[MARKER] === true);
 }
 
+// Forces the marked array field to render as checkboxes. Without this RJSF falls back to a single
+// select for an array of enums, which yields a string value and an AJV "must be array" error.
+export function platformTeamsUiSchema(schema: SchemaObject | null | undefined): SchemaObject {
+  if (!isObject(schema) || !isObject(schema.properties)) return {};
+  const ui: SchemaObject = {};
+  for (const [key, value] of Object.entries(schema.properties)) {
+    if (isObject(value) && value[MARKER] === true) {
+      ui[key] = { "ui:widget": "checkboxes" };
+    }
+  }
+  return ui;
+}
+
 // Drops the marker so AJV never sees a custom keyword, and injects a oneOf of { const: id, title: name }
 // into the array item schema for teams in the selected org. With no org or no matching teams the option
 // list is empty and the field renders no choices.
