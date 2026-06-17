@@ -1,12 +1,25 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalDependencies": ["tsconfig.json", "eslint.config.mjs", ".env", ".env.local"],
+  "globalDependencies": ["tsconfig.json", "eslint.config.mjs"],
   "globalEnv": [
     "NODE_ENV",
     "DATABASE_URL",
     "SESSION_SECRET",
+
+    "WEB_PORT",
+    "API_PORT",
+    "WEB_ORIGIN",
+    "AUTH_CALLBACK_URL",
+
     "GITHUB_CLIENT_ID",
-    "GITHUB_CLIENT_SECRET"
+    "GITHUB_CLIENT_SECRET",
+
+    "GITHUB_APP_ID",
+    "GITHUB_APP_CLIENT_ID",
+    "GITHUB_APP_CLIENT_SECRET",
+    "GITHUB_APP_SLUG",
+
+    "LOG_LEVEL"
   ],
   "ui": "stream",
   "tasks": {
