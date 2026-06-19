@@ -1,7 +1,7 @@
 // Notifications REST API plus the transactional notify() fan-out helper.
 import { Router } from "express";
 import { Prisma, prisma } from "@internal/db";
-import type { NotificationDto } from "@feature/notifications-shared";
+import type { NotificationDto, NotificationKind } from "@feature/notifications-shared";
 
 export const notificationsRouter: Router = Router();
 
@@ -14,7 +14,7 @@ function toDto(n: {
 }): NotificationDto {
   return {
     id: n.id,
-    kind: n.kind,
+    kind: n.kind as NotificationKind,
     payload: (n.payload as Record<string, unknown>) ?? {},
     readAt: n.readAt ? n.readAt.toISOString() : null,
     createdAt: n.createdAt.toISOString(),
@@ -100,7 +100,7 @@ export async function notify(
   tx: Prisma.TransactionClient,
   args: {
     recipientUserId: string;
-    kind: string;
+    kind: NotificationKind;
     payload: Record<string, unknown>;
     // Optional team scope so team-scoped webhooks fire on team events.
     teamId?: string | null;

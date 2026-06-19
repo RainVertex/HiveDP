@@ -10,13 +10,6 @@ const POLL_INTERVAL_MS = 30_000;
 
 function notificationHref(n: NotificationDto): string | null {
   const p = n.payload as Record<string, unknown>;
-  // *.submitted routes to the approver inbox, everything else to requester status.
-  if (n.kind === "team.request.submitted" || n.kind === "team.maintainer_request.submitted") {
-    return "/approvals/team";
-  }
-  if (n.kind.startsWith("team.request.") || n.kind.startsWith("team.maintainer_request.")) {
-    return "/requests/team";
-  }
   if (typeof p.teamSlug === "string") return `/teams/${p.teamSlug}`;
   if (n.kind.startsWith("projects.")) {
     return typeof p.taskId === "string" ? `/tasks/${p.taskId}` : "/projects";
@@ -26,47 +19,6 @@ function notificationHref(n: NotificationDto): string | null {
 
 function notificationSummary(n: NotificationDto, t: TFunction): string {
   switch (n.kind) {
-    case "team.request.submitted": {
-      const name = (n.payload as Record<string, unknown>).requestedByDisplayName;
-      return typeof name === "string"
-        ? t("bellSummary.teamRequestSubmittedBy", { name })
-        : t("bellSummary.teamRequestSubmitted");
-    }
-    case "team.request.approved":
-      return t("bellSummary.teamRequestApproved");
-    case "team.request.rejected": {
-      const reason = (n.payload as Record<string, unknown>).reason;
-      return typeof reason === "string"
-        ? t("bellSummary.teamRequestRejectedWithReason", { reason })
-        : t("bellSummary.teamRequestRejected");
-    }
-    case "team.request.changes_proposed":
-      return t("bellSummary.teamRequestChangesProposed");
-    case "team.request.counter_proposed": {
-      const name = (n.payload as Record<string, unknown>).requestedByDisplayName;
-      return typeof name === "string"
-        ? t("bellSummary.teamRequestCounterProposedBy", { name })
-        : t("bellSummary.teamRequestCounterProposed");
-    }
-    case "team.request.auto_cancelled":
-      return t("bellSummary.teamRequestAutoCancelled");
-    case "team.request.expired":
-      return t("bellSummary.teamRequestExpired");
-    case "team.maintainer_request.submitted": {
-      const name = (n.payload as Record<string, unknown>).requestedByDisplayName;
-      const teamName = (n.payload as Record<string, unknown>).teamName;
-      return typeof name === "string" && typeof teamName === "string"
-        ? t("bellSummary.maintainerRequestSubmittedBy", { name, teamName })
-        : t("bellSummary.maintainerRequestSubmitted");
-    }
-    case "team.maintainer_request.approved":
-      return t("bellSummary.maintainerRequestApproved");
-    case "team.maintainer_request.rejected": {
-      const reason = (n.payload as Record<string, unknown>).reason;
-      return typeof reason === "string"
-        ? t("bellSummary.maintainerRequestRejectedWithReason", { reason })
-        : t("bellSummary.maintainerRequestRejected");
-    }
     case "team.member.added":
       return t("bellSummary.memberAdded");
     case "team.member.removed":

@@ -12,7 +12,6 @@ import { featureManifest as observabilityManifest } from "@feature/observability
 import { featureManifest as onboardingManifest } from "@feature/onboarding-backend";
 import { featureManifest as pagesManifest } from "@feature/pages-backend";
 import { featureManifest as projectsManifest } from "@feature/projects-backend";
-import { featureManifest as requestsManifest } from "@feature/requests-backend";
 import { featureManifest as scaffolderManifest } from "@feature/scaffolder-backend";
 import { featureManifest as searchManifest } from "@feature/search-backend";
 import { featureManifest as teamsManifest } from "@feature/teams-backend";
@@ -30,7 +29,6 @@ export const featureRegistry: FeatureManifestSource[] = [
   onboardingManifest,
   pagesManifest,
   projectsManifest,
-  requestsManifest,
   scaffolderManifest,
   searchManifest,
   teamsManifest,

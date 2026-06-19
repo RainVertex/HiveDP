@@ -1,6 +1,5 @@
-// Scheduled team jobs: request/maintainer-request expiration, hard delete, GitHub reconciliation.
+// Scheduled team jobs: hard delete of soft-deleted teams and GitHub reconciliation.
 import { prisma } from "@internal/db";
-import { notify } from "@feature/notifications-backend/contract";
 import { expirePendingMemberships, runReconciliation } from "@feature/catalog-backend/contract";
 
 export interface TeamJobLogger {
@@ -17,127 +16,6 @@ export interface TeamJobDefinition {
   schedule: string;
   timeoutMs?: number;
   handler: (ctx: TeamJobContext) => Promise<void>;
-}
-
-export function teamRequestExpirationJob(): TeamJobDefinition {
-  return {
-    name: "teams.requestExpiration",
-    schedule: "5 * * * *",
-    timeoutMs: 5 * 60 * 1000,
-    handler: async ({ log, signal }) => {
-      const now = new Date();
-      const due = await prisma.teamRequest.findMany({
-        // Both states are an open negotiation the cron sweeps when its TTL elapses.
-        where: {
-          status: { in: ["pending", "awaiting_user_confirmation"] },
-          expiresAt: { lt: now },
-        },
-        select: {
-          id: true,
-          slug: true,
-          requestedByUserId: true,
-        },
-        take: 500,
-      });
-
-      if (due.length === 0) {
-        log.info({ count: 0 }, "No expired team requests");
-        return;
-      }
-
-      let count = 0;
-      for (const r of due) {
-        if (signal.aborted) break;
-        await prisma.$transaction(async (tx) => {
-          await tx.teamRequest.update({
-            where: { id: r.id },
-            data: { status: "expired", reviewedAt: now },
-          });
-          await tx.auditEvent.create({
-            data: {
-              actorUserId: null,
-              kind: "team.request.expired",
-              targetKind: "teamRequest",
-              targetId: r.id,
-              payload: {
-                requestId: r.id,
-                slug: r.slug,
-                requestedByUserId: r.requestedByUserId,
-              },
-            },
-          });
-          await notify(tx, {
-            recipientUserId: r.requestedByUserId,
-            kind: "team.request.expired",
-            payload: { requestId: r.id, slug: r.slug },
-          });
-        });
-        count++;
-      }
-      log.info({ count }, "Expired team requests");
-    },
-  };
-}
-
-export function maintainerRequestExpirationJob(): TeamJobDefinition {
-  return {
-    name: "teams.maintainerRequestExpiration",
-    schedule: "10 * * * *",
-    timeoutMs: 5 * 60 * 1000,
-    handler: async ({ log, signal }) => {
-      const now = new Date();
-      const due = await prisma.maintainerRequest.findMany({
-        where: { status: "pending", expiresAt: { lt: now } },
-        select: {
-          id: true,
-          teamId: true,
-          requestedByUserId: true,
-          team: { select: { slug: true } },
-        },
-        take: 500,
-      });
-      if (due.length === 0) {
-        log.info({ count: 0 }, "No expired maintainer requests");
-        return;
-      }
-      let count = 0;
-      for (const r of due) {
-        if (signal.aborted) break;
-        await prisma.$transaction(async (tx) => {
-          await tx.maintainerRequest.update({
-            where: { id: r.id },
-            data: { status: "expired", reviewedAt: now },
-          });
-          await tx.auditEvent.create({
-            data: {
-              actorUserId: null,
-              kind: "team.maintainer_request.expired",
-              targetKind: "maintainerRequest",
-              targetId: r.id,
-              payload: {
-                requestId: r.id,
-                teamId: r.teamId,
-                teamSlug: r.team.slug,
-                requestedByUserId: r.requestedByUserId,
-              },
-            },
-          });
-          await notify(tx, {
-            recipientUserId: r.requestedByUserId,
-            kind: "team.maintainer_request.expired",
-            payload: {
-              requestId: r.id,
-              teamId: r.teamId,
-              teamSlug: r.team.slug,
-            },
-            teamId: r.teamId,
-          });
-        });
-        count++;
-      }
-      log.info({ count }, "Expired maintainer requests");
-    },
-  };
 }
 
 /** Daily: hard-delete soft-deleted Teams older than 30 days. */
@@ -237,10 +115,5 @@ export function githubTeamReconciliationJob(): TeamJobDefinition {
 }
 
 export function getTeamJobs(): TeamJobDefinition[] {
-  return [
-    teamRequestExpirationJob(),
-    maintainerRequestExpirationJob(),
-    teamHardDeleteJob(),
-    githubTeamReconciliationJob(),
-  ];
+  return [teamHardDeleteJob(), githubTeamReconciliationJob()];
 }

@@ -11,7 +11,6 @@ import { featureRoutes as observabilityRoutes } from "@feature/observability-fro
 import { featureRoutes as scaffolderRoutes } from "@feature/scaffolder-frontend";
 import { featureRoutes as searchRoutes } from "@feature/search-frontend";
 import { featureRoutes as teamsRoutes } from "@feature/teams-frontend";
-import { featureRoutes as requestsRoutes } from "@feature/requests-frontend";
 import { featureRoutes as notificationsRoutes } from "@feature/notifications-frontend";
 import { featureRoutes as projectsRoutes } from "@feature/projects-frontend";
 import { featureRoutes as webhooksRoutes } from "@feature/webhooks-frontend";
@@ -33,7 +32,6 @@ export function buildFeatureRoutes(ctx: FeatureRoutesContext): RouteObject[] {
     ...scaffolderRoutes,
     ...searchRoutes,
     ...teamsRoutes,
-    ...requestsRoutes,
     ...notificationsRoutes,
     ...projectsRoutes,
     ...webhooksRoutes,

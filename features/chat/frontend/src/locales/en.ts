@@ -29,7 +29,7 @@ export const en = {
   },
   welcome: {
     title: "Welcome to the Assistant",
-    body: "Ask about your work, teams, catalog entities, requests, or anything readable in the app. You can also start a team-creation request directly here.",
+    body: "Ask about your work, teams, catalog entities, or anything readable in the app.",
   },
   message: {
     youFallback: "You",

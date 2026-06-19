@@ -12,7 +12,6 @@ export function sectionFromPath(pathname: string): SidebarSection {
   if (path.startsWith("/p/")) return "home";
   if (path.startsWith("/catalog") || path.startsWith("/scorecards")) return "catalog";
   if (path.startsWith("/scaffolder") || path.startsWith("/self-service")) return "selfservice";
-  if (path.startsWith("/requests") || path.startsWith("/approvals")) return "requests";
   if (path.startsWith("/skills")) return "skills";
   if (path.startsWith("/agents")) return "agents";
   if (path.startsWith("/search")) return "catalog";

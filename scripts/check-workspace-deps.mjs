@@ -2,15 +2,18 @@
 // Two checks dependency-cruiser cannot do natively, run as one architecture gate.
 // 1. Declared-dependency integrity: every @feature/* or @internal/* a package imports must be in its package.json deps.
 //    Catches "phantom coupling" where the dependency graph in package.json understates the real coupling.
-// 2. Fan-in budget: a feature backend that too many other feature backends depend on becomes a cross-team bottleneck.
-//    Flag it so adding the next inbound edge is a conscious decision, not an accident.
+// 2. Fan-in budget: a feature package too many sibling features (same layer) depend on becomes a cross-team bottleneck.
+//    Checked per layer (backend, frontend) so the next inbound edge is a conscious decision, not an accident.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "..", "..");
-// catalog-backend is the org-visibility/access-control authority; consumers use its narrow /contract barrel.
-const FANIN_BUDGET = 6;
+// Fan-in budget per layer: flag a feature too many sibling features depend on, before it becomes a bottleneck.
+const FANIN_LAYERS = [
+  { suffix: "-backend", budget: 6 },
+  { suffix: "-frontend", budget: 6 },
+];
 
 // Collects every workspace package.json under the given roots.
 function findPackages() {
@@ -93,21 +96,24 @@ for (const { name, dir, pkg } of pkgs) {
   }
 }
 
-// Fan-in over declared feature-backend to feature-backend edges only.
-const fanIn = new Map();
-for (const { pkg } of pkgs) {
-  if (!/-backend$/.test(pkg.name)) continue;
-  for (const dep of Object.keys(pkg.dependencies ?? {})) {
-    if (/^@feature\/.*-backend$/.test(dep)) fanIn.set(dep, (fanIn.get(dep) ?? 0) + 1);
+// Fan-in over declared same-layer feature edges, one pass per layer.
+const overBudget = [];
+for (const { suffix, budget } of FANIN_LAYERS) {
+  const fanIn = new Map();
+  const depRe = new RegExp(`^@feature/.*${suffix}$`);
+  for (const { pkg } of pkgs) {
+    if (!pkg.name.endsWith(suffix)) continue;
+    for (const dep of Object.keys(pkg.dependencies ?? {})) {
+      if (depRe.test(dep)) fanIn.set(dep, (fanIn.get(dep) ?? 0) + 1);
+    }
   }
-}
-const overBudget = [...fanIn.entries()].filter(([, n]) => n > FANIN_BUDGET);
-
-const sortedFanIn = [...fanIn.entries()].sort((a, b) => b[1] - a[1]);
-if (sortedFanIn.length) {
-  console.log("Feature backend fan-in (inbound feature deps):");
-  for (const [dep, n] of sortedFanIn) console.log(`  ${n}  ${dep}`);
-  console.log(`  budget: ${FANIN_BUDGET}`);
+  const sorted = [...fanIn.entries()].sort((a, b) => b[1] - a[1]);
+  if (sorted.length) {
+    console.log(`Feature ${suffix.slice(1)} fan-in (inbound feature deps):`);
+    for (const [dep, n] of sorted) console.log(`  ${n}  ${dep}`);
+    console.log(`  budget: ${budget}`);
+  }
+  for (const [dep, n] of fanIn) if (n > budget) overBudget.push({ dep, n, budget });
 }
 
 let failed = false;
@@ -119,10 +125,10 @@ if (undeclared.length) {
 }
 if (overBudget.length) {
   failed = true;
-  console.error(`\nFan-in budget exceeded (> ${FANIN_BUDGET} inbound feature deps):`);
-  for (const [dep, n] of overBudget)
+  console.error("\nFan-in budget exceeded:");
+  for (const { dep, n, budget } of overBudget)
     console.error(
-      `  ${dep} has ${n} inbound feature deps. Consider a narrow contract barrel or splitting it.`,
+      `  ${dep} has ${n} inbound feature deps (budget ${budget}). Consider a narrow contract barrel or splitting it.`,
     );
 }
 

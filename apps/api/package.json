@@ -16,7 +16,6 @@
     "@feature/onboarding-backend": "0.1.0",
     "@feature/pages-backend": "0.1.0",
     "@feature/projects-backend": "0.1.0",
-    "@feature/requests-backend": "0.1.0",
     "@feature/scaffolder-backend": "0.1.0",
     "@feature/search-backend": "0.1.0",
     "@feature/teams-backend": "0.1.0",

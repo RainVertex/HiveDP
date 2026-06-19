@@ -41,7 +41,7 @@ Not: Tek bir gerçek boşluk, raw `prisma` üzerinden DB tablosu seviyesinde cou
 
 **Feature wiring: auto-discovery.** Shell, feature'ları elle mount/route etmez:
 
-- Her feature backend `featureManifest` export eder (`@internal/feature-host` tipinde): mount path, faz (`raw` json'dan önce, `preApi` /api auth zincirinden önce, `api` requireAuth altında), `order` ve isteğe bağlı `onBoot`. `apps/api/src/featureRegistry.ts` feature'ları bir kez listeler, `createServer` registry üzerinde sabit bir loop'tur ve hiçbir feature router'ını doğrudan import etmez. Mount sırası `order` ile ifade edilir (örneğin `/api/teams/requests` order 10, catch-all `/api/teams` order 90).
+- Her feature backend `featureManifest` export eder (`@internal/feature-host` tipinde): mount path, faz (`raw` json'dan önce, `preApi` /api auth zincirinden önce, `api` requireAuth altında), `order` ve isteğe bağlı `onBoot`. `apps/api/src/featureRegistry.ts` feature'ları bir kez listeler, `createServer` registry üzerinde sabit bir loop'tur ve hiçbir feature router'ını doğrudan import etmez. Mount sırası `order` ile ifade edilir (aynı önekte spesifik bir alt-router'ı catch-all'dan önce tutmak için).
 - Her feature frontend `featureRoutes` export eder (`RouteObject[]`, ya da shell-prop veya guard gerektirenler için bir factory, örneğin agents'ın `avatarPresets`'i ve integrations'ın `AdminRoute`'u). `apps/web/src/featureRoutes.ts` registry'yi kurar, `AppRoutes` bir `useRoutes` loop'udur. react-router route'ları spesifikliğe göre sıraladığı için path sırası önemli değildir.
 
 Yeni feature eklerken: backend'de `featureManifest`, frontend'de `featureRoutes` export et, iki registry dosyasına birer satır ekle. Mount/route mantığı feature'ın içinde yaşar, merkezi dosyalar sabit kalır.

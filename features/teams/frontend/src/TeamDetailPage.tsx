@@ -1,19 +1,13 @@
-// Team detail page: member management, role changes, ownership transfer, and maintainer requests.
+// Team detail page: member management, role changes, and ownership transfer.
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";
 import { useApi } from "@internal/api-client/react";
 import { useTranslation } from "@internal/i18n";
 import type { CurrentUser, UserSummary } from "@internal/shared-types";
-import type {
-  MaintainerRequestDto,
-  TeamDetail,
-  TeamMemberRole,
-  TeamSummary,
-} from "@feature/teams-shared";
+import type { TeamDetail, TeamMemberRole, TeamSummary } from "@feature/teams-shared";
 import { useTeamsApi } from "./client";
 import { UserPicker } from "./UserPicker";
-import { RequestMaintainerDialog } from "./RequestMaintainerDialog";
 
 export function TeamDetailPage() {
   const { slug = "" } = useParams<{ slug: string }>();
@@ -27,9 +21,6 @@ export function TeamDetailPage() {
   const [busy, setBusy] = useState(false);
   const [transferTarget, setTransferTarget] = useState<string>("");
   const [allTeams, setAllTeams] = useState<TeamSummary[]>([]);
-  const [pendingMaintainerRequest, setPendingMaintainerRequest] =
-    useState<MaintainerRequestDto | null>(null);
-  const [maintainerDialogOpen, setMaintainerDialogOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -41,23 +32,8 @@ export function TeamDetailPage() {
     }
   }, [teamsApi, slug, t]);
 
-  const loadMyMaintainerRequest = useCallback(
-    async (currentSlug: string) => {
-      try {
-        const r = await teamsApi.maintainerRequests.list();
-        const open =
-          r.items.find((m) => m.teamSlug === currentSlug && m.status === "pending") ?? null;
-        setPendingMaintainerRequest(open);
-      } catch {
-        setPendingMaintainerRequest(null);
-      }
-    },
-    [teamsApi],
-  );
-
   useEffect(() => {
     void load();
-    void loadMyMaintainerRequest(slug);
     api.auth
       .me()
       .then(setMe)
@@ -66,7 +42,7 @@ export function TeamDetailPage() {
       .list()
       .then((r) => setAllTeams(r.items))
       .catch(() => setAllTeams([]));
-  }, [api, teamsApi, load, loadMyMaintainerRequest, slug]);
+  }, [api, teamsApi, load]);
 
   if (error) {
     return (
@@ -87,8 +63,6 @@ export function TeamDetailPage() {
   const myMembership = team.members.find((m) => m.userId === me.id) ?? null;
   const isLead = myMembership?.role === "lead";
   const canManage = isAdmin || isLead;
-  // Admins promote via the role-picker, leads are already maintainers, non-members cannot request.
-  const canRequestMaintainer = !!myMembership && !isLead && !isAdmin;
 
   async function addMember(user: UserSummary) {
     setBusy(true);
@@ -163,21 +137,6 @@ export function TeamDetailPage() {
       description={team.description ?? team.slug}
       actions={
         <>
-          {canRequestMaintainer && !pendingMaintainerRequest && (
-            <button
-              type="button"
-              onClick={() => setMaintainerDialogOpen(true)}
-              disabled={busy}
-              className="rounded-md border border-app-border px-3 py-1 text-sm text-app-text hover:bg-app-surface-hover"
-            >
-              {t("actions.requestToBecomeMaintianer")}
-            </button>
-          )}
-          {canRequestMaintainer && pendingMaintainerRequest && (
-            <span className="rounded-md border border-app-border px-3 py-1 text-sm text-app-text-muted">
-              {t("status.maintainerRequestPending")}
-            </span>
-          )}
           {canManage && isAdmin && (
             <button
               type="button"
@@ -251,16 +210,6 @@ export function TeamDetailPage() {
           />
         </section>
       )}
-
-      <RequestMaintainerDialog
-        open={maintainerDialogOpen}
-        teamSlug={team.slug}
-        teamName={team.name}
-        onClose={() => setMaintainerDialogOpen(false)}
-        onSubmitted={(req) => {
-          setPendingMaintainerRequest(req);
-        }}
-      />
 
       {canManage && (
         <section className="mb-6">

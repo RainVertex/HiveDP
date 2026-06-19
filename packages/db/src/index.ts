@@ -107,11 +107,6 @@ export const notificationsDb = prisma as Pick<
   CoreModel | "notification" | "webhookSubscription" | "webhookDelivery" | Ops
 >;
 
-export const teamsDb = prisma as Pick<
-  PrismaClient,
-  CoreModel | "teamRequest" | "maintainerRequest" | "teamPolicy" | Ops
->;
-
 export const pagesDb = prisma as Pick<PrismaClient, CoreModel | "page" | Ops>;
 
 export * from "@prisma/client";

@@ -45,15 +45,11 @@ model User {
   starredEntities                 StarredEntity[]
   notifications                   Notification[]
   webhookSubscriptions            WebhookSubscription[]
-  teamRequestsSubmitted           TeamRequest[]           @relation("TeamRequestRequester")
-  teamRequestsReviewed            TeamRequest[]           @relation("TeamRequestReviewer")
   pages                           Page[]
   onboardingTasks                 UserTask[]
   departmentMemberships           DepartmentMembership[]
   templateAccessRequestsSubmitted TemplateAccessRequest[] @relation("TemplateAccessRequestRequester")
   templateAccessRequestsReviewed  TemplateAccessRequest[] @relation("TemplateAccessRequestReviewer")
-  maintainerRequestsSubmitted     MaintainerRequest[]     @relation("MaintainerRequestRequester")
-  maintainerRequestsReviewed      MaintainerRequest[]     @relation("MaintainerRequestReviewer")
   chatConversations               ChatConversation[]
   agentRuns                       AgentRun[]
   mcpOAuthTokens                  McpOAuthToken[]

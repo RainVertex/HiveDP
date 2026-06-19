@@ -27,32 +27,6 @@ export const KNOWN_ROUTES: KnownRoute[] = [
     section: "selfservice",
     adminOnly: true,
   },
-  {
-    path: "/self-service/request-team",
-    label: "Request a team",
-    labelKey: "route.requestTeam",
-    section: "selfservice",
-  },
-  {
-    path: "/self-service/request-maintainer",
-    label: "Request maintainership",
-    labelKey: "route.requestMaintainership",
-    section: "selfservice",
-  },
-
-  {
-    path: "/requests/team",
-    label: "My Requests",
-    labelKey: "route.myRequests",
-    section: "requests",
-  },
-  {
-    path: "/approvals/team",
-    label: "My Approvals",
-    labelKey: "route.myApprovals",
-    section: "requests",
-  },
-
   { path: "/agents", label: "Agents", labelKey: "route.agents", section: "agents" },
   { path: "/search", label: "Search", labelKey: "route.search", section: "catalog" },
 
@@ -93,21 +67,6 @@ export const KNOWN_ROUTES: KnownRoute[] = [
     section: "admin",
     adminOnly: true,
   },
-  {
-    path: "/admin/team-requests",
-    label: "Team requests",
-    labelKey: "route.teamRequests",
-    section: "admin",
-    adminOnly: true,
-  },
-  {
-    path: "/admin/team-policies",
-    label: "Team policies",
-    labelKey: "route.teamPolicies",
-    section: "admin",
-    adminOnly: true,
-  },
-
   { path: "/", label: "Home", labelKey: "route.home", section: "account" },
   { path: "/settings", label: "Settings", labelKey: "route.settings", section: "account" },
   {

@@ -1,22 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { PageLayout } from "@internal/shared-ui";
-import { useApi } from "@internal/api-client/react";
 import { useTranslation } from "@internal/i18n";
-import type { CurrentUser } from "@internal/shared-types";
 import type { TeamSummary } from "@feature/teams-shared";
 import { useTeamsApi } from "./client";
-import { RequestTeamDialog } from "./RequestTeamDialog";
 
 export function TeamsPage() {
-  const api = useApi();
   const teamsApi = useTeamsApi();
-  const navigate = useNavigate();
   const { t } = useTranslation("teams");
   const [items, setItems] = useState<TeamSummary[] | null>(null);
-  const [me, setMe] = useState<CurrentUser | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [requestOpen, setRequestOpen] = useState(false);
   const [showAllOrgs, setShowAllOrgs] = useState(false);
 
   const load = useCallback(async () => {
@@ -31,38 +24,10 @@ export function TeamsPage() {
 
   useEffect(() => {
     void load();
-    api.auth
-      .me()
-      .then(setMe)
-      .catch(() => setMe(null));
-  }, [api, load]);
-
-  const isAdmin = me?.role === "admin";
+  }, [load]);
 
   return (
-    <PageLayout
-      title={t("page.teamsTitle")}
-      description={t("page.teamsDescription")}
-      actions={
-        <>
-          <button
-            type="button"
-            onClick={() => setRequestOpen(true)}
-            className="rounded-md border border-app-border px-3 py-1 text-sm text-app-text hover:bg-app-surface-hover"
-          >
-            {t("actions.requestTeam")}
-          </button>
-          {isAdmin && (
-            <Link
-              to="/admin/team-requests"
-              className="rounded-md bg-app-primary px-3 py-1 text-sm text-app-primary-foreground"
-            >
-              {t("actions.reviewRequests")}
-            </Link>
-          )}
-        </>
-      }
-    >
+    <PageLayout title={t("page.teamsTitle")} description={t("page.teamsDescription")}>
       <label className="mb-3 flex cursor-pointer items-center gap-2 text-xs text-app-text-muted">
         <input
           type="checkbox"
@@ -117,18 +82,6 @@ export function TeamsPage() {
           ))}
         </ul>
       )}
-
-      <RequestTeamDialog
-        open={requestOpen}
-        onClose={() => setRequestOpen(false)}
-        onSubmitted={(createdTeamSlug) => {
-          if (createdTeamSlug) {
-            navigate(`/teams/${createdTeamSlug}`);
-          } else {
-            navigate("/teams/requests");
-          }
-        }}
-      />
     </PageLayout>
   );
 }

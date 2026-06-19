@@ -48,7 +48,6 @@ async function audit(
 const SECTIONS: ReadonlyArray<PageSection> = [
   "catalog",
   "selfservice",
-  "requests",
   "workspace",
   "teams",
   "observability",

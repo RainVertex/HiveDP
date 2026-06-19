@@ -27,15 +27,9 @@ export interface PageTreeCurrentUser {
   role: string;
 }
 
-export interface PageTreeRequestsSummary {
-  canApprove: boolean;
-  myApprovalsPending: number;
-}
-
 export interface PageTreeSidebarProps {
   section: PageSection;
   currentUser: PageTreeCurrentUser;
-  requestsSummary: PageTreeRequestsSummary | null;
 }
 
 interface TreeNode {
@@ -82,15 +76,8 @@ function saveExpanded(section: PageSection, set: Set<string>): void {
   }
 }
 
-export function PageTreeSidebar({ section, currentUser, requestsSummary }: PageTreeSidebarProps) {
-  return (
-    <SectionTree
-      key={section}
-      section={section}
-      currentUser={currentUser}
-      requestsSummary={requestsSummary}
-    />
-  );
+export function PageTreeSidebar({ section, currentUser }: PageTreeSidebarProps) {
+  return <SectionTree key={section} section={section} currentUser={currentUser} />;
 }
 
 interface CreateRequest {
@@ -101,17 +88,14 @@ interface CreateRequest {
 function SectionTree({
   section,
   currentUser,
-  requestsSummary,
 }: {
   section: PageSection;
   currentUser: PageTreeCurrentUser;
-  requestsSummary: PageTreeRequestsSummary | null;
 }) {
   const { t } = useTranslation("pages");
   const api = usePagesApi();
   const me = currentUser;
   const isAdmin = me.role === "admin";
-  const summary = requestsSummary;
   const [pages, setPages] = useState<PageDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(() => loadExpanded(section));
@@ -138,23 +122,17 @@ function SectionTree({
     };
   }, [api, section]);
 
-  const visiblePages = useMemo(() => {
-    if (section !== "requests") return pages;
-    const canApprove = summary?.canApprove === true;
-    return canApprove ? pages : pages.filter((p) => p.url !== "/approvals/team");
-  }, [pages, section, summary]);
-
-  const tree = useMemo(() => buildTree(visiblePages), [visiblePages]);
+  const tree = useMemo(() => buildTree(pages), [pages]);
   const siblingsByParent = useMemo(() => {
     const map = new Map<string | null, PageDto[]>();
-    for (const p of visiblePages) {
+    for (const p of pages) {
       const arr = map.get(p.parentId) ?? [];
       arr.push(p);
       map.set(p.parentId, arr);
     }
     for (const arr of map.values()) arr.sort((a, b) => a.order - b.order);
     return map;
-  }, [visiblePages]);
+  }, [pages]);
 
   const toggle = (id: string) => {
     setExpanded((prev) => {
@@ -295,7 +273,6 @@ function SectionTree({
                 onRenameCancel={() => setRenameId(null)}
                 menuOpenId={menuOpenId}
                 onMenuToggle={(id) => setMenuOpenId((prev) => (prev === id ? null : id))}
-                badgeForUrl={badgeForUrl(summary)}
               />
             ))}
           </ul>
@@ -346,17 +323,6 @@ interface NodeRowProps {
   onRenameCancel: () => void;
   menuOpenId: string | null;
   onMenuToggle: (id: string) => void;
-  badgeForUrl?: (url: string | null) => number;
-}
-
-function badgeForUrl(
-  summary: { myApprovalsPending: number } | null,
-): (url: string | null) => number {
-  return (url) => {
-    if (!summary) return 0;
-    if (url === "/approvals/team") return summary.myApprovalsPending;
-    return 0;
-  };
 }
 
 function pageHref(page: PageDto): string {
@@ -385,7 +351,6 @@ function NodeRow(props: NodeRowProps) {
     onRenameCancel,
     menuOpenId,
     onMenuToggle,
-    badgeForUrl,
   } = props;
   const { page } = node;
   const systemMatch = SYSTEM_PAGE_RE.exec(page.id);
@@ -395,7 +360,6 @@ function NodeRow(props: NodeRowProps) {
   // Localize a seeded page only while its title is still the original English, so user renames win.
   const displayTitle =
     systemKey && page.title === t(systemKey, { lng: "en" }) ? t(systemKey) : page.title;
-  const badgeCount = badgeForUrl?.(page.url) ?? 0;
   const isFolder = page.isFolder;
   const isOpen = expanded.has(page.id);
   const isRenaming = renameId === page.id;
@@ -482,11 +446,6 @@ function NodeRow(props: NodeRowProps) {
               <PageIcon />
             </span>
             <span className="truncate">{displayTitle}</span>
-            {badgeCount > 0 && (
-              <span className="ml-auto rounded-full bg-app-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-app-primary-foreground">
-                {badgeCount > 99 ? "99+" : badgeCount}
-              </span>
-            )}
           </NavLink>
         )}
 

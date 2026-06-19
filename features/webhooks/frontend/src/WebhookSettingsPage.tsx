@@ -6,19 +6,7 @@ import { useWebhooksApi } from "./client";
 import { useTranslation } from "@internal/i18n";
 import type { WebhookSubscriptionDto } from "@feature/webhooks-shared";
 
-const KNOWN_EVENT_KINDS = [
-  "team.member.added",
-  "team.member.removed",
-  "team.request.submitted",
-  "team.request.approved",
-  "team.request.rejected",
-  "team.request.changes_proposed",
-  "team.request.counter_proposed",
-  "team.request.auto_cancelled",
-  "team.request.expired",
-  "team.request.cancelled",
-  "webhook.ping",
-];
+const KNOWN_EVENT_KINDS = ["team.member.added", "team.member.removed", "webhook.ping"];
 
 interface WebhookSettingsPageProps {
   scope?: "user" | "team";

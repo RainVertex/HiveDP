@@ -34,7 +34,7 @@ export interface AuditPayloads {
     deploymentsUpserted: number;
     error: string | null;
   };
-  "team.created": { teamId: string; slug: string; viaRequestId?: string };
+  "team.created": { teamId: string; slug: string };
   "team.updated": {
     teamId: string;
     before: { slug: string; name: string; description: string | null };
@@ -60,45 +60,6 @@ export interface AuditPayloads {
     userId: string;
     previousRole: "lead" | "member";
     selfInitiated: boolean;
-  };
-  "team.request.submitted": {
-    requestId: string;
-    slug: string;
-    requestedByUserId: string;
-    mirrorToGithub: boolean;
-    githubIntegrationId: string | null;
-  };
-  "team.request.approved": {
-    requestId: string;
-    teamId: string;
-    reviewedByUserId: string;
-    mirroredToGithub: boolean;
-  };
-  "team.request.rejected": { requestId: string; reviewedByUserId: string; reason: string };
-  "team.request.expired": { requestId: string; slug: string; requestedByUserId: string };
-  "team.request.cancelled": { requestId: string; slug: string; requestedByUserId: string };
-  "team.request.changes_proposed": {
-    requestId: string;
-    slug: string;
-    reviewedByUserId: string;
-    roundCount: number;
-  };
-  "team.request.proposal_confirmed": { requestId: string; teamId: string };
-  "team.request.counter_proposed": {
-    requestId: string;
-    slug: string;
-    requestedByUserId: string;
-    roundCount: number;
-  };
-  "team.request.auto_cancelled": {
-    requestId: string;
-    slug: string;
-    reason: "round_limit";
-  };
-  "team.policy.updated": {
-    kind: string;
-    enabled: boolean;
-    configChanged: boolean;
   };
   "webhook.subscription.created": {
     subscriptionId: string;

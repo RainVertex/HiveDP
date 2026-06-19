@@ -13,19 +13,9 @@ import {
 } from "./helpers";
 
 export {
-  teamRequestsRouter,
-  createTeamRequest,
-  type CreateTeamRequestInput,
-  type CreateTeamRequestCtx,
-  type CreateTeamRequestResult,
-} from "./requests";
-export { maintainerRequestsRouter } from "./maintainerRequests";
-export { teamPoliciesRouter, runPolicies } from "./policies";
-export {
   getTeamJobs,
   githubTeamReconciliationJob,
   teamHardDeleteJob,
-  teamRequestExpirationJob,
   type TeamJobContext,
   type TeamJobDefinition,
   type TeamJobLogger,
@@ -578,19 +568,7 @@ teamsRouter.delete("/:slug/members/:userId", async (req, res, next) => {
 });
 
 import type { FeatureManifest } from "@internal/feature-host";
-import { teamRequestsRouter as teamRequestsRouterForManifest } from "./requests";
-import { maintainerRequestsRouter as maintainerRequestsRouterForManifest } from "./maintainerRequests";
-import { teamPoliciesRouter as teamPoliciesRouterForManifest } from "./policies";
 
 export const featureManifest: FeatureManifest = {
-  mounts: [
-    { path: "/api/teams/requests", router: teamRequestsRouterForManifest, order: 10 },
-    {
-      path: "/api/teams/maintainer-requests",
-      router: maintainerRequestsRouterForManifest,
-      order: 10,
-    },
-    { path: "/api/teams/policies", router: teamPoliciesRouterForManifest, order: 10 },
-    { path: "/api/teams", router: teamsRouter, order: 90 },
-  ],
+  mounts: [{ path: "/api/teams", router: teamsRouter }],
 };

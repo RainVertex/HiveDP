@@ -4,7 +4,6 @@ import type { ID, ISODateString } from "@internal/shared-types";
 export type PageSection =
   | "catalog"
   | "selfservice"
-  | "requests"
   | "workspace"
   | "teams"
   | "observability"

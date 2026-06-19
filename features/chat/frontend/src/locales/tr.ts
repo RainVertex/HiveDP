@@ -32,7 +32,7 @@ export const tr: ChatResources = {
   },
   welcome: {
     title: "Asistana Hoş Geldiniz",
-    body: "Çalışmalarınız, takımlarınız, katalog varlıkları, talepler veya uygulamada okunabilir herhangi bir şey hakkında soru sorabilirsiniz. Ayrıca doğrudan buradan bir takım oluşturma talebi başlatabilirsiniz.",
+    body: "Çalışmalarınız, takımlarınız, katalog varlıkları veya uygulamada okunabilir herhangi bir şey hakkında soru sorabilirsiniz.",
   },
   message: {
     youFallback: "Siz",

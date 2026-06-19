@@ -3,27 +3,6 @@ enum TeamMemberRole {
   member
 }
 
-enum TeamRequestStatus {
-  pending
-  awaiting_user_confirmation
-  approved
-  rejected
-  expired
-  cancelled
-}
-
-enum MaintainerRequestStatus {
-  pending
-  approved
-  rejected
-  expired
-  cancelled
-}
-
-enum TeamPolicyKind {
-  name_pattern
-}
-
 // Origin of a Team row. Manual teams are created via the platform UI,
 // github teams are imported by the GitHub App reconciliation pipeline and
 // keyed on (source, externalId) where externalId is the GitHub team
@@ -65,8 +44,6 @@ model Team {
   catalogOwnerships    CatalogEntityOwner[]
   catalogTeamGrants    CatalogEntityTeamGrant[]
   webhookSubscriptions WebhookSubscription[]
-  createdRequests      TeamRequest[]
-  maintainerRequests   MaintainerRequest[]
   department           Department?              @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   parentTeam           Team?                    @relation("TeamHierarchy", fields: [parentTeamId], references: [id], onDelete: SetNull)
   childTeams           Team[]                   @relation("TeamHierarchy")
@@ -110,100 +87,4 @@ model TeamMembership {
   // maintainer_requests_and_co_leads migration.
   @@id([teamId, userId])
   @@index([userId])
-}
-
-model TeamRequest {
-  id                          String            @id @default(cuid())
-  // Pending uniqueness is enforced via a partial unique index
-  // `team_request_unique_pending_slug` (WHERE status = 'pending') in the
-  // real_teams migration, multiple non-pending rows may share a slug.
-  slug                        String
-  name                        String
-  description                 String?
-  requestedByUserId           String
-  status                      TeamRequestStatus @default(pending)
-  // Mirror-to-GitHub: when true, approval also calls POST /orgs/:org/teams
-  // on the GitHub App installation referenced by `githubIntegrationId`.
-  // Atomic: a GH-create failure rolls back the approval.
-  mirrorToGithub              Boolean           @default(false)
-  githubIntegrationId         String?
-  // Negotiation bookkeeping. Each submit / propose / counter-propose adds 1
-  // to roundCount. Round 4 attempt auto-cancels the request.
-  roundCount                  Int               @default(1)
-  lastEditedByUserId          String?
-  // Snapshot of the original submission so the final approval can summarize
-  // what changed during negotiation. Stays static after creation.
-  originalSlug                String
-  originalName                String
-  originalDescription         String?
-  originalMirrorToGithub      Boolean           @default(false)
-  originalGithubIntegrationId String?
-  // Optional pre-staging of memberships set at submit time. Applied during
-  // approval as additional `lead`/`member` rows on top of the requester
-  // (who is always seeded as `lead`). Stored as plain id arrays — no FK
-  // (matches the requestedByUserId pattern), existence is re-checked inside
-  // the create transaction and again at approval time so a deleted user
-  // doesn't break approval.
-  proposedMaintainerUserIds   String[]          @default([])
-  proposedMemberUserIds       String[]          @default([])
-  // "round_limit" when the round-cap auto-cancelled, distinguishing from a
-  // user-initiated cancel (null in that case).
-  autoCancelReason            String?
-  reviewedByUserId            String?
-  reviewedAt                  DateTime?
-  rejectionReason             String?
-  createdTeamId               String?
-  expiresAt                   DateTime
-  createdAt                   DateTime          @default(now())
-  updatedAt                   DateTime          @updatedAt
-  requestedBy                 User              @relation("TeamRequestRequester", fields: [requestedByUserId], references: [id], onDelete: Cascade)
-  reviewedBy                  User?             @relation("TeamRequestReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
-  createdTeam                 Team?             @relation(fields: [createdTeamId], references: [id], onDelete: SetNull)
-  githubIntegration           Integration?      @relation(fields: [githubIntegrationId], references: [id], onDelete: SetNull)
-
-  @@index([requestedByUserId])
-  @@index([status, expiresAt])
-  @@index([createdTeamId])
-  @@index([githubIntegrationId])
-}
-
-// Extensible policy engine. Each enum value in TeamPolicyKind has a matching
-// validator in features/teams/backend/src/policies.ts, this row stores
-// per-kind enable + config only. Adding a new kind = enum migration + new
-// registry entry. The single starting policy is `name_pattern` which forces
-// hyphen-separated names ending with `-team`.
-model TeamPolicy {
-  id          String         @id @default(cuid())
-  kind        TeamPolicyKind @unique
-  enabled     Boolean        @default(true)
-  config      Json
-  description String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-}
-
-// Self-service request for an existing team member to be promoted to `lead`
-// (co-maintainer). Approver = admin OR any current lead of the target team
-// (same predicate as `isTeamManager()`). At most one pending row per
-// (teamId, requestedByUserId) is enforced via a partial unique index
-// `MaintainerRequest_unique_pending_per_user_team` (WHERE status='pending').
-model MaintainerRequest {
-  id                String                  @id @default(cuid())
-  teamId            String
-  requestedByUserId String
-  status            MaintainerRequestStatus @default(pending)
-  reason            String?
-  reviewedByUserId  String?
-  reviewedAt        DateTime?
-  rejectionReason   String?
-  expiresAt         DateTime
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  team              Team                    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  requestedBy       User                    @relation("MaintainerRequestRequester", fields: [requestedByUserId], references: [id], onDelete: Cascade)
-  reviewedBy        User?                   @relation("MaintainerRequestReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
-
-  @@index([teamId, status])
-  @@index([requestedByUserId])
-  @@index([status, expiresAt])
 }

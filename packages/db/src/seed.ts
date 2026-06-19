@@ -1,4 +1,4 @@
-// Idempotent database seed: LLM provider/model registry, built-in agents, default pages, and team policies.
+// Idempotent database seed: LLM provider/model registry, built-in agents, and default pages.
 import { config as loadEnv } from "dotenv";
 import { resolve } from "node:path";
 
@@ -14,7 +14,6 @@ async function main() {
   await seedLlmProviders();
 
   await seedDefaultPages();
-  await seedTeamPolicies();
   await seedDefaultScorecards();
   await seedSkills();
 
@@ -86,8 +85,7 @@ Aim for at most 8 tool calls. Do not loop.`;
 }
 
 // Built-in skills. These reproduce the exact tool sets the built-in agents used before skills existed,
-// so behavior is unchanged. Admins can edit them or add their own. Tools self-gate at resolve time, so
-// a skill listing a write tool simply yields nothing when CHAT_WRITE_TOOLS_ENABLED is "false".
+// so behavior is unchanged. Admins can edit them or add their own.
 async function seedSkills() {
   const skills: Array<{
     id: string;
@@ -99,19 +97,14 @@ async function seedSkills() {
     {
       id: "skill-platform-read",
       label: "Platform read",
-      description:
-        "Read-only access to the user, teams, requests, catalog, org, and platform source.",
-      guidance:
-        "Use for general read-only questions about the user, their teams, requests, and the catalog.",
+      description: "Read-only access to the user, teams, catalog, org, and platform source.",
+      guidance: "Use for general read-only questions about the user, their teams, and the catalog.",
       toolIds: [
         "whoami",
         "get_today",
         "teams_list_mine",
         "teams_get",
         "teams_list_members",
-        "requests_my_pending",
-        "requests_my_team_requests",
-        "requests_my_maintainer_requests",
         "catalog_search",
         "catalog_get_entity",
         "catalog_owned_by_team",
@@ -124,14 +117,6 @@ async function seedSkills() {
         "platform_source_list_dir",
         "platform_source_read_file",
       ],
-    },
-    {
-      id: "skill-team-requests",
-      label: "Team requests",
-      description: "Prepare and submit team creation requests on the user's behalf.",
-      guidance:
-        "Use when the user wants to create or submit a team request (prepare, confirm, then submit).",
-      toolIds: ["team_request_prepare", "team_request_submit"],
     },
     {
       id: "skill-catalog-enrich",
@@ -162,18 +147,16 @@ async function seedSkills() {
 }
 
 // The assistant is a normal agent now: it holds skill ids and chat resolves them like any agent.
-// The team-requests skill's write tools self-gate on CHAT_WRITE_TOOLS_ENABLED at registration, so
-// the skill simply resolves to no tools when writes are disabled. The instructions below ARE the prompt.
+// The instructions below ARE the prompt.
 async function seedPlatformAssistant() {
   // Chat runs the assistant agent's own modelId FK (configured on the agent page like any other agent).
   // The assistant is treated as not-configured whenever this model is disabled or its provider has no key.
   const defaultModelId = "llmmodel_openai_o4_mini";
 
-  const skillIds = ["skill-platform-read", "skill-team-requests"];
+  const skillIds = ["skill-platform-read"];
 
   const instructions = `You are the engineering platform assistant.
-You help the current user with their work, teams, requests, and catalog,
-and you handle self-service actions on their behalf.
+You help the current user with their work, teams, and catalog.
 
 Tools execute on the server; the user cannot run them. Emit tool_calls
 yourself — never ask the user to run one. When you intend to do something,
@@ -200,29 +183,7 @@ Platform source code:
 - The brand or name is usually plain text in a header component or the HTML title
   rather than an image file, so search for the visible name itself.
 - If a tool returns code "not_configured", tell the user an admin must set the
-  source repository in Admin -> AI / Models.
-
-Writes (prepare → confirm → submit):
-1. Ask follow-ups only for missing required slots — one or two questions, not
-   a wall.
-2. Once required slots are filled, emit *_prepare immediately. It is read-only
-   validation, not a write; do not pre-ask "is this correct?". The result
-   includes a short handle like "prv_01".
-3. After *_prepare returns, paraphrase its serverSummary and the key parsed
-   parameters (e.g. slug, name, mirror target) in one short paragraph,
-   briefly list the side effects, and ask the user to reply "confirm" or
-   "cancel". There is no preview card UI — the user only sees your text.
-4. On confirmation, emit *_submit({ handle: "prv_NN" }) using the handle
-   from *_prepare or the system note about pending previews. Never invent
-   one.
-5. Report the result only after *_submit returns.
-
-For githubIntegrationId on team_request_prepare: pass the GitHub org/account
-login (e.g. "acme-corp") — the resolver matches accountLogin case-
-insensitively. Never ask the user for a cuid. If unsure what's connected,
-call integrations_list_github first. If mirror_target_exists fails because
-nothing is connected, tell the user to install a GitHub App in Settings →
-Integrations.`;
+  source repository in Admin -> AI / Models.`;
 
   await prisma.agent.upsert({
     where: { id: "seed-agent-assistant" },
@@ -595,7 +556,6 @@ async function seedDefaultPages() {
     section:
       | "catalog"
       | "selfservice"
-      | "requests"
       | "workspace"
       | "teams"
       | "observability"
@@ -628,36 +588,6 @@ async function seedDefaultPages() {
       url: "/scaffolder/bindings",
       order: 2048,
     },
-    {
-      id: "__page_self_service_request_team__",
-      section: "selfservice",
-      title: "Request a team",
-      url: "/self-service/request-team",
-      order: 4096,
-    },
-    {
-      id: "__page_self_service_request_maintainer__",
-      section: "selfservice",
-      title: "Request maintainership",
-      url: "/self-service/request-maintainer",
-      order: 5120,
-    },
-
-    {
-      id: "__page_my_requests_team__",
-      section: "requests",
-      title: "My Requests",
-      url: "/requests/team",
-      order: 1024,
-    },
-    {
-      id: "__page_my_approvals_team__",
-      section: "requests",
-      title: "My Approvals",
-      url: "/approvals/team",
-      order: 2048,
-    },
-
     {
       id: "__page_workspace__",
       section: "workspace",
@@ -713,13 +643,6 @@ async function seedDefaultPages() {
       title: "MCP tokens",
       url: "/admin/mcp-tokens",
       order: 4096,
-    },
-    {
-      id: "__page_admin_team_requests__",
-      section: "admin",
-      title: "Team requests",
-      url: "/admin/team-requests",
-      order: 5120,
     },
   ];
 
@@ -871,22 +794,6 @@ async function seedDefaultScorecards() {
       },
     });
   }
-}
-
-// A new policy kind needs an enum migration, a validator in features/teams/backend/src/policies.ts, and a row here.
-async function seedTeamPolicies() {
-  await prisma.teamPolicy.upsert({
-    where: { kind: "name_pattern" },
-    update: {},
-    create: {
-      id: "seed_team_policy_name_pattern",
-      kind: "name_pattern",
-      enabled: true,
-      config: { requireSuffix: "-team", requireHyphenSeparation: true },
-      description:
-        "Team slugs must use hyphens between words and end with -team (e.g. backend-team, data-platform-team).",
-    },
-  });
 }
 
 main()

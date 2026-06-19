@@ -151,15 +151,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
       },
     },
 
-    requests: {
-      pendingSummary: () =>
-        request<{
-          myRequestsPending: number;
-          myApprovalsPending: number;
-          canApprove: boolean;
-        }>(`/api/requests/pending-summary`),
-    },
-
     users: {
       search: (query: string, limit = 20) => {
         const qs = new URLSearchParams();

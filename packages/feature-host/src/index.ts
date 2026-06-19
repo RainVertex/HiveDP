@@ -11,7 +11,7 @@ export interface FeatureMount {
   path: string;
   router: Router;
   phase?: MountPhase;
-  // Lower mounts first within a phase. Use to keep subrouters ahead of a catch-all (e.g. /api/teams/requests before /api/teams).
+  // Lower mounts first within a phase. Use to keep a specific subrouter ahead of a catch-all on the same prefix.
   order?: number;
 }
 

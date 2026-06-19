@@ -18,7 +18,6 @@
     "@feature/pages-frontend": "0.1.0",
     "@feature/pages-shared": "0.1.0",
     "@feature/projects-frontend": "0.1.0",
-    "@feature/requests-frontend": "0.1.0",
     "@feature/scaffolder-frontend": "0.1.0",
     "@feature/scorecards-frontend": "0.1.0",
     "@feature/search-frontend": "0.1.0",

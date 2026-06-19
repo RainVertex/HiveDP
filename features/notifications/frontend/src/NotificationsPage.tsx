@@ -7,43 +7,6 @@ import type { TFunction } from "i18next";
 
 function summary(n: NotificationDto, t: TFunction): string {
   switch (n.kind) {
-    case "team.request.submitted": {
-      const name = (n.payload as Record<string, unknown>).requestedByDisplayName;
-      return typeof name === "string"
-        ? t("summary.teamRequestSubmittedBy", { name })
-        : t("summary.teamRequestSubmitted");
-    }
-    case "team.request.approved":
-      return t("summary.teamRequestApproved");
-    case "team.request.rejected":
-      return t("summary.teamRequestRejected");
-    case "team.request.changes_proposed": {
-      const name = (n.payload as Record<string, unknown>).proposedByDisplayName;
-      return typeof name === "string"
-        ? t("summary.teamRequestChangesProposedBy", { name })
-        : t("summary.teamRequestChangesProposed");
-    }
-    case "team.request.counter_proposed": {
-      const name = (n.payload as Record<string, unknown>).requestedByDisplayName;
-      return typeof name === "string"
-        ? t("summary.teamRequestCounterProposedBy", { name })
-        : t("summary.teamRequestCounterProposed");
-    }
-    case "team.request.auto_cancelled":
-      return t("summary.teamRequestAutoCancelled");
-    case "team.request.expired":
-      return t("summary.teamRequestExpired");
-    case "team.maintainer_request.submitted": {
-      const name = (n.payload as Record<string, unknown>).requestedByDisplayName;
-      const teamName = (n.payload as Record<string, unknown>).teamName;
-      return typeof name === "string" && typeof teamName === "string"
-        ? t("summary.maintainerRequestSubmittedBy", { name, teamName })
-        : t("summary.maintainerRequestSubmitted");
-    }
-    case "team.maintainer_request.approved":
-      return t("summary.maintainerRequestApproved");
-    case "team.maintainer_request.rejected":
-      return t("summary.maintainerRequestRejected");
     case "team.member.added":
       return t("summary.memberAdded");
     case "team.member.removed":

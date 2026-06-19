@@ -2,7 +2,6 @@ import { registerTools, registerToolGroups, type RegisteredTool } from "@interna
 import type { ToolGroup } from "./types";
 import { coreGroup } from "./groups/core";
 import { teamsGroup } from "./groups/teams";
-import { requestsGroup } from "./groups/requests";
 import { catalogGroup } from "./groups/catalog";
 import { orgGroup } from "./groups/org";
 import { notificationsGroup } from "./groups/notifications";
@@ -15,7 +14,6 @@ import { platformSourceGroup } from "./groups/platform-source";
 const ALL_GROUPS: ToolGroup[] = [
   coreGroup,
   teamsGroup,
-  requestsGroup,
   catalogGroup,
   orgGroup,
   notificationsGroup,
