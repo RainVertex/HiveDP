@@ -9,8 +9,15 @@ import {
   seedDefaultTemplates,
   seedTemplateAcls,
 } from "@feature/scaffolder-backend";
-import { provisionProjectsForInstallation } from "@feature/projects-backend";
-import { reconcileStaleAgentRuns } from "@feature/agents-backend";
+import {
+  provisionProjectsForInstallation,
+  registerProjectAgentTaskHandlers,
+} from "@feature/projects-backend";
+import {
+  reconcileStaleAgentRuns,
+  reconcileStaleAgentTasks,
+  registerBuiltinAgentTaskHandlers,
+} from "@feature/agents-backend";
 import { runReconciliation } from "@feature/catalog-backend";
 import { prisma } from "@internal/db";
 import { createServer } from "./createServer";
@@ -40,9 +47,15 @@ async function bootstrap() {
   if (orphans > 0) logger.warn({ orphans }, "Marked orphaned job runs as cancelled");
 
   const staleRuns = await reconcileStaleAgentRuns();
-  if (staleRuns.runs > 0 || staleRuns.tasks > 0) {
-    logger.warn(staleRuns, "Reconciled orphaned agent runs and released claimed catalog tasks");
-  }
+  if (staleRuns.runs > 0) logger.warn(staleRuns, "Marked orphaned agent runs as failed");
+
+  const staleTasks = await reconcileStaleAgentTasks();
+  if (staleTasks > 0)
+    logger.warn({ tasks: staleTasks }, "Released orphaned agent tasks to the queue");
+
+  // Features register their agent-task handlers before the scheduler can drain the queue.
+  registerBuiltinAgentTaskHandlers();
+  registerProjectAgentTaskHandlers();
 
   registerAllJobs();
   startScheduler();

@@ -9,6 +9,7 @@ import { CATALOG_INFO_FILE_NAMES, parseCatalogInfo } from "../discovery/parse";
 import { registerCatalogEntity, type RegisterCatalogEntityInput } from "../service";
 import { runReconciliation, type ReconciliationResult } from "./team-sync";
 import { provisionProjectsForInstallation } from "@feature/projects-backend/contract";
+import { enqueueAgentTask } from "@feature/agents-backend/contract";
 
 export interface SyncRepoResult {
   fullName: string;
@@ -176,7 +177,7 @@ export async function syncRepo(
 
   const ownerCount = registerInput.ownerTeamIds?.length ?? 0;
   if (needsOnboarding || ownerCount === 0) {
-    await enqueueResolveOwnership(result.entityId);
+    await enqueueCatalogEnrich(result.entityId);
   }
 
   return {
@@ -221,19 +222,13 @@ async function fetchCatalogInfo(
   return { kind: "missing" };
 }
 
-async function enqueueResolveOwnership(entityId: string): Promise<void> {
-  // Idempotent: skip if a pending/running task already exists so re-runs don't pile up duplicates.
-  const existing = await prisma.catalogAgentTask.findFirst({
-    where: {
-      entityId,
-      type: "resolve_ownership",
-      status: { in: ["pending", "running"] },
-    },
-    select: { id: true },
-  });
-  if (existing) return;
-  await prisma.catalogAgentTask.create({
-    data: { entityId, type: "resolve_ownership", status: "pending" },
+async function enqueueCatalogEnrich(entityId: string): Promise<void> {
+  // dedupeKey collapses re-runs onto an existing open task so duplicates don't pile up.
+  await enqueueAgentTask({
+    agentId: "catalog-enricher",
+    kind: "catalog-enrich",
+    payload: { entityId },
+    dedupeKey: `catalog-enrich:${entityId}`,
   });
 }
 

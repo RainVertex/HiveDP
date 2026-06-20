@@ -23,7 +23,6 @@ type CoreModel =
   | "starredEntity"
   | "catalogEntityOwner"
   | "catalogEntityTeamGrant"
-  | "catalogAgentTask"
   | "team"
   | "teamMembership"
   | "pendingTeamMembership"
@@ -74,7 +73,14 @@ export const chatDb = prisma as Pick<
 
 export const agentDb = prisma as Pick<
   PrismaClient,
-  CoreModel | "agent" | "agentRun" | "llmProvider" | "llmModel" | "providerCredential" | Ops
+  | CoreModel
+  | "agent"
+  | "agentRun"
+  | "agentTask"
+  | "llmProvider"
+  | "llmModel"
+  | "providerCredential"
+  | Ops
 >;
 
 export const docsDb = prisma as Pick<

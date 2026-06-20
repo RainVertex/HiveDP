@@ -28,20 +28,6 @@ enum CatalogEntitySource {
   seed
 }
 
-enum CatalogAgentTaskType {
-  resolve_ownership
-  generate_yaml
-  open_pr
-}
-
-enum CatalogAgentTaskStatus {
-  pending
-  running
-  done
-  failed
-  skipped
-}
-
 model CatalogEntity {
   id                  String                     @id @default(cuid())
   name                String
@@ -80,7 +66,6 @@ model CatalogEntity {
   docPages            DocPage[]
   docSync             DocSyncState?
   starredBy           StarredEntity[]
-  agentTasks          CatalogAgentTask[]
   workflowRuns        WorkflowRun[]
   deployments         Deployment[]
   pipelineSyncCursor  PipelineSyncCursor?
@@ -135,29 +120,4 @@ model CatalogEntityTeamGrant {
 
   @@id([entityId, teamId])
   @@index([teamId])
-}
-
-// Work queue for the Catalog Agent. Bulk sync enqueues `resolve_ownership`
-// for any entity that lacks owners, on success the worker chains
-// `generate_yaml` → `open_pr`. Each task carries a small JSON payload
-// (e.g. { prUrl, branchName, generatedYaml }). Status transitions:
-//   pending → running → done | failed | skipped
-// Failed tasks are retried with exponential backoff up to a per-handler cap.
-model CatalogAgentTask {
-  id          String                 @id @default(cuid())
-  entityId    String
-  type        CatalogAgentTaskType
-  status      CatalogAgentTaskStatus @default(pending)
-  attempts    Int                    @default(0)
-  payload     Json                   @default("{}")
-  lastError   String?
-  scheduledAt DateTime               @default(now())
-  startedAt   DateTime?
-  finishedAt  DateTime?
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
-  entity      CatalogEntity          @relation(fields: [entityId], references: [id], onDelete: Cascade)
-
-  @@index([status, scheduledAt])
-  @@index([entityId])
 }

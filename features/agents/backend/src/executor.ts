@@ -359,17 +359,13 @@ export function cancelAgentRun(runId: string): boolean {
 }
 
 // On boot, any run still "running" is orphaned by a restart (nothing executes it). Mark such runs
-// failed and release the catalog tasks they had claimed so those entities re-enter the queue.
-export async function reconcileStaleAgentRuns(): Promise<{ runs: number; tasks: number }> {
+// failed. Orphaned AgentTask rows are released separately by reconcileStaleAgentTasks.
+export async function reconcileStaleAgentRuns(): Promise<{ runs: number }> {
   const runs = await prisma.agentRun.updateMany({
     where: { status: "running" },
     data: { status: "failed", error: "Orphaned by restart", finishedAt: new Date() },
   });
-  const tasks = await prisma.catalogAgentTask.updateMany({
-    where: { status: "running" },
-    data: { status: "pending", startedAt: null },
-  });
-  return { runs: runs.count, tasks: tasks.count };
+  return { runs: runs.count };
 }
 
 export async function startAgentRun(

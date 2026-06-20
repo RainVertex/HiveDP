@@ -11,6 +11,15 @@ enum AgentApprovalMode {
   auto
 }
 
+enum AgentTaskStatus {
+  pending
+  running
+  done
+  failed
+  skipped
+  cancelled
+}
+
 // Configured upstream the platform can reach (Ollama, OpenAI, Anthropic via
 // its OpenAI-compatible endpoint, vLLM, etc.). Every provider is talked to
 // via the OpenAI SDK.
@@ -95,6 +104,7 @@ model Agent {
   updatedAt    DateTime          @updatedAt
 
   runs              AgentRun[]
+  tasks             AgentTask[]
   llmModel          LlmModel           @relation(fields: [modelId], references: [id])
   chatConversations ChatConversation[]
   user              User?              @relation("AgentBackingUser", fields: [userId], references: [id], onDelete: SetNull)
@@ -209,4 +219,32 @@ model AgentRun {
   @@index([userId])
   @@index([taskId])
   @@index([conversationId])
+}
+
+// Generic durable work queue for agents. A task names an agent, a kind (the
+// discriminator an outcome handler is registered under), and a JSON payload.
+// A drain job claims due tasks atomically, runs the agent, and lets the kind's
+// handler interpret the result. dedupeKey collapses re-enqueues while a task is
+// still open (enforced in app against pending/running rows, not by a DB unique).
+model AgentTask {
+  id          String          @id @default(cuid())
+  agentId     String
+  kind        String
+  status      AgentTaskStatus @default(pending)
+  payload     Json            @default("{}")
+  attempts    Int             @default(0)
+  maxAttempts Int             @default(3)
+  dedupeKey   String?
+  scheduledAt DateTime        @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  lastError   String?
+  runId       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  agent       Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@index([agentId])
+  @@index([dedupeKey])
 }

@@ -15,6 +15,7 @@
     }
   },
   "dependencies": {
+    "@feature/agents-backend": "0.1.0",
     "@feature/catalog-shared": "0.1.0",
     "@feature/devdocs-shared": "0.1.0",
     "@feature/dora-metrics-shared": "0.1.0",

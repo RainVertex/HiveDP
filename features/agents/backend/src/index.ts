@@ -18,12 +18,14 @@ export {
   type RunAgentStep,
 } from "./executor";
 export {
-  catalogEnricherJob,
   modelPricingSyncJob,
+  agentTaskQueueJob,
   getAgentJobs,
   type AgentJobDefinition,
   type AgentJobContext,
 } from "./jobs";
+export { reconcileStaleAgentTasks } from "./services/agentTasks";
+export { registerBuiltinAgentTaskHandlers } from "./services/builtinTaskHandlers";
 export {
   registerTools,
   resolveTools,
