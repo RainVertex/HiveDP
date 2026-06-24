@@ -8,4 +8,5 @@ export {
 } from "./index";
 
 export { createSubtask, listSubtasks, getTask } from "./services/tasks";
+export { assignUserToTask, searchAssignableUsers } from "./services/assignees";
 export { getProjectRepoRef } from "./services/repo";

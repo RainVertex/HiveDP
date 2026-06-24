@@ -1,5 +1,10 @@
 import type { RegisteredTool } from "@internal/llm-core";
-import { createSubtask, listSubtasks, getTask } from "@feature/projects-backend/contract";
+import {
+  createSubtask,
+  listSubtasks,
+  getTask,
+  assignUserToTask,
+} from "@feature/projects-backend/contract";
 import { requireUserId } from "../core";
 
 export const createSubtaskTool: RegisteredTool = {
@@ -9,7 +14,7 @@ export const createSubtaskTool: RegisteredTool = {
     function: {
       name: "projects_create_subtask",
       description:
-        "Create one subtask under an existing parent task. The subtask inherits the parent's project and board column. Requires write access on the project. Call projects_list_subtasks first to avoid creating duplicates.",
+        "Create one subtask under an existing parent task. The subtask inherits the parent's project and board column. Requires write access on the project. Call projects_list_subtasks first to avoid creating duplicates. Pass assignee to create and assign in one step.",
       parameters: {
         type: "object",
         properties: {
@@ -19,6 +24,11 @@ export const createSubtaskTool: RegisteredTool = {
             type: "string",
             description: "Optional one or two sentence detail for the subtask.",
           },
+          assignee: {
+            type: "string",
+            description:
+              "Optional. Name or username of the person or agent to assign this subtask to (for example a coding agent). The subtask is still created if the assignee cannot be resolved.",
+          },
         },
         required: ["parentTaskId", "title"],
       },
@@ -26,12 +36,48 @@ export const createSubtaskTool: RegisteredTool = {
   },
   handler: async (args, ctx) => {
     const userId = requireUserId(ctx);
-    const { parentTaskId, title, description } = args as {
+    const { parentTaskId, title, description, assignee } = args as {
       parentTaskId: string;
       title: string;
       description?: string;
+      assignee?: string;
     };
-    return createSubtask({ userId, parentTaskId, title, description });
+    const result = await createSubtask({ userId, parentTaskId, title, description });
+    if ("error" in result || !assignee?.trim()) return result;
+    const assignment = await assignUserToTask({
+      actorUserId: userId,
+      taskId: result.subtask.id,
+      assignee,
+    });
+    return { ...result, assignment };
+  },
+};
+
+export const assignTaskTool: RegisteredTool = {
+  id: "projects_assign_task",
+  openaiDef: {
+    type: "function",
+    function: {
+      name: "projects_assign_task",
+      description:
+        "Assign a task or subtask to a person or an agent (for example a coding agent). Resolves the assignee by name or username. If several users match, it returns the candidates so you can retry with an exact username. Assigning an agent makes that agent start working on the task.",
+      parameters: {
+        type: "object",
+        properties: {
+          taskId: { type: "string", description: "Id of the task or subtask to assign." },
+          assignee: {
+            type: "string",
+            description: "Name or username of the person or agent to assign the task to.",
+          },
+        },
+        required: ["taskId", "assignee"],
+      },
+    },
+  },
+  handler: async (args, ctx) => {
+    const userId = requireUserId(ctx);
+    const { taskId, assignee } = args as { taskId: string; assignee: string };
+    return assignUserToTask({ actorUserId: userId, taskId, assignee });
   },
 };
 

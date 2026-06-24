@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { projectsDb } from "@internal/db";
 import { taskDto, userSummary } from "../services/dto";
+import { searchAssignableUsers } from "../services/assignees";
 
 export const usersRoutes: Router = Router();
 
@@ -12,39 +13,7 @@ usersRoutes.get("/me", (req, res) => {
 usersRoutes.get("/users/search", async (req, res, next) => {
   try {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-    if (q.length < 1) {
-      res.json([]);
-      return;
-    }
-    const users = await projectsDb.user.findMany({
-      where: {
-        // Humans plus only task-capable agents. The chat assistant and catalog enricher are not
-        // assignable to tasks, so the agent side filters on the backing agent's kind.
-        OR: [
-          { userKind: "human" },
-          { userKind: "agent", backedAgent: { kind: { in: ["task-planner"] } } },
-        ],
-        AND: [
-          {
-            OR: [
-              { displayName: { contains: q, mode: "insensitive" } },
-              { githubLogin: { contains: q, mode: "insensitive" } },
-              { email: { contains: q, mode: "insensitive" } },
-            ],
-          },
-        ],
-      },
-      orderBy: { displayName: "asc" },
-      take: 20,
-    });
-    res.json(
-      users.map((u) => ({
-        id: u.id,
-        username: u.githubLogin,
-        name: u.displayName,
-        kind: u.userKind,
-      })),
-    );
+    res.json(await searchAssignableUsers(q));
   } catch (err) {
     next(err);
   }

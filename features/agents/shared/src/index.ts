@@ -123,6 +123,7 @@ export interface Agent extends NamedEntity {
   maxToolCalls: number;
   tokenBudget: number | null;
   temperature: number | null;
+  assignableToTasks: boolean;
   mcpServers?: AgentMcpServerSummary[];
   llmModel?: {
     slug: string;
@@ -165,6 +166,7 @@ export interface CreateAgentInput {
   maxToolCalls?: number;
   tokenBudget?: number | null;
   temperature?: number | null;
+  assignableToTasks?: boolean;
 }
 
 export type UpdateAgentInput = Partial<CreateAgentInput>;

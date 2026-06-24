@@ -58,6 +58,7 @@ export async function createAgent(input: CreateAgentInput) {
     maxToolCalls: input.maxToolCalls,
     tokenBudget: input.tokenBudget ?? null,
     temperature: input.temperature ?? null,
+    assignableToTasks: input.assignableToTasks,
   });
   const backingUserId = await ensureAgentBackingUser(created.id, {
     name: created.name,
@@ -91,6 +92,7 @@ export async function updateAgent(id: string, input: UpdateAgentInput) {
     maxToolCalls: input.maxToolCalls,
     tokenBudget: input.tokenBudget,
     temperature: input.temperature,
+    assignableToTasks: input.assignableToTasks,
   });
   // Keep the backing User's display identity in sync (and create it for agents predating the backing-user link).
   await ensureAgentBackingUser(updated.id, { name: updated.name, avatarUrl: updated.avatarUrl });

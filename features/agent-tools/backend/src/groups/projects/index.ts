@@ -1,5 +1,5 @@
 import type { ToolGroup } from "../../types";
-import { createSubtaskTool, listSubtasksTool, getTaskTool } from "./tasks";
+import { createSubtaskTool, listSubtasksTool, getTaskTool, assignTaskTool } from "./tasks";
 import {
   projectRepoInfo,
   projectRepoSearch,
@@ -18,6 +18,7 @@ export const projectsGroup: ToolGroup = {
     createSubtaskTool,
     listSubtasksTool,
     getTaskTool,
+    assignTaskTool,
     projectRepoInfo,
     projectRepoSearch,
     projectRepoListDir,

@@ -96,6 +96,7 @@ export const en = {
     maxToolCalls: "Max tool calls",
     tokenBudget: "Token budget (optional)",
     temperature: "Temperature (optional)",
+    assignableToTasks: "Assignable to tasks",
     status: "Status",
     trigger: "Trigger",
     started: "Started",
@@ -124,6 +125,8 @@ export const en = {
     temperaturePlaceholder: "Recommended",
     temperatureHint:
       "Higher is more creative, lower is more deterministic. Leave blank to use the recommended default for the model.",
+    assignableToTasksHint:
+      "Let this agent be assigned to project tasks. When assigned, it starts working on the task and reports back as a comment.",
   },
   skills: {
     title: "Skills",

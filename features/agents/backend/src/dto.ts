@@ -23,6 +23,7 @@ export const createAgentSchema = z.object({
   maxToolCalls: z.number().int().min(1).max(50).default(10),
   tokenBudget: z.number().int().min(1).nullable().optional(),
   temperature: z.number().min(0).max(2).nullable().optional(),
+  assignableToTasks: z.boolean().default(false),
 });
 
 export const updateAgentSchema = createAgentSchema.partial();

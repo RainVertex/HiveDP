@@ -99,6 +99,7 @@ export const tr: AgentsResources = {
     maxToolCalls: "Maksimum araç çağrısı",
     tokenBudget: "Token bütçesi (isteğe bağlı)",
     temperature: "Sıcaklık (isteğe bağlı)",
+    assignableToTasks: "Görevlere atanabilir",
     status: "Durum",
     trigger: "Tetikleyici",
     started: "Başlangıç",
@@ -127,6 +128,8 @@ export const tr: AgentsResources = {
     temperaturePlaceholder: "Önerilen",
     temperatureHint:
       "Yüksek değer daha yaratıcı, düşük değer daha deterministik sonuç üretir. Model için önerilen varsayılanı kullanmak üzere boş bırakın.",
+    assignableToTasksHint:
+      "Bu ajanın proje görevlerine atanmasına izin verin. Atandığında görev üzerinde çalışmaya başlar ve sonucu yorum olarak bildirir.",
   },
   skills: {
     title: "Beceriler",

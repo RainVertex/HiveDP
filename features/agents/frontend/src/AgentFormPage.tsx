@@ -45,6 +45,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
   const [maxToolCalls, setMaxToolCalls] = useState(10);
   const [tokenBudget, setTokenBudget] = useState<string>("");
   const [temperature, setTemperature] = useState<string>("");
+  const [assignableToTasks, setAssignableToTasks] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -89,6 +90,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
         setMaxToolCalls(a.maxToolCalls);
         setTokenBudget(a.tokenBudget != null ? String(a.tokenBudget) : "");
         setTemperature(a.temperature != null ? String(a.temperature) : "");
+        setAssignableToTasks(a.assignableToTasks ?? false);
       })
       .catch((err) => setError(err.message ?? t("errors.failedToLoadAgent")))
       .finally(() => setLoading(false));
@@ -170,6 +172,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
       maxToolCalls,
       tokenBudget: tokenBudget.trim() ? Number(tokenBudget) : null,
       temperature: temperature.trim() ? Number(temperature) : null,
+      assignableToTasks,
     };
     setSaving(true);
     try {
@@ -421,6 +424,18 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
             <p className="mt-1 text-xs text-app-text-muted">{t("form.temperatureHint")}</p>
           </Labeled>
         </div>
+
+        <Labeled label={t("fields.assignableToTasks")}>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={assignableToTasks}
+              onChange={(e) => setAssignableToTasks(e.target.checked)}
+              className="h-4 w-4 accent-app-primary"
+            />
+            <span className="text-sm text-app-text-muted">{t("form.assignableToTasksHint")}</span>
+          </label>
+        </Labeled>
 
         <div className="flex justify-end gap-2">
           <button

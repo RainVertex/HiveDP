@@ -103,6 +103,8 @@ model Agent {
   maxToolCalls Int               @default(10)
   tokenBudget  Int?
   temperature  Float?
+  // Whether this agent may be assigned to a project task (drives the assignee picker and the planner's assign tool).
+  assignableToTasks Boolean       @default(false)
   userId       String?           @unique
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt

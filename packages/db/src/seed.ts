@@ -133,13 +133,14 @@ async function seedSkills() {
       label: "Project planning",
       description: "Break an assigned project task into concrete subtasks, grounded in the repo.",
       guidance:
-        "When assigned a project task, first call projects_list_subtasks to see what already exists. If the project has a connected repo, inspect it with projects_repo_info / projects_repo_search / projects_repo_read_file before planning, then call projects_create_subtask once per concrete subtask so you do not duplicate.",
+        "When assigned a project task, first call projects_list_subtasks to see what already exists. If the project has a connected repo, inspect it with projects_repo_info / projects_repo_search / projects_repo_read_file before planning, then call projects_create_subtask once per concrete subtask so you do not duplicate. If the task text asks to assign the subtasks to someone, pass assignee to projects_create_subtask or call projects_assign_task.",
       toolIds: [
         "whoami",
         "get_today",
         "projects_create_subtask",
         "projects_list_subtasks",
         "projects_get_task",
+        "projects_assign_task",
         "projects_repo_info",
         "projects_repo_search",
         "projects_repo_list_dir",
@@ -252,10 +253,18 @@ Steps:
   codebase actually is. If repoConnected is false, plan from the task text alone.
 - For each new subtask, call projects_create_subtask with parentTaskId set to
   the task id, a short concrete title, and an optional one line description.
+- If the task text asks to assign the created subtasks to someone, set the
+  assignee field on projects_create_subtask (or call projects_assign_task with
+  the subtask id) for each subtask. The assignee can be a person or an agent,
+  for example a coding agent. If a name does not resolve to exactly one
+  assignable user, the tool returns the candidates, so retry with an exact
+  username, and if you still cannot resolve it, say so in your summary instead
+  of guessing.
 - Keep the set focused, roughly five to eight subtasks. Split by real units of
   work, not by ceremony.
-- When done, reply with one short paragraph that lists the subtasks you created.
-  That reply is posted as a comment on the task, so write it for a human reader.
+- When done, reply with one short paragraph that lists the subtasks you created
+  and who they were assigned to. That reply is posted as a comment on the task,
+  so write it for a human reader.
 
 If the task is already fully broken down, create nothing and say so.`;
 
@@ -265,7 +274,8 @@ If the task is already fully broken down, create nothing and say so.`;
       instructions,
       skillIds: ["skill-project-planning"],
       approvalMode: "auto",
-      maxToolCalls: 25,
+      maxToolCalls: 35,
+      assignableToTasks: true,
       category: "Plan & Coordinate",
       avatarUrl: "/agents/presets/agent-planning.svg",
     },
@@ -278,7 +288,8 @@ If the task is already fully broken down, create nothing and say so.`;
       instructions,
       skillIds: ["skill-project-planning"],
       approvalMode: "auto",
-      maxToolCalls: 25,
+      maxToolCalls: 35,
+      assignableToTasks: true,
       category: "Plan & Coordinate",
       avatarUrl: "/agents/presets/agent-planning.svg",
     },

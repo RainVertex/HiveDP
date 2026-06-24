@@ -2,15 +2,14 @@ import { Router } from "express";
 import { projectsDb } from "@internal/db";
 import { addAssigneeSchema, attachLabelSchema, createTaskSchema, updateTaskSchema } from "../zod";
 import { meetsLevel, resolveAccess } from "../services/permissions";
-import { taskDto, userSummary, TASK_INCLUDE, TASK_INCLUDE_WITH_CHILDREN } from "../services/dto";
+import { taskDto, TASK_INCLUDE, TASK_INCLUDE_WITH_CHILDREN } from "../services/dto";
 import {
-  notifyTaskAssigned,
   notifyTaskUnassigned,
   notifyTaskUpdated,
   taskNotificationRecipients,
   type TaskChanges,
 } from "../services/notifications";
-import { triggerAgentRunForTask } from "../services/agentRuns";
+import { assignUserToTask } from "../services/assignees";
 
 export const tasksRoutes: Router = Router();
 
@@ -242,58 +241,24 @@ tasksRoutes.delete("/tasks/:id", async (req, res, next) => {
 
 tasksRoutes.post("/tasks/:id/assignees", async (req, res, next) => {
   try {
-    const userId = req.user!.id;
-    const task = await projectsDb.task.findUnique({
-      where: { id: req.params.id },
-      include: { project: { select: { id: true, title: true } } },
-    });
-    if (!task) {
-      res.status(404).json({ error: "Task not found" });
-      return;
-    }
-    const access = await resolveAccess(userId, task.projectId);
-    if (!access) {
-      res.status(404).json({ error: "Task not found" });
-      return;
-    }
-    if (!meetsLevel(access, "write")) {
-      res.status(403).json({ error: "Write permission required" });
-      return;
-    }
     const input = addAssigneeSchema.parse(req.body);
-    const target = await projectsDb.user.findUnique({
-      where: { githubLogin: input.username },
+    const outcome = await assignUserToTask({
+      actorUserId: req.user!.id,
+      taskId: req.params.id,
+      assignee: input.username,
     });
-    if (!target) {
-      res.status(404).json({ error: `No platform user found with username "${input.username}"` });
+    if (outcome.ok) {
+      res.status(201).json(outcome.user);
       return;
     }
-    const existed = await projectsDb.taskAssignee.findUnique({
-      where: { taskId_userId: { taskId: req.params.id, userId: target.id } },
-      select: { taskId: true },
-    });
-    if (!existed) {
-      await projectsDb.taskAssignee.create({
-        data: {
-          taskId: req.params.id,
-          userId: target.id,
-          assignedByUserId: userId,
-        },
-      });
-      if (target.userKind === "agent") {
-        // Assigning an agent kicks off a run against the task, it reports back as a comment.
-        triggerAgentRunForTask({ agentUserId: target.id, taskId: task.id });
-      } else if (target.id !== userId) {
-        await notifyTaskAssigned({
-          taskId: task.id,
-          taskTitle: task.title,
-          projectId: task.project.id,
-          projectTitle: task.project.title,
-          recipientUserId: target.id,
-        });
-      }
-    }
-    res.status(201).json(userSummary(target));
+    const status = {
+      task_not_found: 404,
+      forbidden: 403,
+      not_found: 404,
+      ambiguous: 409,
+      not_assignable: 400,
+    }[outcome.reason];
+    res.status(status).json({ error: outcome.error, candidates: outcome.candidates });
   } catch (err) {
     next(err);
   }
