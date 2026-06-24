@@ -148,7 +148,13 @@ export function TaskDetailPage() {
     if (!confirm(t("confirm.deleteTask"))) return;
     try {
       await removeTask(id);
-      navigate(task?.projectId ? `/projects/${task.projectId}` : "/projects");
+      navigate(
+        task?.parentTaskId
+          ? `/tasks/${task.parentTaskId}`
+          : task?.projectId
+            ? `/projects/${task.projectId}`
+            : "/projects",
+      );
     } catch {
       // error from hook
     }
@@ -246,7 +252,12 @@ export function TaskDetailPage() {
   const taskLabelIds = new Set(task?.labels?.map((l) => l.id) ?? []);
   const availableLabels = allLabels.filter((l) => !taskLabelIds.has(l.id));
 
-  const backHref = task?.projectId ? `/projects/${task.projectId}` : "/projects";
+  const backHref = task?.parentTaskId
+    ? `/tasks/${task.parentTaskId}`
+    : task?.projectId
+      ? `/projects/${task.projectId}`
+      : "/projects";
+  const backLabel = task?.parentTaskId ? t("actions.backToParentTask") : t("actions.backToProject");
 
   const priorityOptions = [0, 1, 2, 3, 4].map((v) => ({
     value: v,
@@ -302,7 +313,7 @@ export function TaskDetailPage() {
         to={backHref}
         className="mb-4 inline-flex items-center gap-1 text-xs text-app-text-muted hover:text-app-text"
       >
-        {t("actions.backToProject")}
+        {backLabel}
       </Link>
       {!canEdit && (
         <div className="mb-4 rounded-md border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text-muted">

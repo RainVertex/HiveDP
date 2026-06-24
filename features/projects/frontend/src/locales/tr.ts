@@ -32,6 +32,7 @@ export const tr: ProjectsResources = {
     favorite: "☆ Favori",
     favorited: "★ Favorilendi",
     backToProject: "← Projeye dön",
+    backToParentTask: "← Üst göreve dön",
   },
   form: {
     titleLabel: "Başlık",

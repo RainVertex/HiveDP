@@ -30,6 +30,7 @@ export const en = {
     favorite: "☆ Favorite",
     favorited: "★ Favorited",
     backToProject: "← Back to project",
+    backToParentTask: "← Back to parent task",
   },
   form: {
     titleLabel: "Title",
