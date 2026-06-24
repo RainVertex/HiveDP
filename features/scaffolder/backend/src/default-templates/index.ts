@@ -100,7 +100,7 @@ spec:
         description: \${{ parameters.description }}
         repoUrl: \${{ steps.publish.output.remoteUrl }}
         githubRepoId: \${{ steps.publish.output.repoId }}
-        ownerTeamIds: \${{ parameters.owners | dump }}
+        ownerTeamIds: \${{ parameters.owners }}
   output:
     repoUrl: \${{ steps.publish.output.remoteUrl }}
     entityId: \${{ steps.register.output.entityId }}
