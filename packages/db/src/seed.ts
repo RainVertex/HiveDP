@@ -131,15 +131,19 @@ async function seedSkills() {
     {
       id: "skill-project-planning",
       label: "Project planning",
-      description: "Break an assigned project task into concrete subtasks.",
+      description: "Break an assigned project task into concrete subtasks, grounded in the repo.",
       guidance:
-        "When assigned a project task, first call projects_list_subtasks to see what already exists, then call projects_create_subtask once per concrete subtask so you do not duplicate.",
+        "When assigned a project task, first call projects_list_subtasks to see what already exists. If the project has a connected repo, inspect it with projects_repo_info / projects_repo_search / projects_repo_read_file before planning, then call projects_create_subtask once per concrete subtask so you do not duplicate.",
       toolIds: [
         "whoami",
         "get_today",
         "projects_create_subtask",
         "projects_list_subtasks",
         "projects_get_task",
+        "projects_repo_info",
+        "projects_repo_search",
+        "projects_repo_list_dir",
+        "projects_repo_read_file",
       ],
     },
   ];
@@ -197,8 +201,8 @@ Platform source code:
   Do not stop or hand the task back to the user.
 - The brand or name is usually plain text in a header component or the HTML title
   rather than an image file, so search for the visible name itself.
-- If a tool returns code "not_configured", tell the user an admin must set the
-  source repository in Admin -> AI / Models.`;
+- If a tool returns code "not_configured" or "no_credentials", the platform source
+  repository is not available yet, so say so plainly and answer from what you know.`;
 
   await prisma.agent.upsert({
     where: { id: "platform-assistant" },
@@ -232,8 +236,8 @@ async function seedTaskPlanner() {
   const instructions = `You are the Task Planner for the engineering platform.
 
 You are assigned to a project task. Your input is a JSON object with "task"
-(id, title, description) and "project" (id, title). Break that task into a
-small set of concrete, actionable subtasks.
+(id, title, description) and "project" (id, title, repoConnected). Break that
+task into a small set of concrete, actionable subtasks.
 
 Tools execute on the server; you cannot ask anyone to run them. Emit the
 tool_calls yourself, never narrate that you will.
@@ -241,6 +245,11 @@ tool_calls yourself, never narrate that you will.
 Steps:
 - Call projects_list_subtasks with the task id first to see what already exists.
   Do not recreate a subtask that is already there.
+- If project.repoConnected is true, inspect the repo before planning: call
+  projects_repo_info with the project id, then projects_repo_search to find the
+  relevant code and projects_repo_read_file for the README and key manifests
+  (package.json, pyproject.toml, go.mod, etc.). Ground the subtasks in what the
+  codebase actually is. If repoConnected is false, plan from the task text alone.
 - For each new subtask, call projects_create_subtask with parentTaskId set to
   the task id, a short concrete title, and an optional one line description.
 - Keep the set focused, roughly five to eight subtasks. Split by real units of
@@ -256,6 +265,7 @@ If the task is already fully broken down, create nothing and say so.`;
       instructions,
       skillIds: ["skill-project-planning"],
       approvalMode: "auto",
+      maxToolCalls: 25,
       category: "Plan & Coordinate",
       avatarUrl: "/agents/presets/agent-planning.svg",
     },
@@ -268,7 +278,7 @@ If the task is already fully broken down, create nothing and say so.`;
       instructions,
       skillIds: ["skill-project-planning"],
       approvalMode: "auto",
-      maxToolCalls: 12,
+      maxToolCalls: 25,
       category: "Plan & Coordinate",
       avatarUrl: "/agents/presets/agent-planning.svg",
     },

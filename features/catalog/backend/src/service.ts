@@ -11,6 +11,11 @@ import { notify } from "@feature/notifications-backend/contract";
 import { evaluateScorecardsForEntity } from "./scorecards/evaluator";
 import { syncDevDocsForEntity } from "./devdocs/sync";
 
+// The platform's own repository (from deploy config) gets its catalog entity tagged "platform", so the
+// Platform Assistant can resolve "its own" repo from the catalog instead of an admin setting.
+const PLATFORM_TAG = "platform";
+const PLATFORM_REPO = normalizeRepoSlug(process.env.PLATFORM_REPO_URL ?? null);
+
 export type RegisterCatalogEntityInput = {
   kind: CatalogEntityKind;
   lifecycle?: Lifecycle;
@@ -44,11 +49,13 @@ export type RegisterCatalogEntityResult = {
 
 /** Single canonical write path for catalog entities. */
 export async function registerCatalogEntity(
-  input: RegisterCatalogEntityInput,
+  rawInput: RegisterCatalogEntityInput,
   opts: RegisterCatalogEntityOptions,
 ): Promise<RegisterCatalogEntityResult> {
   // githubRepoId is stable across renames so it wins; fall back to (name, kind) for the claim path.
-  const existing = await findExisting(input, opts);
+  const existing = await findExisting(rawInput, opts);
+  // Re-applied on every write so the marker survives the per-sync tag overwrite from catalog-info.yaml.
+  const input = applyPlatformTag(rawInput, existing);
 
   if (opts.dryRun) {
     return {
@@ -275,6 +282,29 @@ function sameStringArray(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
+}
+
+function normalizeRepoSlug(url: string | null): string | null {
+  if (!url) return null;
+  const m = url.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:[/?#]|$)/i);
+  return m ? `${m[1].toLowerCase()}/${m[2].toLowerCase()}` : null;
+}
+
+function isPlatformRepo(repoUrl: string | null): boolean {
+  return PLATFORM_REPO !== null && normalizeRepoSlug(repoUrl) === PLATFORM_REPO;
+}
+
+// Ensures the platform's own entity carries the "platform" tag while preserving the source-driven tag
+// set. tags here flow into create/patch/noop alike, so the marker stays consistent across syncs.
+function applyPlatformTag(
+  input: RegisterCatalogEntityInput,
+  existing: { repoUrl: string | null; tags: string[] } | null,
+): RegisterCatalogEntityInput {
+  const repoUrl = input.repoUrl !== undefined ? input.repoUrl : (existing?.repoUrl ?? null);
+  if (!isPlatformRepo(repoUrl)) return input;
+  const base = input.tags ?? existing?.tags ?? [];
+  if (base.includes(PLATFORM_TAG)) return input;
+  return { ...input, tags: [...base, PLATFORM_TAG] };
 }
 
 export class CrossOrgOwnerError extends Error {

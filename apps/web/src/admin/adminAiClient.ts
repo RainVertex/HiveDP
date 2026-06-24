@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useApiCore } from "@internal/api-client/react";
 import type { ApiCore } from "@internal/api-client";
 import type { AdminAiModelsResponse } from "@feature/agents-shared";
-import type { ChatSourceRepoDto } from "@feature/chat-shared";
 
 export function createAdminAiClient(core: ApiCore) {
   return {
@@ -26,13 +25,6 @@ export function createAdminAiClient(core: ApiCore) {
       core.request<void>(`/api/admin/ai/providers/${encodeURIComponent(slug)}/key`, {
         method: "DELETE",
       }),
-    getSourceRepo: () => core.request<ChatSourceRepoDto | null>(`/api/admin/ai/source-repo`),
-    setSourceRepo: (body: { owner: string; repo: string; ref?: string | null }) =>
-      core.request<void>(`/api/admin/ai/source-repo`, {
-        method: "PUT",
-        body: JSON.stringify(body),
-      }),
-    clearSourceRepo: () => core.request<void>(`/api/admin/ai/source-repo`, { method: "DELETE" }),
   };
 }
 

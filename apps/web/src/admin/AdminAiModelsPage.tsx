@@ -7,7 +7,6 @@ import type {
   AdminAiProviderGroup,
   AdminAiModelRow,
 } from "@feature/agents-shared";
-import type { ChatSourceRepoDto } from "@feature/chat-shared";
 import { useCurrentUser } from "../auth";
 
 export function AdminAiModelsPage() {
@@ -102,8 +101,6 @@ export function AdminAiModelsPage() {
         </div>
       )}
 
-      <SourceRepoSection />
-
       {!data ? (
         <div className="text-sm text-app-text-muted">{t("common.loading")}</div>
       ) : (
@@ -164,163 +161,6 @@ function ModelCapEditor({
         Save
       </button>
     </div>
-  );
-}
-
-const CREDENTIAL_HINT: Record<ChatSourceRepoDto["credentialSource"], string> = {
-  github_app: "Reads via the GitHub App installed on this owner.",
-  none: "No GitHub App installed on this owner, the assistant cannot read this repo yet.",
-};
-
-function SourceRepoSection() {
-  const client = useAdminAiApi();
-  const [config, setConfig] = useState<ChatSourceRepoDto | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [owner, setOwner] = useState("");
-  const [repo, setRepo] = useState("");
-  const [ref, setRef] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await client.getSourceRepo();
-      setConfig(res);
-      setOwner(res?.owner ?? "");
-      setRepo(res?.repo ?? "");
-      setRef(res?.ref ?? "");
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load source repo");
-    } finally {
-      setLoaded(true);
-    }
-  }, [client]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function save() {
-    setBusy(true);
-    setError(null);
-    try {
-      await client.setSourceRepo({
-        owner: owner.trim(),
-        repo: repo.trim(),
-        ref: ref.trim() || null,
-      });
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save source repo");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function clear() {
-    setBusy(true);
-    setError(null);
-    try {
-      await client.clearSourceRepo();
-      setConfig(null);
-      setOwner("");
-      setRepo("");
-      setRef("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to clear source repo");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const dirty = config
-    ? owner.trim() !== config.owner ||
-      repo.trim() !== config.repo ||
-      (ref.trim() || null) !== config.ref
-    : owner.trim() !== "" || repo.trim() !== "";
-  const canSave = owner.trim().length > 0 && repo.trim().length > 0 && dirty && !busy;
-
-  return (
-    <section className="mb-6 rounded-lg border border-app-border bg-app-surface p-4">
-      <div className="mb-1 text-xs uppercase tracking-wide text-app-text-muted">
-        Assistant source repository
-      </div>
-      <p className="mb-3 text-sm text-app-text-muted">
-        The repository the assistant reads to answer questions about how the platform works (for
-        example "how do I change the logo"). Leave it unset to disable the platform_source tools.
-      </p>
-
-      {error && (
-        <div className="mb-3 rounded-md border border-app-danger bg-app-surface px-3 py-2 text-sm text-app-danger">
-          {error}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-app-text-muted">Owner (org or user)</span>
-          <input
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
-            placeholder="rainvertex"
-            className="w-48 rounded-md border border-app-border bg-app-bg-sunken px-2 py-1 text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-primary"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-app-text-muted">Repository</span>
-          <input
-            value={repo}
-            onChange={(e) => setRepo(e.target.value)}
-            placeholder="HiveDP"
-            className="w-48 rounded-md border border-app-border bg-app-bg-sunken px-2 py-1 text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-primary"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-app-text-muted">Branch or ref (optional)</span>
-          <input
-            value={ref}
-            onChange={(e) => setRef(e.target.value)}
-            placeholder="default branch"
-            className="w-48 rounded-md border border-app-border bg-app-bg-sunken px-2 py-1 text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-primary"
-          />
-        </label>
-        <button
-          type="button"
-          disabled={!canSave}
-          onClick={() => void save()}
-          className="rounded-md bg-app-primary px-3 py-1.5 text-sm font-medium text-app-primary-foreground hover:opacity-90 disabled:opacity-50"
-        >
-          Save
-        </button>
-        {config && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void clear()}
-            className="rounded-md border border-app-danger px-3 py-1.5 text-sm text-app-danger hover:bg-app-danger/10 disabled:opacity-50"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-
-      {loaded && (
-        <div className="mt-3 text-xs">
-          {config ? (
-            <span
-              className={
-                config.credentialSource === "none" ? "text-app-warning" : "text-app-text-muted"
-              }
-            >
-              {CREDENTIAL_HINT[config.credentialSource]}
-            </span>
-          ) : (
-            <span className="text-app-text-muted">Not configured.</span>
-          )}
-        </div>
-      )}
-    </section>
   );
 }
 

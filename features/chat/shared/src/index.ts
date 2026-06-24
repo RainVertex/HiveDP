@@ -53,16 +53,6 @@ export interface ChatConfigDto {
   visionReady: boolean;
 }
 
-// Admin config for the assistant's "read the platform's own source" tools.
-// credentialSource reports how the backend will reach GitHub for this owner:
-// "github_app" when the App is installed on the owner, "none" otherwise (the tools will fail at runtime).
-export interface ChatSourceRepoDto {
-  owner: string;
-  repo: string;
-  ref: string | null;
-  credentialSource: "github_app" | "none";
-}
-
 export interface ChatTokenEvent {
   text: string;
 }

@@ -8,3 +8,4 @@ export {
 } from "./index";
 
 export { createSubtask, listSubtasks, getTask } from "./services/tasks";
+export { getProjectRepoRef } from "./services/repo";

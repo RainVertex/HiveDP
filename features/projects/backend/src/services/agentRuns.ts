@@ -78,13 +78,24 @@ const projectTaskHandler: AgentTaskHandler = {
         id: true,
         title: true,
         description: true,
-        project: { select: { id: true, title: true } },
+        project: {
+          select: {
+            id: true,
+            title: true,
+            installationId: true,
+            catalogEntity: { select: { repoUrl: true } },
+          },
+        },
       },
     });
     if (!task) throw new Error(`Task not found: ${taskId}`);
     return {
       task: { id: task.id, title: task.title, description: task.description },
-      project: { id: task.project.id, title: task.project.title },
+      project: {
+        id: task.project.id,
+        title: task.project.title,
+        repoConnected: Boolean(task.project.catalogEntity?.repoUrl && task.project.installationId),
+      },
     };
   },
 
