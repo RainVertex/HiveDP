@@ -2,6 +2,7 @@ kind: service
 name: Vexana
 description: "Vexana is an internal developer platform that provides self-service, ci/cd visibility, golden paths and more for engineering teams."
 ownerTeamIds: []
-repoUrl: https://github.com/RainVertex/Vexana
+repoUrl: "https://github.com/RainVertex/Vexana"
 tags:
+  - platform
   - typescript
