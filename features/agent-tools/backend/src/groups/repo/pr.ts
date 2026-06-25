@@ -1,6 +1,7 @@
 import { parseCatalogInfo, resolveOrgScope } from "@feature/catalog-backend/contract";
 import { openOrUpdateFilePr } from "@feature/integrations-backend/contract";
 import type { RegisteredTool } from "@internal/llm-core";
+import { REPO_OPEN_YAML_PR } from "@feature/agents-shared";
 import { loadEntityRepo } from "./resolve";
 
 // The only repo write: open or update the catalog-info.yaml PR on a catalog entity's repo. It is
@@ -8,11 +9,11 @@ import { loadEntityRepo } from "./resolve";
 // it takes entityId directly rather than the read tools' target selector.
 
 export const openYamlPr: RegisteredTool = {
-  id: "repo_open_yaml_pr",
+  id: REPO_OPEN_YAML_PR,
   openaiDef: {
     type: "function",
     function: {
-      name: "repo_open_yaml_pr",
+      name: REPO_OPEN_YAML_PR,
       description:
         "Open (or update) a pull request that writes catalog-info.yaml to a catalog entity's repo. The yaml is validated first; pass the COMPLETE file content. Re-runs update the same branch/PR. Returns { prUrl, prNumber, branchName, action }.",
       parameters: {

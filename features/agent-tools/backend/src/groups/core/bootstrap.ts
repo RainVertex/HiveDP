@@ -1,7 +1,9 @@
 import type { RegisteredTool } from "@internal/llm-core";
+import { requireUserId } from "./context";
 import { getUserIdentity } from "./queries";
 
-// Bootstrapping tools (whoami, get_today) every conversation should call once.
+// Bootstrapping tools (whoami, get_today) every conversation should call once. Their ids are
+// intentionally unprefixed: they are global primitives, unlike the <group>_ prefix used elsewhere.
 
 export const whoami: RegisteredTool = {
   id: "whoami",
@@ -15,8 +17,8 @@ export const whoami: RegisteredTool = {
     },
   },
   handler: async (_args, ctx) => {
-    if (!ctx.userId) return { error: "Not authenticated" };
-    const identity = await getUserIdentity(ctx.userId);
+    const userId = requireUserId(ctx);
+    const identity = await getUserIdentity(userId);
     if (!identity) return { error: "User not found" };
     return { ...identity, isAdmin: ctx.isAdmin };
   },

@@ -20,11 +20,11 @@ export const listMine: RegisteredTool = {
 };
 
 export const listForUser: RegisteredTool = {
-  id: "teams_list_user",
+  id: "teams_list_for_user",
   openaiDef: {
     type: "function",
     function: {
-      name: "teams_list_user",
+      name: "teams_list_for_user",
       description:
         "List all teams that another user (not the caller) is a member of, identified by their username (GitHub login), email, or display name. Returns the resolved user plus each team's slug, name, description, and that user's role. If the identifier matches more than one person, returns a `candidates` list to disambiguate. For the current user, use teams_list_mine instead.",
       parameters: {
@@ -42,7 +42,7 @@ export const listForUser: RegisteredTool = {
   handler: async (args, ctx) => {
     requireUserId(ctx);
     const q = String((args as { username?: string }).username ?? "").trim();
-    if (!q) return { error: "username is required" };
+    if (!q) return { error: "username is required", code: "bad_args" };
 
     const resolved = await resolveUser(q);
     if (resolved.kind === "none") return { error: `No user found matching '${q}'.` };

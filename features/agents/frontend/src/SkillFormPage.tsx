@@ -160,7 +160,7 @@ export function SkillFormPage() {
                           {open ? "▾" : "▸"}
                         </span>
                         <span>
-                          {group.label}
+                          {t(`toolGroups.${group.id}.label`)}
                           <span className="ml-1 text-xs font-normal text-app-text-muted">
                             ({selectedCount}/{ids.length})
                           </span>

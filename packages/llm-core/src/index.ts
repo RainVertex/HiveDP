@@ -8,9 +8,8 @@ export type { ProviderAdapter, AdapterRequest, AdapterResult } from "./adapters"
 export {
   registerTools,
   registerToolGroups,
-  resolveTools,
   getRegisteredTools,
-  listAvailableTools,
+  listRegisteredToolIds,
   listToolGroups,
   _resetExtraTools,
 } from "./toolRegistry";

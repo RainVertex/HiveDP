@@ -15,6 +15,7 @@
     }
   },
   "dependencies": {
+    "@feature/agents-shared": "0.1.0",
     "@feature/catalog-backend": "0.1.0",
     "@feature/integrations-backend": "0.1.0",
     "@feature/projects-backend": "0.1.0",

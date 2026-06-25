@@ -3,12 +3,6 @@ import { repoInfoTool, repoSearchTool, repoListDirTool, repoReadFileTool } from 
 import { openYamlPr } from "./pr";
 
 export const repoGroup: ToolGroup = {
-  meta: {
-    id: "repo",
-    label: "Depo",
-    description:
-      "Bağlı depoları (platform, proje veya katalog varlığı) okuma ve catalog-info.yaml için PR açma.",
-    order: 60,
-  },
+  meta: { id: "repo", order: 60 },
   tools: [repoInfoTool, repoSearchTool, repoListDirTool, repoReadFileTool, openYamlPr],
 };

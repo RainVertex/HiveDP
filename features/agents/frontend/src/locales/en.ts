@@ -198,6 +198,16 @@ export const en = {
     noPresets: "No preset avatars are available.",
     cancelButton: "Cancel",
   },
+  toolGroups: {
+    core: { label: "General" },
+    teams: { label: "Teams" },
+    catalog: { label: "Catalog" },
+    org: { label: "Organization" },
+    projects: { label: "Projects" },
+    repo: { label: "Repository" },
+    notifications: { label: "Notifications" },
+    integrations: { label: "Integrations" },
+  },
   kind: {
     custom: "Custom",
     catalogEnrichment: "Catalog enrichment",

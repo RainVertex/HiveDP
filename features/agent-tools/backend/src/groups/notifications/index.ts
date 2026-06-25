@@ -2,11 +2,6 @@ import type { ToolGroup } from "../../types";
 import { myUnread } from "./unread";
 
 export const notificationsGroup: ToolGroup = {
-  meta: {
-    id: "notifications",
-    label: "Bildirimler",
-    description: "Okunmamış bildirimler.",
-    order: 60,
-  },
+  meta: { id: "notifications", order: 70 },
   tools: [myUnread],
 };

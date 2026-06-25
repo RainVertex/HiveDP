@@ -24,15 +24,21 @@ export function registerTools(tools: RegisteredTool[]): void {
   for (const t of tools) {
     // Under the skills model every tool must belong to a group (a skill), else it is unreachable.
     if (!t.group) throw new Error(`Tool "${t.id}" was registered without a group`);
+    // id keys the registry and skill selection, openaiDef.function.name is what the model calls, so
+    // they must stay identical or the two paths resolve to different tools.
+    if (t.openaiDef.function.name !== t.id) {
+      throw new Error(
+        `Tool "${t.id}" has mismatched openaiDef.function.name "${t.openaiDef.function.name}"`,
+      );
+    }
     REGISTRY.set(t.id, t);
   }
 }
 
-// Display metadata for a tool group; tools reference a group by its id.
+// Tool group identity. Labels are localized in the frontend by group id, so only the id and the
+// picker sort order live here.
 export interface ToolGroupMeta {
   id: string;
-  label: string;
-  description?: string;
   order?: number;
 }
 
@@ -53,19 +59,13 @@ export interface ToolDescriptor {
   description: string;
 }
 
-// Tool metadata for the UI multiselect; today all registered tools are visible.
-export function listAvailableTools(_ctx: ToolContext): ToolDescriptor[] {
-  return [...REGISTRY.values()].map((t) => ({
-    id: t.id,
-    name: t.openaiDef.function.name,
-    description: t.openaiDef.function.description ?? "",
-  }));
+// Every registered tool id, used to validate that skills reference real tools.
+export function listRegisteredToolIds(): string[] {
+  return [...REGISTRY.keys()];
 }
 
 export interface ToolGroupDescriptor {
   id: string;
-  label: string;
-  description: string;
   tools: ToolDescriptor[];
 }
 
@@ -82,38 +82,24 @@ export function listToolGroups(_ctx: ToolContext): ToolGroupDescriptor[] {
     });
     buckets.set(groupId, arr);
   }
-  const groups: ToolGroupDescriptor[] = [...buckets.entries()].map(([groupId, tools]) => {
-    const meta = GROUP_META.get(groupId);
-    return {
-      id: groupId,
-      label: meta?.label ?? groupId,
-      description: meta?.description ?? "",
-      tools,
-    };
-  });
-  // order from meta, then label, so the picker is stable across boots.
+  const groups: ToolGroupDescriptor[] = [...buckets.entries()].map(([groupId, tools]) => ({
+    id: groupId,
+    tools,
+  }));
+  // order from meta, then id, so the picker is stable across boots.
   groups.sort((a, b) => {
     const oa = GROUP_META.get(a.id)?.order ?? 999;
     const ob = GROUP_META.get(b.id)?.order ?? 999;
     if (oa !== ob) return oa - ob;
-    return a.label.localeCompare(b.label);
+    return a.id.localeCompare(b.id);
   });
   return groups;
 }
 
-// Order is preserved so the model sees a stable tool list across runs of the same agent.
-export function resolveTools(toolIds: string[]): RegisteredTool[] {
-  return toolIds.map((id) => {
-    const t = REGISTRY.get(id);
-    if (!t) throw new Error(`Unknown tool: ${id}`);
-    return t;
-  });
-}
-
 // Resolve tool ids to their registered tools, skipping any id that is not currently registered.
-// Skills reference tool ids that may be env-gated off (e.g. chat writes) or removed, so resolution
-// must be lenient: a missing tool is dropped rather than throwing. Order follows the input, and a
-// tool id repeated across the input appears once.
+// Skills reference tool ids that may have been removed or renamed, so resolution must be lenient: a
+// missing tool is dropped rather than throwing. Order follows the input, and a tool id repeated
+// across the input appears once.
 export function getRegisteredTools(toolIds: string[]): RegisteredTool[] {
   const seen = new Set<string>();
   const out: RegisteredTool[] = [];

@@ -154,10 +154,11 @@ async function seedSkills() {
   ];
 
   for (const s of skills) {
-    // Create-only: once seeded, admin edits to a built-in skill are preserved across reboots.
+    // toolIds are code-owned: re-applied every seed so tool-set changes land without a reset. The
+    // human-facing fields (label, description, guidance) stay out of update so admin edits survive.
     await prisma.skill.upsert({
       where: { id: s.id },
-      update: {},
+      update: { toolIds: s.toolIds },
       create: {
         id: s.id,
         label: s.label,

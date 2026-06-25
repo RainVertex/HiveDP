@@ -1,4 +1,10 @@
-import { registerTools, registerToolGroups, type RegisteredTool } from "@internal/llm-core";
+import {
+  registerTools,
+  registerToolGroups,
+  listRegisteredToolIds,
+  type RegisteredTool,
+} from "@internal/llm-core";
+import { prisma } from "@internal/db";
 import type { ToolGroup } from "./types";
 import { coreGroup } from "./groups/core";
 import { teamsGroup } from "./groups/teams";
@@ -28,7 +34,25 @@ function tagged(group: ToolGroup): RegisteredTool[] {
 }
 
 export function registerAllTools(): void {
-  // Register every skill's meta so its id is always recognized, but only enabled skills' tools.
   registerToolGroups(ALL_GROUPS.map((g) => g.meta));
-  registerTools(ALL_GROUPS.filter((g) => g.enabled?.() !== false).flatMap(tagged));
+  registerTools(ALL_GROUPS.flatMap(tagged));
+}
+
+// Warn (never throw) when a built-in skill references a tool id that is not registered, so a typo or
+// stale id in the seed surfaces at boot instead of silently dropping the tool at run time.
+export async function validateBuiltinSkillToolIds(): Promise<void> {
+  const known = new Set(listRegisteredToolIds());
+  const skills = await prisma.skill.findMany({
+    where: { builtin: true },
+    select: { id: true, toolIds: true },
+  });
+  for (const s of skills) {
+    const ids = Array.isArray(s.toolIds) ? (s.toolIds as unknown as string[]) : [];
+    const unknown = ids.filter((id) => !known.has(id));
+    if (unknown.length > 0) {
+      console.warn(
+        `[agent-tools] built-in skill "${s.id}" references unknown tool ids: ${unknown.join(", ")}`,
+      );
+    }
+  }
 }

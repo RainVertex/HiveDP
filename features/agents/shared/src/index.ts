@@ -36,18 +36,19 @@ export interface AgentToolDescriptor {
 
 export interface AgentToolGroup {
   id: string;
-  label: string;
-  description: string;
   tools: AgentToolDescriptor[];
 }
 
+// The catalog-info.yaml PR tool id. Shared here (a leaf both features can import) so the agent-tools
+// tool and the enricher task handler that matches on it break at compile time, not silently, on rename.
+export const REPO_OPEN_YAML_PR = "repo_open_yaml_pr";
+
 export interface AgentToolsResponse {
-  items: AgentToolDescriptor[];
   groups: AgentToolGroup[];
 }
 
 // An admin-composed bundle of registry tools. tools are resolved from toolIds against the current
-// registry for display, so a tool that is unregistered (env-gated off) simply does not appear.
+// registry for display, so a tool that was removed or renamed simply does not appear.
 export interface SkillSummary {
   id: ID;
   label: string;

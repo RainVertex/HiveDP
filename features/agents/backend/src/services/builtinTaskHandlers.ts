@@ -1,3 +1,4 @@
+import { REPO_OPEN_YAML_PR } from "@feature/agents-shared";
 import { registerAgentTaskHandler, type AgentTaskHandler } from "./agentTaskHandlers";
 import { isAgentProviderReady } from "./providerReadiness";
 
@@ -19,7 +20,7 @@ const catalogEnrichHandler: AgentTaskHandler = {
   buildRunInput: (payload) => ({ entityId: payload.entityId }),
 
   interpret: ({ result }) => {
-    const prCall = result.toolCalls.find((c) => c.name === "repo_open_yaml_pr");
+    const prCall = result.toolCalls.find((c) => c.name === REPO_OPEN_YAML_PR);
     const prOut = prCall ? asRecord(prCall.output) : null;
     const prUrl = prOut && typeof prOut.prUrl === "string" ? prOut.prUrl : null;
     const errCode = prOut && typeof prOut.code === "string" ? prOut.code : null;

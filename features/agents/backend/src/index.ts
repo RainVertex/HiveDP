@@ -26,12 +26,7 @@ export {
 } from "./jobs";
 export { reconcileStaleAgentTasks } from "./services/agentTasks";
 export { registerBuiltinAgentTaskHandlers } from "./services/builtinTaskHandlers";
-export {
-  registerTools,
-  resolveTools,
-  type RegisteredTool,
-  type ToolContext,
-} from "@internal/llm-core";
+export { registerTools, type RegisteredTool, type ToolContext } from "@internal/llm-core";
 
 export const featureManifest: FeatureManifest = {
   mounts: [

@@ -201,6 +201,16 @@ export const tr: AgentsResources = {
     noPresets: "Kullanılabilir ön ayar avatar yok.",
     cancelButton: "İptal",
   },
+  toolGroups: {
+    core: { label: "Genel" },
+    teams: { label: "Takımlar" },
+    catalog: { label: "Katalog" },
+    org: { label: "Organizasyon" },
+    projects: { label: "Projeler" },
+    repo: { label: "Depo" },
+    notifications: { label: "Bildirimler" },
+    integrations: { label: "Entegrasyonlar" },
+  },
   kind: {
     custom: "Özel",
     catalogEnrichment: "Katalog zenginleştirme",

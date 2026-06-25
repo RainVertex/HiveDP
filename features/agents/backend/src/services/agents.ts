@@ -1,5 +1,5 @@
 import { ensureAgentBackingUser } from "@internal/db";
-import { listAvailableTools, listToolGroups } from "@internal/llm-core";
+import { listToolGroups } from "@internal/llm-core";
 import { PROTECTED_AGENT_IDS } from "../constants";
 import type { CreateAgentInput, UpdateAgentInput } from "../dto";
 import { BadRequestError, ConflictError, NotFoundError } from "../errors";
@@ -24,7 +24,7 @@ export async function listAgents() {
 }
 
 export function listTools(ctx: ToolListContext) {
-  return { items: listAvailableTools(ctx), groups: listToolGroups(ctx) };
+  return { groups: listToolGroups(ctx) };
 }
 
 export async function getAgentDetail(id: string, caller: CallerContext) {

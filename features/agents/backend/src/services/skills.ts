@@ -70,7 +70,7 @@ export async function deleteSkill(id: string) {
 }
 
 // Resolve an agent's skill ids to the tools they currently grant plus any guidance to inject. Tools
-// are resolved leniently, so an env-gated-off or removed tool is dropped rather than failing the run.
+// are resolved leniently, so a removed or renamed tool is dropped rather than failing the run.
 export async function resolveAgentSkills(
   skillIds: string[],
 ): Promise<{ tools: RegisteredTool[]; guidance: string[] }> {
