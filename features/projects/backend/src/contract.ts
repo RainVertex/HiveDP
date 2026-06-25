@@ -7,6 +7,16 @@ export {
   reconcileProjectMembersForInstallation,
 } from "./index";
 
-export { createSubtask, listSubtasks, getTask } from "./services/tasks";
+export {
+  createSubtask,
+  listSubtasks,
+  getTask,
+  createTask,
+  moveTask,
+  searchTasks,
+  listMyTasks,
+} from "./services/tasks";
+export { addComment } from "./services/comments";
+export { listProjectLabels, setTaskLabels } from "./services/labels";
 export { assignUserToTask, searchAssignableUsers } from "./services/assignees";
 export { getProjectRepoRef } from "./services/repo";

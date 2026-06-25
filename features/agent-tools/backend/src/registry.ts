@@ -14,6 +14,7 @@ import { notificationsGroup } from "./groups/notifications";
 import { integrationsGroup } from "./groups/integrations";
 import { repoGroup } from "./groups/repo";
 import { projectsGroup } from "./groups/projects";
+import { scaffolderGroup } from "./groups/scaffolder";
 
 // Every tool group. Groups only organize tools for the catalog shown in the skill editor; they are
 // not skills. Skills are admin-managed rows (see features/agents) that reference tool ids directly.
@@ -24,6 +25,7 @@ const ALL_GROUPS: ToolGroup[] = [
   orgGroup,
   projectsGroup,
   repoGroup,
+  scaffolderGroup,
   notificationsGroup,
   integrationsGroup,
 ];

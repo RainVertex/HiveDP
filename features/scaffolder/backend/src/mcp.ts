@@ -2,25 +2,12 @@ import { Router, type Request, type RequestHandler, type Response } from "expres
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { prisma } from "@internal/db";
-import {
-  buildPlan,
-  contentHashForTemplate,
-  paramsHash as computeParamsHash,
-  resolveTarget,
-  type Actor,
-  type Audience,
-  type SandboxTarget,
-  type StepTemplateContext,
-} from "@internal/scaffolder-core";
-import { filterByTemplateAcl } from "./services/acl";
+import { type Actor } from "@internal/scaffolder-core";
 import { z } from "zod";
+import { filterByTemplateAcl } from "./services/acl";
 import { verifyMcpToken } from "./services/mcp-tokens";
-import { getActionRegistry, getTemplates } from "./services/registry";
-import { buildPlanCtx } from "./services/plan-ctx";
-import { buildUserContext } from "./services/jq-context";
-import { applyPlan, PlanExpiredError } from "./services/apply";
-import { StalePlanError, TargetLockBusyError } from "./services/locks";
-import { loadEnvSecrets } from "./services/secrets";
+import { getTemplates } from "./services/registry";
+import { buildAndPersistPlan, applyPersistedPlan } from "./services/plan-run";
 
 // MCP HTTP router exposing scaffolder templates as tools for external agents over bearer-token auth.
 
@@ -72,25 +59,17 @@ function templateAllowedForToken(templateId: string, scopes: string[]): boolean 
   return scopes.includes(templateId);
 }
 
-function auditFor(req: Request, kind: string, payload: Record<string, unknown>): void {
-  const auth = res(req).locals.mcp as McpAuthContext | undefined;
-  if (!auth) return;
-  void prisma.auditEvent
-    .create({
-      data: {
-        actorUserId: auth.userId,
-        actorIp: req.ip ?? null,
-        requestId: req.id != null ? String(req.id) : null,
-        kind,
-        payload: payload as never,
-      },
-    })
-    .catch(() => {});
-}
-
 // Lifts res off req for closures below that only capture req.
 function res(req: Request): { locals: { mcp?: McpAuthContext } } {
   return (req as Request & { res?: Response }).res ?? { locals: {} };
+}
+
+// Audit metadata derived from the HTTP request, threaded into the shared plan-run service.
+function auditMeta(req: Request): { actorIp: string | null; requestId: string | null } {
+  return {
+    actorIp: req.ip ?? null,
+    requestId: req.id != null ? String(req.id) : null,
+  };
 }
 
 async function buildMcpServer(req: Request): Promise<McpServer> {
@@ -101,7 +80,7 @@ async function buildMcpServer(req: Request): Promise<McpServer> {
 
   // One tool per agent-audience template; template id is sanitized to a valid MCP tool identifier.
   for (const template of visible) {
-    if (!template.metadata.audience.includes("agent" as Audience)) continue;
+    if (!template.metadata.audience.includes("agent")) continue;
     if (!templateAllowedForToken(template.metadata.id, auth.scopes)) continue;
     // day2/delete templates need a catalog entity which the MCP surface cannot pick yet.
     if (template.resolvedOperation !== "create") continue;
@@ -118,14 +97,12 @@ async function buildMcpServer(req: Request): Promise<McpServer> {
         inputSchema: shape,
       },
       async (args: unknown) => {
-        const plan = await runBuildPlan(template.metadata.id, args, auth);
-        auditFor(req, "scaffolder.plan.created", {
-          planId: plan.id,
-          templateId: plan.templateId,
-          templateVersion: plan.templateVersion,
-          mode: plan.mode,
-          target: plan.target,
-          actorKind: "external-agent",
+        const plan = await buildAndPersistPlan({
+          templateId: template.metadata.id,
+          rawParams: args,
+          actor: auth.actor,
+          userId: auth.userId,
+          audit: auditMeta(req),
         });
         return {
           content: [{ type: "text" as const, text: JSON.stringify(plan, null, 2) }],
@@ -162,7 +139,13 @@ async function buildMcpServer(req: Request): Promise<McpServer> {
       inputSchema: { planId: z.string(), dryRun: z.boolean().optional() },
     },
     async ({ planId, dryRun }: { planId: string; dryRun?: boolean }) => {
-      const result = await runApplyPlan(planId, dryRun ?? false, auth, req);
+      const result = await applyPersistedPlan({
+        planId,
+        dryRun: dryRun ?? false,
+        actor: auth.actor,
+        userId: auth.userId,
+        audit: auditMeta(req),
+      });
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         ...(result.kind === "error" ? { isError: true } : {}),
@@ -187,154 +170,6 @@ async function buildMcpServer(req: Request): Promise<McpServer> {
   );
 
   return server;
-}
-
-async function runBuildPlan(templateId: string, rawParams: unknown, auth: McpAuthContext) {
-  const template = (await getTemplates()).get(templateId);
-  if (!template) throw new Error(`Unknown template: ${templateId}`);
-  const allowed = await filterByTemplateAcl([template], auth.actor, false, true);
-  if (allowed.length === 0) throw new Error("Forbidden");
-  const target = resolveTarget(template, "agent");
-  const planCtx = buildPlanCtx({ actor: auth.actor, target });
-  const contentHash = contentHashForTemplate(template);
-  const user = await buildUserContext(auth.userId);
-  const phash = computeParamsHash(rawParams);
-  const existingBinding = await prisma.scaffoldBinding.findFirst({
-    where: { templateId: template.metadata.id, paramsHash: phash, active: true },
-    select: { id: true },
-  });
-  const built = await buildPlan({
-    template,
-    rawParams: rawParams ?? {},
-    actor: auth.actor,
-    ctx: planCtx,
-    templateContentHash: contentHash,
-    target,
-    bindingId: existingBinding?.id ?? null,
-    actions: getActionRegistry(),
-    user,
-  });
-  await prisma.scaffoldPlan.create({
-    data: {
-      id: built.plan.id,
-      templateId: built.plan.templateId,
-      templateVersion: built.plan.templateVersion,
-      templateHash: built.plan.templateContentHash,
-      params: built.plan.params as never,
-      paramsHash: built.plan.paramsHash,
-      mode: built.plan.mode === "no-op" ? "no_op" : built.plan.mode,
-      target: built.plan.target,
-      capabilities: built.plan.capabilities,
-      irreversible: built.plan.irreversible,
-      bindingId: built.plan.bindingId,
-      artifact: {
-        steps: built.plan.steps,
-        resolvedSteps: built.resolvedSteps,
-        templateContext: built.templateContext,
-      } as never,
-      createdByUserId: auth.userId,
-      actorKind: auth.actor.kind,
-      createdAt: new Date(built.plan.createdAt),
-      expiresAt: new Date(built.plan.expiresAt),
-    },
-  });
-  return built.plan;
-}
-
-type ApplyPlanOutcome =
-  | {
-      kind: "ok";
-      taskId: string;
-      status: string;
-      output: Record<string, unknown>;
-      error: string | null;
-      rolledBack: boolean;
-    }
-  | { kind: "error"; reason: string };
-
-async function runApplyPlan(
-  planId: string,
-  dryRun: boolean,
-  auth: McpAuthContext,
-  req: Request,
-): Promise<ApplyPlanOutcome> {
-  const planRow = await prisma.scaffoldPlan.findUnique({ where: { id: planId } });
-  if (!planRow) return { kind: "error", reason: "Plan not found" };
-  if (planRow.createdByUserId !== auth.userId) return { kind: "error", reason: "Forbidden" };
-  if (planRow.appliedTaskId) return { kind: "error", reason: "Plan already applied" };
-
-  const artifact = planRow.artifact as unknown as {
-    steps: Awaited<ReturnType<typeof buildPlan>>["plan"]["steps"];
-    resolvedSteps: Array<{ stepId: string; action: string; input: unknown; deferred?: boolean }>;
-    templateContext?: StepTemplateContext;
-  };
-  const plan = {
-    id: planRow.id,
-    templateId: planRow.templateId,
-    templateVersion: planRow.templateVersion,
-    templateContentHash: planRow.templateHash,
-    params: planRow.params as Record<string, unknown>,
-    paramsHash: planRow.paramsHash,
-    bindingId: planRow.bindingId,
-    mode: (planRow.mode === "no_op" ? "no-op" : planRow.mode) as "create" | "update" | "no-op",
-    createdAt: planRow.createdAt.toISOString(),
-    expiresAt: planRow.expiresAt.toISOString(),
-    target: planRow.target as SandboxTarget,
-    capabilities: planRow.capabilities as Awaited<
-      ReturnType<typeof buildPlan>
-    >["plan"]["capabilities"],
-    irreversible: planRow.irreversible,
-    steps: artifact.steps,
-    actor: auth.actor,
-  };
-  const planCtx = buildPlanCtx({
-    actor: auth.actor,
-    target: plan.target,
-  });
-  try {
-    const result = await applyPlan({
-      plan,
-      resolvedSteps: artifact.resolvedSteps,
-      ...(artifact.templateContext ? { templateContext: artifact.templateContext } : {}),
-      actions: getActionRegistry(),
-      planCtx,
-      triggeredByUserId: auth.userId,
-      dryRun,
-      requestId: req.id != null ? String(req.id) : undefined,
-      secrets: loadEnvSecrets(),
-    });
-    if (!dryRun) {
-      await prisma.scaffoldPlan.update({
-        where: { id: planRow.id },
-        data: { appliedTaskId: result.taskId },
-      });
-      auditFor(req, "scaffolder.task.applied", {
-        taskId: result.taskId,
-        planId: planRow.id,
-        templateId: planRow.templateId,
-        status: result.status,
-        rolledBack: result.rolledBack,
-        durationMs: 0,
-      });
-    }
-    return {
-      kind: "ok",
-      taskId: result.taskId,
-      status: result.status,
-      output: result.output,
-      error: result.error,
-      rolledBack: result.rolledBack,
-    };
-  } catch (err) {
-    if (err instanceof PlanExpiredError) return { kind: "error", reason: "Plan expired" };
-    if (err instanceof StalePlanError)
-      return { kind: "error", reason: "Plan stale, replan required" };
-    if (err instanceof TargetLockBusyError) return { kind: "error", reason: "Target busy" };
-    return {
-      kind: "error",
-      reason: err instanceof Error ? err.message : String(err),
-    };
-  }
 }
 
 export function createScaffolderMcpRouter(): Router {

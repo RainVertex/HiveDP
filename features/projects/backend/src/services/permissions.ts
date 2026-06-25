@@ -69,3 +69,18 @@ export function meetsLevel(access: AccessContext, level: PermissionLevel): boole
       return access.maxPermission >= 3; // MAINTAIN and ADMIN administer
   }
 }
+
+// Project ids the user can read: every project for a platform admin, else the ones they belong to or
+// created. Used by cross-project reads (search, my-tasks) that cannot lean on a single resolveAccess.
+export async function visibleProjectIds(userId: string): Promise<string[]> {
+  const user = await projectsDb.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (user?.role === "admin") {
+    const all = await projectsDb.project.findMany({ select: { id: true } });
+    return all.map((p) => p.id);
+  }
+  const [members, created] = await Promise.all([
+    projectsDb.projectMember.findMany({ where: { userId }, select: { projectId: true } }),
+    projectsDb.project.findMany({ where: { creatorUserId: userId }, select: { id: true } }),
+  ]);
+  return [...new Set([...members.map((m) => m.projectId), ...created.map((c) => c.id)])];
+}

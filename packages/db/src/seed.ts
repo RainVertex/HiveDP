@@ -121,6 +121,9 @@ async function seedSkills() {
         "repo_search",
         "repo_list_dir",
         "repo_read_file",
+        "projects_get_task",
+        "projects_search_tasks",
+        "projects_list_my_tasks",
       ],
     },
     {
@@ -145,10 +148,49 @@ async function seedSkills() {
         "projects_list_subtasks",
         "projects_get_task",
         "projects_assign_task",
+        "projects_create_task",
+        "projects_move_task",
+        "projects_comment_on_task",
         "repo_info",
         "repo_search",
         "repo_list_dir",
         "repo_read_file",
+      ],
+    },
+    {
+      id: "skill-project-manage",
+      label: "Project management",
+      description: "Act on a project board: create and move tasks, comment, and set labels.",
+      guidance:
+        "Use to act on a project board. Find the task first with projects_search_tasks or projects_list_my_tasks to get its id. Create top-level work with projects_create_task and break it down with projects_create_subtask. Move a task between columns or complete it with projects_move_task. Leave updates with projects_comment_on_task, using @username to notify someone. Before projects_set_labels, call projects_list_labels to use titles that exist. Creating, moving, commenting, and labelling all require write access on the project.",
+      toolIds: [
+        "whoami",
+        "get_today",
+        "projects_search_tasks",
+        "projects_list_my_tasks",
+        "projects_get_task",
+        "projects_create_task",
+        "projects_create_subtask",
+        "projects_list_subtasks",
+        "projects_move_task",
+        "projects_assign_task",
+        "projects_comment_on_task",
+        "projects_list_labels",
+        "projects_set_labels",
+      ],
+    },
+    {
+      id: "skill-scaffolder",
+      label: "Scaffolder",
+      description: "Discover, plan, and run scaffolder templates to create new services and repos.",
+      guidance:
+        "To scaffold a new service or repo, first call scaffolder_list_templates to see what you can run and the parameters each template needs. Build a preview with scaffolder_plan, passing the template id and a params object that matches its schema. Show the user the plan summary (what it will create, whether it is irreversible) before applying. Then run scaffolder_apply_plan with the planId to execute. Use dryRun true to validate first. A plan can only be applied once and plans expire, so apply promptly after the user confirms.",
+      toolIds: [
+        "whoami",
+        "get_today",
+        "scaffolder_list_templates",
+        "scaffolder_plan",
+        "scaffolder_apply_plan",
       ],
     },
   ];
@@ -178,7 +220,7 @@ async function seedPlatformAssistant() {
   // The assistant is treated as not-configured whenever this model is disabled or its provider has no key.
   const defaultModelId = "llmmodel_openai_o4_mini";
 
-  const skillIds = ["skill-platform-read"];
+  const skillIds = ["skill-platform-read", "skill-project-manage", "skill-scaffolder"];
 
   const instructions = `You are the engineering platform assistant.
 You help the current user with their work, teams, and catalog.
@@ -191,6 +233,15 @@ Reads:
 - Call whoami once at the start of a new conversation.
 - Call get_today before any "today/this week" question.
 - Parallelize independent reads.
+
+Acting (projects and scaffolding):
+- You can act, not just read. Manage project boards with the projects_* tools
+  (create or move tasks, comment, set labels). Resolve a task with
+  projects_search_tasks or projects_list_my_tasks first to get its id, and call
+  projects_list_labels before projects_set_labels.
+- To create a new service or repo, list options with scaffolder_list_templates,
+  preview with scaffolder_plan, show the user what it will do, then run
+  scaffolder_apply_plan once they confirm.
 
 Platform source code:
 - For questions about how the platform itself works or how to change something in

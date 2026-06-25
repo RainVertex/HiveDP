@@ -4,6 +4,10 @@ import {
   listSubtasks,
   getTask,
   assignUserToTask,
+  createTask,
+  moveTask,
+  searchTasks,
+  listMyTasks,
 } from "@feature/projects-backend/contract";
 import { requireUserId } from "../core";
 
@@ -125,5 +129,127 @@ export const getTaskTool: RegisteredTool = {
     const userId = requireUserId(ctx);
     const { taskId } = args as { taskId: string };
     return getTask({ userId, taskId });
+  },
+};
+
+export const createTaskTool: RegisteredTool = {
+  id: "projects_create_task",
+  openaiDef: {
+    type: "function",
+    function: {
+      name: "projects_create_task",
+      description:
+        "Create a new top-level task in a project (not a subtask). Requires write access on the project. Pass bucketId to place it in a specific board column, otherwise it lands with no column. Use projects_create_subtask instead when the work belongs under an existing parent task.",
+      parameters: {
+        type: "object",
+        properties: {
+          projectId: { type: "string", description: "Id of the project to create the task in." },
+          title: { type: "string", description: "Short, concrete task title." },
+          description: {
+            type: "string",
+            description: "Optional one or two sentence detail for the task.",
+          },
+          bucketId: {
+            type: "string",
+            description: "Optional id of the board column (bucket) to place the task in.",
+          },
+        },
+        required: ["projectId", "title"],
+      },
+    },
+  },
+  handler: async (args, ctx) => {
+    const userId = requireUserId(ctx);
+    const { projectId, title, description, bucketId } = args as {
+      projectId: string;
+      title: string;
+      description?: string;
+      bucketId?: string;
+    };
+    return createTask({ userId, projectId, title, description, bucketId });
+  },
+};
+
+export const moveTaskTool: RegisteredTool = {
+  id: "projects_move_task",
+  openaiDef: {
+    type: "function",
+    function: {
+      name: "projects_move_task",
+      description:
+        "Move a task to a different board column (bucket) and/or mark it done or not done. Requires write access. Pass bucketId to change the column and done to flip completion. The task's watchers are notified of the change.",
+      parameters: {
+        type: "object",
+        properties: {
+          taskId: { type: "string", description: "Id of the task to move." },
+          bucketId: {
+            type: "string",
+            description: "Optional id of the destination board column (bucket).",
+          },
+          done: {
+            type: "boolean",
+            description: "Optional. Set true to complete the task, false to reopen it.",
+          },
+        },
+        required: ["taskId"],
+      },
+    },
+  },
+  handler: async (args, ctx) => {
+    const userId = requireUserId(ctx);
+    const { taskId, bucketId, done } = args as {
+      taskId: string;
+      bucketId?: string;
+      done?: boolean;
+    };
+    return moveTask({ userId, taskId, bucketId, done });
+  },
+};
+
+export const searchTasksTool: RegisteredTool = {
+  id: "projects_search_tasks",
+  openaiDef: {
+    type: "function",
+    function: {
+      name: "projects_search_tasks",
+      description:
+        "Search tasks by title and description across every project the current user can see, or one project when projectId is given. Case-insensitive substring match, up to 20 hits. Use it to find a task before acting on it.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Text to search for in task titles and descriptions.",
+          },
+          projectId: {
+            type: "string",
+            description: "Optional. Restrict the search to a single project by id.",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  handler: async (args, ctx) => {
+    const userId = requireUserId(ctx);
+    const { query, projectId } = args as { query: string; projectId?: string };
+    return searchTasks({ userId, query, projectId });
+  },
+};
+
+export const listMyTasksTool: RegisteredTool = {
+  id: "projects_list_my_tasks",
+  openaiDef: {
+    type: "function",
+    function: {
+      name: "projects_list_my_tasks",
+      description:
+        "List the current user's open (not done) tasks across all projects, soonest due first. Use it to answer questions like what is assigned to me or what is due.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  handler: async (_args, ctx) => {
+    const userId = requireUserId(ctx);
+    return listMyTasks({ userId });
   },
 };
