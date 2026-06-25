@@ -74,3 +74,14 @@ export async function entitiesOwnedByTeam(teamSlug: string, scope: string[] | nu
   });
   return { team: { id: team.id, slug: team.slug, name: team.name }, entities };
 }
+
+export async function getEntityWithOwners(entityId: string) {
+  return prisma.catalogEntity.findUnique({
+    where: { id: entityId },
+    include: {
+      owners: {
+        include: { team: { select: { id: true, slug: true, name: true } } },
+      },
+    },
+  });
+}

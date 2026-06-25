@@ -19,7 +19,7 @@ const catalogEnrichHandler: AgentTaskHandler = {
   buildRunInput: (payload) => ({ entityId: payload.entityId }),
 
   interpret: ({ result }) => {
-    const prCall = result.toolCalls.find((c) => c.name === "catalog_open_yaml_pr");
+    const prCall = result.toolCalls.find((c) => c.name === "repo_open_yaml_pr");
     const prOut = prCall ? asRecord(prCall.output) : null;
     const prUrl = prOut && typeof prOut.prUrl === "string" ? prOut.prUrl : null;
     const errCode = prOut && typeof prOut.code === "string" ? prOut.code : null;

@@ -1,8 +1,8 @@
 import type { RepoClient } from "./resolve";
 
-// Repo read engine shared by the platform-source tools (the platform's own repo) and the project repo
-// tools (a project's connected repo). Each function takes a resolved client and does the GitHub I/O, so
-// the only difference between the two tool families is how the client is resolved.
+// Repo read engine for every target a repo tool can point at (the platform's own repo, a project's
+// connected repo, a catalog entity's repo). Each function takes a resolved client and does the GitHub
+// I/O, so the only thing that differs between targets is how the client is resolved.
 
 const MAX_FILE_CHARS = 60_000;
 const MAX_SEARCH_RESULTS = 25;

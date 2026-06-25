@@ -1,18 +1,20 @@
 import { parseCatalogInfo, resolveOrgScope } from "@feature/catalog-backend/contract";
 import { openOrUpdateFilePr } from "@feature/integrations-backend/contract";
 import type { RegisteredTool } from "@internal/llm-core";
-import { loadEntityRepo } from "./repo";
+import { loadEntityRepo } from "./resolve";
 
-// Catalog enrichment write tool: open or update the catalog-info.yaml PR on the entity's repo.
+// The only repo write: open or update the catalog-info.yaml PR on a catalog entity's repo. It is
+// entity-scoped (the entity is the only valid target) and writes a fixed, schema-validated file, so
+// it takes entityId directly rather than the read tools' target selector.
 
 export const openYamlPr: RegisteredTool = {
-  id: "catalog_open_yaml_pr",
+  id: "repo_open_yaml_pr",
   openaiDef: {
     type: "function",
     function: {
-      name: "catalog_open_yaml_pr",
+      name: "repo_open_yaml_pr",
       description:
-        "Open (or update) a pull request that writes catalog-info.yaml to the entity's repo. The yaml is validated first; pass the COMPLETE file content. Re-runs update the same branch/PR. Returns { prUrl, prNumber, branchName, action }.",
+        "Open (or update) a pull request that writes catalog-info.yaml to a catalog entity's repo. The yaml is validated first; pass the COMPLETE file content. Re-runs update the same branch/PR. Returns { prUrl, prNumber, branchName, action }.",
       parameters: {
         type: "object",
         properties: {

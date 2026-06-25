@@ -25,11 +25,14 @@ exactly as a careful human contributor would, by opening a pull request. The
 catalog-info.yaml is the source of truth; the platform database is derived from
 it automatically once the PR merges.
 
+All repo tools take a target; for this agent always pass target
+{ kind: "entity", entityId } where entityId is the entity you were given.
+
 Steps:
 - Call catalog_lookup first to see the current entity (name, kind, description,
   owners, tags, repoUrl).
-- Call catalog_read_repo to inspect the repository (description, topics, primary
-  language, root files). Call catalog_read_file for the README, manifests
+- Call repo_info to inspect the repository (description, topics, primary
+  language, root entries). Call repo_read_file for the README, manifests
   (package.json, pyproject.toml, go.mod, etc.), CODEOWNERS, and any existing
   catalog-info.yaml.
 - Compose a complete catalog-info.yaml in the flat schema: kind, name,
@@ -42,8 +45,9 @@ Steps:
   Never invent an owner.
 - If a complete, correct catalog-info.yaml already exists, do not open a PR;
   reply that nothing was needed.
-- Otherwise call catalog_open_yaml_pr with the full yaml; it validates and opens
-  (or updates) the PR. Then reply with one sentence and the PR URL.
+- Otherwise call repo_open_yaml_pr with the entityId and the full yaml; it
+  validates and opens (or updates) the PR. Then reply with one sentence and the
+  PR URL.
 
 Aim for at most 8 tool calls. Do not loop.`;
 
@@ -113,10 +117,10 @@ async function seedSkills() {
         "org_get_department",
         "notifications_my_unread",
         "integrations_list_github",
-        "platform_source_info",
-        "platform_source_search",
-        "platform_source_list_dir",
-        "platform_source_read_file",
+        "repo_info",
+        "repo_search",
+        "repo_list_dir",
+        "repo_read_file",
       ],
     },
     {
@@ -126,14 +130,14 @@ async function seedSkills() {
         "Inspect a catalog entity's repository and open a catalog-info.yaml pull request.",
       guidance:
         "Use to enrich a catalog entity by inspecting its repo and opening a catalog-info.yaml PR.",
-      toolIds: ["catalog_lookup", "catalog_read_repo", "catalog_read_file", "catalog_open_yaml_pr"],
+      toolIds: ["catalog_lookup", "repo_info", "repo_read_file", "repo_open_yaml_pr"],
     },
     {
       id: "skill-project-planning",
       label: "Project planning",
       description: "Break an assigned project task into concrete subtasks, grounded in the repo.",
       guidance:
-        "When assigned a project task, first call projects_list_subtasks to see what already exists. If the project has a connected repo, inspect it with projects_repo_info / projects_repo_search / projects_repo_read_file before planning, then call projects_create_subtask once per concrete subtask so you do not duplicate. If the task text asks to assign the subtasks to someone, pass assignee to projects_create_subtask or call projects_assign_task.",
+        "When assigned a project task, first call projects_list_subtasks to see what already exists. If the project has a connected repo, inspect it with the repo tools (repo_info / repo_search / repo_read_file, each with target { kind: 'project', projectId }) before planning, then call projects_create_subtask once per concrete subtask so you do not duplicate. If the task text asks to assign the subtasks to someone, pass assignee to projects_create_subtask or call projects_assign_task.",
       toolIds: [
         "whoami",
         "get_today",
@@ -141,10 +145,10 @@ async function seedSkills() {
         "projects_list_subtasks",
         "projects_get_task",
         "projects_assign_task",
-        "projects_repo_info",
-        "projects_repo_search",
-        "projects_repo_list_dir",
-        "projects_repo_read_file",
+        "repo_info",
+        "repo_search",
+        "repo_list_dir",
+        "repo_read_file",
       ],
     },
   ];
@@ -190,16 +194,16 @@ Reads:
 Platform source code:
 - For questions about how the platform itself works or how to change something in
   it (branding, a theme, a setting, a page, a route), investigate the platform's
-  own repository with the platform_source_* tools and answer with concrete file
-  paths and the exact edit to make. These tools are read-only, so never ask the
-  user for permission to search, browse, or read, just do it and report findings.
-- platform_source_search greps both file names and file contents and returns the
-  matching files with line numbers. Use it first, with the most specific term you
-  can (for example the brand text, a label, or a component name), then open the
-  top hits with platform_source_read_file. Trust its results instead of listing
-  directories one by one.
-- Only fall back to platform_source_list_dir when search genuinely returns nothing.
-  Do not stop or hand the task back to the user.
+  own repository with the repo tools and answer with concrete file paths and the
+  exact edit to make. Always pass target { kind: "platform" }. These reads do not
+  change anything, so never ask the user for permission to search, browse, or
+  read, just do it and report findings.
+- repo_search greps both file names and file contents and returns the matching
+  files with line numbers. Use it first, with the most specific term you can (for
+  example the brand text, a label, or a component name), then open the top hits
+  with repo_read_file. Trust its results instead of listing directories one by one.
+- Only fall back to repo_list_dir when search genuinely returns nothing. Do not
+  stop or hand the task back to the user.
 - The brand or name is usually plain text in a header component or the HTML title
   rather than an image file, so search for the visible name itself.
 - If a tool returns code "not_configured" or "no_credentials", the platform source
@@ -246,9 +250,10 @@ tool_calls yourself, never narrate that you will.
 Steps:
 - Call projects_list_subtasks with the task id first to see what already exists.
   Do not recreate a subtask that is already there.
-- If project.repoConnected is true, inspect the repo before planning: call
-  projects_repo_info with the project id, then projects_repo_search to find the
-  relevant code and projects_repo_read_file for the README and key manifests
+- If project.repoConnected is true, inspect the repo before planning. The repo
+  tools take a target, so always pass target { kind: "project", projectId } where
+  projectId is project.id. Call repo_info first, then repo_search to find the
+  relevant code and repo_read_file for the README and key manifests
   (package.json, pyproject.toml, go.mod, etc.). Ground the subtasks in what the
   codebase actually is. If repoConnected is false, plan from the task text alone.
 - For each new subtask, call projects_create_subtask with parentTaskId set to
