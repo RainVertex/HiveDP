@@ -9,7 +9,7 @@ export type AgentRunDetail = Prisma.AgentRunGetPayload<{
 
 export interface AgentRunRepository {
   findById(runId: string): Promise<AgentRunDetail | null>;
-  markCancelled(runId: string): Promise<void>;
+  requestCancel(runId: string): Promise<void>;
 }
 
 export const runRepository: AgentRunRepository = {
@@ -22,10 +22,11 @@ export const runRepository: AgentRunRepository = {
       },
     });
   },
-  async markCancelled(runId) {
+  // The run executes in a worker process; flag the row so that process's poll aborts it there.
+  async requestCancel(runId) {
     await prisma.agentRun.update({
       where: { id: runId },
-      data: { status: "cancelled", error: "Cancelled by user", finishedAt: new Date() },
+      data: { cancelRequestedAt: new Date() },
     });
   },
 };

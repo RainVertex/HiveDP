@@ -9,6 +9,8 @@ const bundleWorkspaceOnly = {
     // Matches bare specifiers (anything not starting with . or /), i.e. node builtins and node_modules.
     b.onResolve({ filter: /^[^./]/ }, (args) => {
       if (args.path.startsWith("@feature/") || args.path.startsWith("@internal/")) return null;
+      // p-limit (and its dep yocto-queue) are ESM-only; inline them so the CJS bundle has no ESM require.
+      if (args.path === "p-limit" || args.path === "yocto-queue") return null;
       return { path: args.path, external: true };
     });
   },

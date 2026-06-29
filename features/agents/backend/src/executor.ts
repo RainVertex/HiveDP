@@ -1,7 +1,6 @@
 import type OpenAI from "openai";
 import { prisma, Prisma } from "@internal/db";
 import {
-  computeCostUsd,
   selectAdapter,
   providerKindFromProvider,
   resolveProviderApiKey,
@@ -14,52 +13,25 @@ import {
   type McpToolset,
 } from "@internal/llm-core";
 import { resolveAgentSkills, appendSkillGuidance } from "./services/skills";
+import { finalizeAgentRun } from "./runFinalize";
+import { runCodingAgent } from "./coding/runCodingAgent";
+import type {
+  RunAgentInput,
+  RunAgentOptions,
+  RunAgentResult,
+  RunAgentStep,
+  RunAgentToolCall,
+} from "./runTypes";
 
 // Generic agent execution loop (runAgent) plus the async kickoff and catalog-enricher wrapper.
 
-export type RunAgentInput = Record<string, unknown>;
-
-export interface RunAgentToolCall {
-  name: string;
-  input: unknown;
-  output: unknown;
-  durationMs: number;
-  isError: boolean;
-}
-
-// One LLM turn: the assistant's reasoning and text, plus the tools it invoked that turn.
-export interface RunAgentStep {
-  index: number;
-  text: string | null;
-  reasoning: string | null;
-  toolCalls: RunAgentToolCall[];
-  tokensInput: number;
-  tokensOutput: number;
-}
-
-export interface RunAgentResult {
-  agentRunId: string;
-  status: "succeeded" | "failed" | "cancelled";
-  toolCalls: RunAgentToolCall[];
-  finalText: string | null;
-  tokensInput: number;
-  tokensOutput: number;
-  costUsd: number | null;
-  error: string | null;
-}
-
-export interface RunAgentOptions {
-  chat?: (req: ChatRequest) => Promise<ChatResult>;
-  signal?: AbortSignal;
-  callerUserId?: string | null;
-  callerIsAdmin?: boolean;
-  callerTeamIds?: string[];
-  existingRunId?: string;
-  // Provenance recorded on the AgentRun so a bot's history is queryable and contextual.
-  trigger?: string;
-  taskId?: string | null;
-  conversationId?: string | null;
-}
+export type {
+  RunAgentInput,
+  RunAgentOptions,
+  RunAgentResult,
+  RunAgentStep,
+  RunAgentToolCall,
+} from "./runTypes";
 
 export async function runAgent(
   agentId: string,
@@ -96,6 +68,48 @@ export async function runAgent(
   }
   const runSignal = controller.signal;
   activeRuns.set(run.id, controller);
+
+  // Hard wall-clock ceiling: a hung LLM socket or runaway tool loop must not pin a worker slot forever.
+  // Coding has its own in-container docker-kill timeout, so its ceiling sits just above that as a backstop.
+  let timedOut = false;
+  const runTimeoutMs =
+    opts.timeoutMs ??
+    (agent.runtime === "code"
+      ? Number(process.env.CODING_RUNNER_TIMEOUT_MS ?? 1_200_000) + 60_000
+      : Number(process.env.AGENT_RUN_TIMEOUT_MS ?? 600_000));
+  const timeoutTimer = setTimeout(() => {
+    timedOut = true;
+    controller.abort(new Error("Run exceeded time limit"));
+  }, runTimeoutMs);
+
+  // Cross-process cancel: the run may execute in a worker while Stop is issued from the API, so the API
+  // sets cancelRequestedAt on the row and this poll turns it into a local abort.
+  const cancelPollMs = Number(process.env.AGENT_CANCEL_POLL_MS ?? 3000);
+  const cancelPoller = setInterval(() => {
+    void prisma.agentRun
+      .findUnique({ where: { id: run.id }, select: { cancelRequestedAt: true } })
+      .then((fresh) => {
+        if (fresh?.cancelRequestedAt) controller.abort();
+      })
+      .catch(() => {});
+  }, cancelPollMs);
+
+  const clearRunTimers = (): void => {
+    clearTimeout(timeoutTimer);
+    clearInterval(cancelPoller);
+  };
+
+  // Coding agents run Aider over a cloned worktree in a sandbox instead of the chat tool loop. The run
+  // row and abort handle are already in place, so a coding run is cancellable and finalized exactly
+  // like a chat run, only the middle differs.
+  if (agent.runtime === "code") {
+    try {
+      return await runCodingAgent({ agent, input, opts, run, runSignal });
+    } finally {
+      clearRunTimers();
+      activeRuns.delete(run.id);
+    }
+  }
 
   const apiKey = await resolveProviderApiKey({
     providerId: agent.llmModel.provider.id,
@@ -236,96 +250,47 @@ export async function runAgent(
       }
     }
 
-    const costUsd = computeCostUsd(model, {
-      input: tokensInput,
-      output: tokensOutput,
-      cacheRead: tokensCacheRead,
-      cacheWrite: tokensCacheWrite,
-    });
-    // The loop can exit cleanly just as a cancel lands; honor the abort so a stopped run is not
-    // recorded as succeeded.
-    if (runSignal.aborted) {
-      const error = abortMessage(opts.signal);
-      await prisma.agentRun.update({
-        where: { id: run.id },
-        data: {
-          status: "cancelled",
-          error,
-          output: { steps, toolCalls, finalText } as unknown as Prisma.InputJsonValue,
-          tokensInput,
-          tokensOutput,
-          costUsd,
-          finishedAt: new Date(),
-        },
-      });
-      return {
-        agentRunId: run.id,
-        status: "cancelled",
-        toolCalls,
-        finalText,
-        tokensInput,
-        tokensOutput,
-        costUsd,
-        error,
-      };
-    }
-    await prisma.agentRun.update({
-      where: { id: run.id },
-      data: {
-        status: "succeeded",
-        output: { steps, toolCalls, finalText } as unknown as Prisma.InputJsonValue,
-        tokensInput,
-        tokensOutput,
-        costUsd,
-        finishedAt: new Date(),
-      },
-    });
-    return {
-      agentRunId: run.id,
-      status: "succeeded",
-      toolCalls,
-      finalText,
+    const output = { steps, toolCalls, finalText } as unknown as Prisma.InputJsonValue;
+    // The loop can exit cleanly just as a cancel or timeout lands; honor the abort so a stopped run is
+    // not recorded as succeeded. A timeout is a failure, a user/shutdown abort is a cancellation.
+    const aborted = runSignal.aborted;
+    return finalizeAgentRun({
+      runId: run.id,
+      model,
+      status: aborted ? (timedOut ? "failed" : "cancelled") : "succeeded",
       tokensInput,
       tokensOutput,
-      costUsd,
-      error: null,
-    };
+      cacheRead: tokensCacheRead,
+      cacheWrite: tokensCacheWrite,
+      output,
+      finalText,
+      toolCalls,
+      error: aborted ? (timedOut ? "Run exceeded time limit" : abortMessage(opts.signal)) : null,
+    });
   } catch (err) {
     const aborted = runSignal.aborted;
-    const message = aborted
-      ? abortMessage(opts.signal)
-      : err instanceof Error
-        ? err.message
-        : String(err);
-    const costUsd = computeCostUsd(model, {
-      input: tokensInput,
-      output: tokensOutput,
-      cacheRead: tokensCacheRead,
-      cacheWrite: tokensCacheWrite,
-    });
-    await prisma.agentRun.update({
-      where: { id: run.id },
-      data: {
-        status: aborted ? "cancelled" : "failed",
-        error: message.slice(0, 2000),
-        output: { steps, toolCalls, finalText } as unknown as Prisma.InputJsonValue,
-        tokensInput,
-        tokensOutput,
-        costUsd,
-        finishedAt: new Date(),
-      },
-    });
-    return {
-      agentRunId: run.id,
-      status: aborted ? "cancelled" : "failed",
-      toolCalls,
-      finalText,
+    const message = timedOut
+      ? "Run exceeded time limit"
+      : aborted
+        ? abortMessage(opts.signal)
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    return finalizeAgentRun({
+      runId: run.id,
+      model,
+      status: aborted && !timedOut ? "cancelled" : "failed",
       tokensInput,
       tokensOutput,
-      costUsd,
+      cacheRead: tokensCacheRead,
+      cacheWrite: tokensCacheWrite,
+      output: { steps, toolCalls, finalText } as unknown as Prisma.InputJsonValue,
+      finalText,
+      toolCalls,
       error: message,
-    };
+    });
   } finally {
+    clearRunTimers();
     activeRuns.delete(run.id);
     if (mcpToolset) await mcpToolset.close();
   }
@@ -358,14 +323,23 @@ export function cancelAgentRun(runId: string): boolean {
   return true;
 }
 
-// On boot, any run still "running" is orphaned by a restart (nothing executes it). Mark such runs
-// failed. Orphaned AgentTask rows are released separately by reconcileStaleAgentTasks.
-export async function reconcileStaleAgentRuns(): Promise<{ runs: number }> {
+// On boot a run still "running" was orphaned by a restart (nothing executes it). Each worker reconciles
+// only its own runtime so it never touches a run another process is actively executing. Orphaned
+// AgentTask rows are released separately by the reconcileStale*Tasks helpers.
+async function reconcileStaleRuns(runtime: string): Promise<{ runs: number }> {
   const runs = await prisma.agentRun.updateMany({
-    where: { status: "running" },
-    data: { status: "failed", error: "Orphaned by restart", finishedAt: new Date() },
+    where: { status: "running", agent: { runtime } },
+    data: { status: "failed", error: "Orphaned by worker restart", finishedAt: new Date() },
   });
   return { runs: runs.count };
+}
+
+export function reconcileStaleChatRuns(): Promise<{ runs: number }> {
+  return reconcileStaleRuns("chat");
+}
+
+export function reconcileStaleCodingRuns(): Promise<{ runs: number }> {
+  return reconcileStaleRuns("code");
 }
 
 export async function startAgentRun(

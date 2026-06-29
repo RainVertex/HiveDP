@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type OpenAI from "openai";
+import { LLM_MAX_RETRIES } from "../client";
 import type { AdapterRequest, AdapterResult, ProviderAdapter } from "./providerAdapter";
 
 // Native Anthropic streaming adapter; converts to/from the OpenAI message/tool shape.
@@ -35,6 +36,7 @@ class AnthropicAdapter implements ProviderAdapter {
       baseURL: provider.baseUrl?.endsWith("/v1/")
         ? provider.baseUrl.slice(0, -1)
         : provider.baseUrl,
+      maxRetries: LLM_MAX_RETRIES,
     });
 
     const { system, messages } = convertMessagesToAnthropic(req.messages);

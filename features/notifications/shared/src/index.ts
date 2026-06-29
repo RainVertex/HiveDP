@@ -28,6 +28,7 @@ export const NOTIFICATION_CATALOG = [
   { kind: "projects.task.commentAdded", category: "tasks", href: "task" },
   { kind: "projects.task.dueSoon", category: "tasks", href: "task" },
   { kind: "projects.task.mentioned", category: "mentions", href: "task" },
+  { kind: "projects.coding.completed", category: "tasks", href: "project" },
   { kind: "projects.member.added", category: "projectAccess", href: "project" },
   { kind: "projects.member.removed", category: "projectAccess", href: "project" },
   { kind: "projects.member.permissionChanged", category: "projectAccess", href: "project" },

@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { LLM_MAX_RETRIES } from "../client";
 import type { AdapterRequest, AdapterResult, ProviderAdapter } from "./providerAdapter";
 
 // OpenAI-compatible streaming adapter (OpenAI, Ollama, vLLM, llama.cpp, Anthropic shim), with per-family sampling defaults and reasoning-channel normalization.
@@ -23,7 +24,7 @@ class OpenAICompatAdapter implements ProviderAdapter {
       }
       apiKey = "ollama";
     }
-    const client = new OpenAI({ baseURL: provider.baseUrl, apiKey });
+    const client = new OpenAI({ baseURL: provider.baseUrl, apiKey, maxRetries: LLM_MAX_RETRIES });
 
     const sampling = samplingDefaults(req.model.slug);
     const isQwen3 = req.model.slug.startsWith("qwen3-");

@@ -579,6 +579,54 @@ export function useDeleteTask() {
   return { remove, loading, error };
 }
 
+export interface CodingAgentOption {
+  id: string;
+  name: string;
+}
+
+// Coding agents (runtime="code") assignable from the standalone run panel. Sourced from the agents
+// list endpoint, filtered to the coding runtime.
+export function useCodingAgents() {
+  const { data, loading, error } =
+    useFetch<Array<{ id: string; name: string; runtime?: string }>>("/api/agents");
+  const agents: CodingAgentOption[] = (data ?? [])
+    .filter((a) => a.runtime === "code")
+    .map((a) => ({ id: a.id, name: a.name }));
+  return { agents, loading, error };
+}
+
+export function useCodingRun(projectId: string) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = useCallback(
+    async (input: { agentId: string; instruction: string; branch?: string }) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/projects/projects/${projectId}/coding-runs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(body.error ?? `HTTP ${res.status}`);
+        }
+        return (await res.json()) as { status: string };
+      } catch (e) {
+        setError((e as Error).message);
+        throw e;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [projectId],
+  );
+
+  return { run, loading, error };
+}
+
 export function useCreateComment(taskId: string | undefined) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

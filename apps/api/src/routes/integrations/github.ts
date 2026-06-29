@@ -140,8 +140,10 @@ githubIntegrationRouter.get("/callback", async (req, res, next) => {
           },
           "github-app: bulk sync completed",
         );
-        // Drain the enrichment queue now so a freshly connected org is enriched on connect, not at the next 10-minute tick.
-        void runJob("agents.catalogEnricher", "manual").catch((err) => {
+        // Drain the agent task queue now so a freshly connected org's enrich tasks run on connect,
+        // not at the next scheduled tick. Catalog enrichment is a chat-runtime agent, so the queue
+        // drain (which the bulk sync just filled with catalog-enrich tasks) handles it.
+        void runJob("agents.taskQueue", "manual").catch((err) => {
           logger.error({ err, installationId }, "github-app: enricher kick after sync failed");
         });
       },

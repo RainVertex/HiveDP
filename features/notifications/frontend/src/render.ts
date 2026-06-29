@@ -56,6 +56,11 @@ export function notificationSummary(n: NotificationDto, t: TFunction): string {
       return t("summary.taskMentioned", { author: author(), title: taskTitle() });
     case "projects.task.dueSoon":
       return t("summary.taskDueSoon", { title: taskTitle() });
+    case "projects.coding.completed":
+      return t("summary.codingCompleted", {
+        project: str(p.projectTitle, t("fallback.aProject")),
+        summary: str(p.summary, ""),
+      });
     case "projects.member.added":
       return t("summary.projectMemberAdded", {
         project: str(p.projectTitle, t("fallback.aProject")),

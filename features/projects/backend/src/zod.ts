@@ -13,6 +13,12 @@ export const updateProjectSchema = z.object({
   hexColor: z.string().nullable().optional(),
 });
 
+export const codingRunSchema = z.object({
+  agentId: z.string().min(1),
+  instruction: z.string().min(1).max(20000),
+  branch: z.string().max(200).optional(),
+});
+
 export const createTaskSchema = z.object({
   projectId: z.string().min(1),
   title: z.string().min(1).max(500),

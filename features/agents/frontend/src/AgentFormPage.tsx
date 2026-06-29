@@ -3,7 +3,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageLayout, AgentAvatar } from "@internal/shared-ui";
 import { useTranslation } from "@internal/i18n";
-import type { Agent, ApprovalMode, LlmModelSummary, SkillSummary } from "@feature/agents-shared";
+import {
+  isCodingCapableProviderKind,
+  type Agent,
+  type ApprovalMode,
+  type LlmModelSummary,
+  type SkillSummary,
+} from "@feature/agents-shared";
 import { useAgentsApi } from "./client";
 import { fileToAvatarDataUrl } from "./avatarImage";
 import { AvatarPickerDialog } from "./AvatarPickerDialog";
@@ -38,6 +44,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
   const [pickerOpen, setPickerOpen] = useState(false);
   const [category, setCategory] = useState("");
   const [kind, setKind] = useState("custom");
+  const [runtime, setRuntime] = useState<"chat" | "code">("chat");
   const [instructions, setInstructions] = useState("");
   const [modelId, setModelId] = useState("");
   const [skillIds, setSkillIds] = useState<string[]>([]);
@@ -83,6 +90,7 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
         setAvatarUrl(a.avatarUrl ?? "");
         setCategory(a.category ?? "");
         setKind(a.kind);
+        setRuntime(a.runtime === "code" ? "code" : "chat");
         setInstructions(a.instructions);
         setModelId(a.modelId);
         setSkillIds(Array.isArray(a.skillIds) ? a.skillIds : []);
@@ -97,9 +105,9 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
   }, [api, id, isEdit, t]);
 
   const loadRecommendations = useCallback(
-    (k: string) => {
+    (k: string, rt: "chat" | "code") => {
       api.llm
-        .recommendations(k)
+        .recommendations(k, rt === "code" ? "code" : undefined)
         .then((r) => {
           setRecommendedIds(r.recommendedModelIds);
           setRequiresTools(r.requiresTools);
@@ -113,8 +121,16 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
   );
 
   useEffect(() => {
-    loadRecommendations(kind);
-  }, [kind, loadRecommendations]);
+    loadRecommendations(kind, runtime);
+  }, [kind, runtime, loadRecommendations]);
+
+  // For a fresh coding agent, default the model to the top coding recommendation (GPT-5.5). Only when
+  // nothing is chosen yet, so it never overrides an explicit pick or the model loaded when editing.
+  useEffect(() => {
+    if (runtime === "code" && !modelId && recommendedIds.length > 0) {
+      setModelId(recommendedIds[0]);
+    }
+  }, [runtime, modelId, recommendedIds]);
 
   const skillsSelected = skillIds.length > 0;
 
@@ -129,6 +145,11 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
         .map((rid) => models.find((m) => m.id === rid)?.displayName)
         .filter((n): n is string => Boolean(n)),
     [recommendedIds, models],
+  );
+
+  const selectedModel = useMemo(
+    () => models.find((m) => m.id === modelId) ?? null,
+    [models, modelId],
   );
 
   function toggleSkill(skillId: string) {
@@ -159,12 +180,16 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
     if (selected && !selected.providerReady) {
       return setError(t("errors.modelProviderNotReady"));
     }
+    if (runtime === "code" && selected && !isCodingCapableProviderKind(selected.provider.kind)) {
+      return setError(t("errors.codingUnsupportedProvider"));
+    }
     const body = {
       name: name.trim(),
       description: description.trim() || undefined,
       avatarUrl: avatarUrl.trim() || null,
       category: category.trim() || null,
       kind,
+      runtime,
       modelId,
       instructions: instructions.trim(),
       skillIds,
@@ -296,6 +321,25 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
           </select>
         </Labeled>
 
+        <Labeled label={t("fields.runtime")}>
+          <select
+            value={runtime}
+            onChange={(e) => {
+              const next = e.target.value as "chat" | "code";
+              setRuntime(next);
+              // Skills are a chat-loop concept; a coding agent uses Aider's own tools, so drop them.
+              if (next === "code") setSkillIds([]);
+            }}
+            className={inputCls}
+          >
+            <option value="chat">{t("runtime.chat")}</option>
+            <option value="code">{t("runtime.code")}</option>
+          </select>
+          <p className="mt-1 text-xs text-app-text-muted">
+            {runtime === "code" ? t("runtime.codeHint") : t("runtime.chatHint")}
+          </p>
+        </Labeled>
+
         <Labeled label={t("fields.systemPrompt")} required>
           <textarea
             value={instructions}
@@ -305,49 +349,56 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
           />
         </Labeled>
 
-        <Labeled label={t("fields.skills")}>
-          {skills.length === 0 ? (
-            <p className="text-xs text-app-text-muted">{t("empty.noSkillsRegistered")}</p>
-          ) : (
-            <div className="grid gap-2">
-              {skills.map((skill) => {
-                const selected = skillIds.includes(skill.id);
-                return (
-                  <label
-                    key={skill.id}
-                    className="flex cursor-pointer items-start gap-2 rounded-md border border-app-border bg-app-surface px-2 py-1.5"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleSkill(skill.id)}
-                      className="mt-0.5 text-app-primary focus:ring-app-primary"
-                    />
-                    <span className="min-w-0">
-                      <span className="text-sm font-medium text-app-text">{skill.label}</span>
-                      <span className="ml-1 text-xs font-normal text-app-text-muted">
-                        ({t("skills.toolCount", { count: skill.tools.length })})
-                      </span>
-                      {skill.description && (
-                        <span className="block text-xs font-normal text-app-text-muted">
-                          {skill.description}
+        {runtime !== "code" && (
+          <Labeled label={t("fields.skills")}>
+            {skills.length === 0 ? (
+              <p className="text-xs text-app-text-muted">{t("empty.noSkillsRegistered")}</p>
+            ) : (
+              <div className="grid gap-2">
+                {skills.map((skill) => {
+                  const selected = skillIds.includes(skill.id);
+                  return (
+                    <label
+                      key={skill.id}
+                      className="flex cursor-pointer items-start gap-2 rounded-md border border-app-border bg-app-surface px-2 py-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleSkill(skill.id)}
+                        className="mt-0.5 text-app-primary focus:ring-app-primary"
+                      />
+                      <span className="min-w-0">
+                        <span className="text-sm font-medium text-app-text">{skill.label}</span>
+                        <span className="ml-1 text-xs font-normal text-app-text-muted">
+                          ({t("skills.toolCount", { count: skill.tools.length })})
                         </span>
-                      )}
-                      {skill.guidance && (
-                        <span className="block text-xs font-normal text-app-text-muted">
-                          <span className="font-medium text-app-text">
-                            {t("skills.whenToUse")}{" "}
+                        {skill.description && (
+                          <span className="block text-xs font-normal text-app-text-muted">
+                            {skill.description}
                           </span>
-                          {skill.guidance}
-                        </span>
-                      )}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          )}
-        </Labeled>
+                        )}
+                        {skill.guidance && (
+                          <span className="block text-xs font-normal text-app-text-muted">
+                            <span className="font-medium text-app-text">
+                              {t("skills.whenToUse")}{" "}
+                            </span>
+                            {skill.guidance}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </Labeled>
+        )}
+        {runtime === "code" && (
+          <Labeled label={t("fields.skills")}>
+            <p className="text-xs text-app-text-muted">{t("form.codeSkillsNote")}</p>
+          </Labeled>
+        )}
 
         <Labeled label={t("fields.model")} required>
           <select value={modelId} onChange={(e) => setModelId(e.target.value)} className={inputCls}>
@@ -356,9 +407,14 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
               const recommended = recommendedIds.includes(m.id);
               const incompatible = skillsSelected && !m.supportsTools;
               const providerNotReady = !m.providerReady;
+              const inPerM = formatPer1M(m.costPer1kIn);
+              const outPerM = formatPer1M(m.costPer1kOut);
               return (
                 <option key={m.id} value={m.id} disabled={incompatible || providerNotReady}>
                   {m.displayName} ({m.provider.displayName})
+                  {inPerM && outPerM
+                    ? t("form.costSuffix", { in: inPerM, out: outPerM })
+                    : t("form.costFreeSuffix")}
                   {recommended ? t("form.recommendedSuffix") : ""}
                   {incompatible ? t("form.noToolSupportSuffix") : ""}
                   {providerNotReady ? t("form.noProviderKeySuffix") : ""}
@@ -366,6 +422,18 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
               );
             })}
           </select>
+          {selectedModel &&
+            (() => {
+              const inPerM = formatPer1M(selectedModel.costPer1kIn);
+              const outPerM = formatPer1M(selectedModel.costPer1kOut);
+              return (
+                <p className="mt-1 text-xs text-app-text-muted">
+                  {inPerM && outPerM
+                    ? t("form.costLine", { in: inPerM, out: outPerM })
+                    : t("form.costLineFree")}
+                </p>
+              );
+            })()}
           {recommendedNames.length > 0 && (
             <p className="mt-1 text-xs text-app-text-muted">
               {t("form.recommendedFor", {
@@ -465,6 +533,13 @@ export function AgentFormPage({ avatarPresets = [] }: { avatarPresets?: AvatarPr
 
 const inputCls =
   "w-full rounded-md border border-app-border bg-app-surface px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-app-primary";
+
+// Rates are stored per 1K tokens, but the industry convention is to quote per 1M, which also gives
+// cleaner whole numbers. Null means a self-hosted model with no per-token cost.
+function formatPer1M(costPer1k: number | null): string | null {
+  if (costPer1k == null) return null;
+  return `$${(costPer1k * 1000).toFixed(2)}`;
+}
 
 // Free-text input plus a theme-styled dropdown of existing values (native datalist cannot be themed).
 function CategoryCombobox({

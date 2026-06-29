@@ -109,9 +109,11 @@ export function createAgentsClient(core: ApiCore) {
 
     llm: {
       listModels: () => core.request<ListResponse<LlmModelSummary>>(`/api/llm/models`),
-      recommendations: (kind: string) =>
+      recommendations: (kind: string, runtime?: string) =>
         core.request<AiRecommendationsDto>(
-          `/api/llm/recommendations?kind=${encodeURIComponent(kind)}`,
+          `/api/llm/recommendations?kind=${encodeURIComponent(kind)}${
+            runtime ? `&runtime=${encodeURIComponent(runtime)}` : ""
+          }`,
         ),
     },
   };

@@ -50,6 +50,7 @@ export const tr: NotificationsResources = {
     taskCommented: "{{author}}, {{title}} görevine yorum yaptı",
     taskMentioned: "{{author}}, {{title}} görevinde sizden bahsetti",
     taskDueSoon: "Yakında teslim: {{title}}",
+    codingCompleted: "Kodlama ajanı {{project}} üzerinde tamamladı: {{summary}}",
     projectMemberAdded: "Şu projeye eklendiniz: {{project}}",
     projectMemberRemoved: "Şu projeden çıkarıldınız: {{project}}",
     projectPermissionChanged: "Şu projedeki erişiminiz değişti: {{project}}",

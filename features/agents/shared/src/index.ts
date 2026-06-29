@@ -5,6 +5,20 @@ export type AgentStatus = "idle" | "running" | "succeeded" | "failed" | "cancell
 
 export type ApprovalMode = "auto" | "ask";
 
+// Provider kinds the code runtime can drive. The runtime runs Aider (model-agnostic via LiteLLM) in a
+// sandbox, so any provider we know how to map to an Aider model qualifies.
+export const CODING_PROVIDER_KINDS = [
+  "openai",
+  "anthropic",
+  "anthropic-via-openai",
+  "gemini",
+  "ollama",
+] as const;
+
+export function isCodingCapableProviderKind(kind: string): boolean {
+  return (CODING_PROVIDER_KINDS as readonly string[]).includes(kind);
+}
+
 export interface LlmProviderSummary {
   slug: string;
   displayName: string;
@@ -116,6 +130,7 @@ export interface Agent extends NamedEntity {
   avatarUrl?: string | null;
   category?: string | null;
   kind: string;
+  runtime: string;
   status: AgentStatus;
   modelId: ID;
   instructions: string;
@@ -160,6 +175,7 @@ export interface CreateAgentInput {
   avatarUrl?: string | null;
   category?: string | null;
   kind?: string;
+  runtime?: "chat" | "code";
   modelId: ID;
   instructions: string;
   skillIds?: string[];

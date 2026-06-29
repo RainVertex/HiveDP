@@ -20,6 +20,14 @@ const RECOMMENDATIONS: Record<string, KindRecommendation> = {
   },
 };
 
-export function recommendationsForKind(kind: string): KindRecommendation {
+// The code runtime drives Aider (no function-calling needed), so it just wants a strong coding model.
+const CODING_RECOMMENDATION: KindRecommendation = {
+  requiresTools: false,
+  recommendedModelSlugs: ["gpt-5.5", "gpt-5.4", "claude-opus-4-7", "claude-sonnet-4-6"],
+};
+
+// Runtime takes precedence over kind: a coding agent always wants coding models regardless of its kind.
+export function recommendationsForKind(kind: string, runtime?: string): KindRecommendation {
+  if (runtime === "code") return CODING_RECOMMENDATION;
   return RECOMMENDATIONS[kind] ?? RECOMMENDATIONS.custom;
 }

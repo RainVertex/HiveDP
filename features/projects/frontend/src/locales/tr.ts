@@ -7,6 +7,22 @@ export const tr: ProjectsResources = {
     taskTitle: "Görev",
     projectFallbackTitle: "Proje",
   },
+  coding: {
+    action: "Kodlama ajanı",
+    heading: "Kodlama ajanı çalıştır",
+    hint: "Bir kodlama ajanı seçin ve yapılacak değişikliği yazın. Bağlı depo üzerinde çalışır ve taslak çekme isteği açar.",
+    noAgents:
+      "Henüz kodlama ajanı tanımlı değil. Ajanlar yönetiminde kod çalışma zamanıyla bir ajan oluşturun.",
+    queued: "Sıraya alındı. Çekme isteği hazır olduğunda bilgilendirileceksiniz.",
+    agentLabel: "Ajan",
+    instructionLabel: "Ne yapsın?",
+    instructionPlaceholder:
+      "Örnek: API'ye istek günlükleme ara katmanı ekle ve README dosyasını güncelle.",
+    branchLabel: "Dal (isteğe bağlı)",
+    branchPlaceholder: "Otomatik oluşturmak için boş bırakın",
+    run: "Çalıştır",
+    starting: "Başlatılıyor...",
+  },
   actions: {
     newProject: "+ Yeni Proje",
     create: "Oluştur",

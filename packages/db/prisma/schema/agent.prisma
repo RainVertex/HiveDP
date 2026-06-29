@@ -96,6 +96,10 @@ model Agent {
   avatarUrl    String?
   category     String?
   kind         String
+  // Execution strategy: "chat" runs the in-process llm-core tool loop, "code" runs Aider (model
+  // agnostic) over a cloned worktree in a sandbox and opens a PR. A "code" agent works with any
+  // supported provider (OpenAI, Anthropic, Gemini, Ollama).
+  runtime      String            @default("chat")
   modelId      String
   instructions String
   skillIds     Json              @default("[]")
@@ -212,6 +216,8 @@ model AgentRun {
   tokensOutput   Int?
   costUsd        Decimal?    @db.Decimal(10, 6)
   containsWrites Boolean     @default(false)
+  // Set by the API Stop endpoint so the worker process executing this run aborts it (cross-process cancel).
+  cancelRequestedAt DateTime?
   startedAt      DateTime    @default(now())
   finishedAt     DateTime?
   createdAt      DateTime    @default(now())
@@ -241,6 +247,9 @@ model AgentTask {
   attempts    Int             @default(0)
   maxAttempts Int             @default(3)
   dedupeKey   String?
+  // Denormalized fairness bucket (agent.userId, or "agent:<id>" for ownerless agents). Lets the fair
+  // claimer group running tasks by owner, which a Prisma groupBy cannot do over a relation field.
+  ownerKey    String?
   scheduledAt DateTime        @default(now())
   startedAt   DateTime?
   finishedAt  DateTime?
@@ -250,7 +259,7 @@ model AgentTask {
   updatedAt   DateTime        @updatedAt
   agent       Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
-  @@index([status, scheduledAt])
+  @@index([status, ownerKey, scheduledAt])
   @@index([agentId])
   @@index([dedupeKey])
 }

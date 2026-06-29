@@ -77,6 +77,7 @@ Aim for at most 8 tool calls. Do not loop.`;
 
   await seedPlatformAssistant();
   await seedTaskPlanner();
+  await seedCodingAgent();
 
   // Backing User (userKind='agent') per agent so agents can be assigned to tasks and granted access like teammates. Idempotent; also backfills any agent created before the link existed.
   const allAgents = await prisma.agent.findMany({
@@ -349,6 +350,64 @@ If the task is already fully broken down, create nothing and say so.`;
       assignableToTasks: true,
       category: "Plan & Coordinate",
       avatarUrl: "/agents/presets/agent-planning.svg",
+    },
+  });
+}
+
+// The coding agent runs the "code" runtime: when assigned to a task (or run standalone on a project)
+// it clones the connected repo in a sandbox, edits the working tree with Aider (model agnostic), and
+// opens a draft pull request. Its instructions are passed to Aider as guidance with the task. Defaults
+// to GPT-5.5; any supported provider works.
+async function seedCodingAgent() {
+  const instructions = `You are a coding agent working inside a cloned git repository.
+
+Make the requested change directly in the working tree, then stop. Keep the
+change minimal, correct, and consistent with the repo's existing structure and
+conventions (read AGENTS.md, README, and neighboring files first).
+
+Strict rules:
+- Only create real, valid source files. NEVER create a file or directory whose
+  name is a shell command or an example invocation. For instance, never create
+  files or folders named "npm install", "npm run build", "npm run dev",
+  "npm start", or "curl http://localhost:3000".
+- To document how to run or use something, write it as prose inside README.md,
+  never as a filename.
+- When copying or adapting an existing template or directory, mirror its real
+  structure exactly. Do not invent extra files or placeholders.
+- Change only what the task needs. Do not touch unrelated files.
+- If the project has a build, tests, or a linter, run them to verify your change
+  compiles and passes.
+- Before finishing, review what you created and delete any stray, accidental, or
+  non-source files.
+
+Your committed changes become a draft pull request for a human to review, so
+leave the working tree clean and the change self-contained and reviewable.`;
+
+  await prisma.agent.upsert({
+    where: { id: "coding-agent" },
+    update: {
+      instructions,
+      runtime: "code",
+      approvalMode: "auto",
+      maxToolCalls: 40,
+      assignableToTasks: true,
+      category: "Engineering",
+      avatarUrl: "/agents/presets/agent-coding.svg",
+    },
+    create: {
+      id: "coding-agent",
+      name: "Coding Agent",
+      description: "Writes code in a sandbox and opens a draft pull request when assigned.",
+      kind: "custom",
+      runtime: "code",
+      modelId: "llmmodel_openai_gpt_5_5",
+      instructions,
+      skillIds: [],
+      approvalMode: "auto",
+      maxToolCalls: 40,
+      assignableToTasks: true,
+      category: "Engineering",
+      avatarUrl: "/agents/presets/agent-coding.svg",
     },
   });
 }

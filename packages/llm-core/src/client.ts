@@ -5,6 +5,11 @@ import type { LlmModel, LlmProvider } from "@internal/db";
 
 export type ResolvedModel = LlmModel & { provider: LlmProvider };
 
+// Provider SDKs retry 429/5xx with backoff and honor Retry-After. The default of 2 is too low for a
+// low-TPM model on a multi-step agent run (a transient "try again in 2s" rate limit fails the whole
+// run), so raise it. Tunable via env.
+export const LLM_MAX_RETRIES = Number(process.env.LLM_MAX_RETRIES ?? 5);
+
 export interface ChatRequest {
   model: ResolvedModel;
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];

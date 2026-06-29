@@ -22,6 +22,7 @@ import {
 import { KanbanBoard } from "./KanbanBoard";
 import { UserAutocomplete } from "./components/UserAutocomplete";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { CodingRunPanel } from "./components/CodingRunPanel";
 
 type View = "list" | "kanban";
 type SortColumn = "dueDate" | "endDate";
@@ -107,6 +108,7 @@ export function ProjectDetailPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newTaskBucketId, setNewTaskBucketId] = useState<string>("");
   const [showShares, setShowShares] = useState(false);
+  const [showCoding, setShowCoding] = useState(false);
   const [shareUsername, setShareUsername] = useState("");
   const [sharePermission, setSharePermission] = useState(2);
   const {
@@ -246,6 +248,15 @@ export function ProjectDetailPage() {
           {canEdit && (
             <button
               type="button"
+              onClick={() => setShowCoding((v) => !v)}
+              className="rounded-md border border-app-border bg-app-surface px-3 py-1.5 text-sm text-app-text hover:bg-app-surface-hover"
+            >
+              {t("coding.action")}
+            </button>
+          )}
+          {canEdit && (
+            <button
+              type="button"
               onClick={() => setShowNewTask(true)}
               className="rounded-md bg-app-primary px-3 py-1.5 text-sm font-medium text-app-primary-foreground hover:opacity-90"
             >
@@ -362,6 +373,8 @@ export function ProjectDetailPage() {
           </div>
         </div>
       )}
+
+      {showCoding && canEdit && <CodingRunPanel projectId={id} />}
 
       {showNewTask && (
         <form onSubmit={handleCreateTask} className="mb-4 flex items-center gap-2">

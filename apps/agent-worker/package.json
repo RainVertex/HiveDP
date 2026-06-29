@@ -1,0 +1,22 @@
+{
+  "name": "@internal/agent-worker",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@feature/agents-backend": "0.1.0",
+    "@feature/projects-backend": "0.1.0",
+    "@internal/db": "0.1.0",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "esbuild": "^0.28.0",
+    "tsx": "^4.21.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "node build.mjs",
+    "start": "node dist/worker.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

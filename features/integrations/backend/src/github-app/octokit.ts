@@ -62,6 +62,17 @@ export async function octokitForInstallation(installationId: number): Promise<Oc
   });
 }
 
+// Mints a short-lived installation access token (ghs_..., ~1h TTL) for git operations: it is embedded
+// in the clone/push remote URL so a sandbox can read and write the repo without ever holding the App
+// private key. The token is scoped to the single installation and expires on its own.
+export async function installationGitToken(installationId: number): Promise<string> {
+  const octo = await octokitAsApp();
+  const res = await octo.rest.apps.createInstallationAccessToken({
+    installation_id: installationId,
+  });
+  return res.data.token;
+}
+
 // Resolves the GitHub App installation id for an org/user login from the stored Integration rows
 // (accountLogin + installationId live in plaintext config, only secrets are encrypted).
 export async function installationIdForLogin(login: string): Promise<number | null> {

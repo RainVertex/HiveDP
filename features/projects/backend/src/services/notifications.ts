@@ -68,6 +68,28 @@ export async function notifyTaskCommented(args: TaskCommentedArgs): Promise<void
   });
 }
 
+export interface CodingCompletedArgs {
+  recipientUserId: string;
+  projectId: string;
+  projectTitle: string;
+  summary: string;
+}
+
+// Notifies the user who triggered a standalone coding run (no task to comment on) with the outcome.
+export async function notifyCodingCompleted(args: CodingCompletedArgs): Promise<void> {
+  await projectsDb.$transaction((tx) =>
+    notify(tx, {
+      recipientUserId: args.recipientUserId,
+      kind: "projects.coding.completed",
+      payload: {
+        projectId: args.projectId,
+        projectTitle: args.projectTitle,
+        summary: args.summary,
+      },
+    }),
+  );
+}
+
 export interface TaskMentionedArgs extends TaskRef {
   authorName: string;
   bodySnippet: string;

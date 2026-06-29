@@ -72,6 +72,8 @@ export const en = {
     modelNoTools: "The selected model does not support tools. Pick a tool-capable model.",
     modelProviderNotReady:
       "The selected model's provider has no API key, so it cannot run. Add a key in Admin -> AI / Models.",
+    codingUnsupportedProvider:
+      "The code runtime needs a model on a supported provider (OpenAI, Anthropic, Gemini, or Ollama).",
     avatarReadError: "Could not read that image. Try a different file.",
     failedToLoadSkills: "Failed to load skills",
     skillNameRequired: "Name is required.",
@@ -89,6 +91,7 @@ export const en = {
     category: "Category",
     avatar: "Avatar",
     kind: "Kind",
+    runtime: "Runtime",
     systemPrompt: "System prompt",
     skills: "Skills",
     model: "Model",
@@ -107,15 +110,27 @@ export const en = {
     runId: "Run ID",
     kind_field: "Kind",
   },
+  runtime: {
+    chat: "Chat (talks and uses tools)",
+    code: "Code (writes code, opens a PR)",
+    chatHint: "Standard agent: reasons with the model and calls tools.",
+    codeHint:
+      "Clones the connected repo in a sandbox, runs Aider over the working tree with the selected model, and opens a draft pull request. Works with any supported model (e.g. GPT-5.5) and needs the coding worker running.",
+  },
   form: {
     categoryPlaceholder: "e.g. Plan & Coordinate",
     categoryHint: "Pick an existing category or type a new one.",
     avatarHint:
       "PNG, JPG, WebP, or SVG. Square images look best, large ones are scaled down. Leave blank to show initials.",
     selectModel: "Select a model…",
+    codeSkillsNote: "Coding agents use Aider's built-in tools, so skills do not apply here.",
     recommendedSuffix: " · Recommended",
     noToolSupportSuffix: " · no tool support",
     noProviderKeySuffix: " · no API key",
+    costSuffix: " · {{in}}/{{out}} per 1M",
+    costFreeSuffix: " · free",
+    costLine: "Cost: {{in}} input / {{out}} output per 1M tokens",
+    costLineFree: "Cost: free (self-hosted model)",
     recommendedFor: "Recommended for {{kind}}: {{names}}",
     requiresTools: " (this kind needs a tool-capable model)",
     noModels:

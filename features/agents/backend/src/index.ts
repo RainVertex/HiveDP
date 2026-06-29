@@ -11,20 +11,18 @@ export {
   runAgent,
   startAgentRun,
   cancelAgentRun,
-  reconcileStaleAgentRuns,
+  reconcileStaleChatRuns,
+  reconcileStaleCodingRuns,
   type RunAgentInput,
   type RunAgentResult,
   type RunAgentToolCall,
   type RunAgentStep,
 } from "./executor";
-export {
-  modelPricingSyncJob,
-  agentTaskQueueJob,
-  getAgentJobs,
-  type AgentJobDefinition,
-  type AgentJobContext,
-} from "./jobs";
-export { reconcileStaleAgentTasks } from "./services/agentTasks";
+export { modelPricingSyncJob, getAgentJobs } from "./jobs";
+export { runWorkerLoop, installWorkerFatalHandlers, type WorkerLoopOptions } from "./workerLoop";
+export { type AgentJobDefinition, type AgentJobContext, type AgentJobLogger } from "./jobTypes";
+export { reconcileStaleChatTasks, reconcileStaleCodingTasks } from "./services/agentTasks";
+export { initContainerPool, shutdownContainerPool } from "./coding/containerPool";
 export { registerBuiltinAgentTaskHandlers } from "./services/builtinTaskHandlers";
 export { registerTools, type RegisteredTool, type ToolContext } from "@internal/llm-core";
 

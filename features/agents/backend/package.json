@@ -20,11 +20,13 @@
   },
   "dependencies": {
     "@feature/agents-shared": "0.1.0",
+    "@feature/integrations-backend": "0.1.0",
     "@internal/db": "0.1.0",
     "@internal/feature-host": "0.1.0",
     "@internal/llm-core": "0.1.0",
     "express": "^5.2.1",
     "openai": "^6.37.0",
+    "p-limit": "^7.3.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ export {
   octokitForLogin,
   octokitForToken,
   installationIdForLogin,
+  installationGitToken,
   openOrUpdateFilePr,
   GitHubAppNotConfiguredError,
   loadGitHubAppConfig,

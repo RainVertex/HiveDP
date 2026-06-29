@@ -7,5 +7,6 @@ export async function models(_req: Request, res: Response): Promise<void> {
 
 export async function recommendations(req: Request, res: Response): Promise<void> {
   const kind = typeof req.query.kind === "string" ? req.query.kind : "custom";
-  res.json(await modelsService.recommendations(kind));
+  const runtime = typeof req.query.runtime === "string" ? req.query.runtime : undefined;
+  res.json(await modelsService.recommendations(kind, runtime));
 }

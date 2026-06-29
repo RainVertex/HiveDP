@@ -48,6 +48,7 @@ export const en = {
     taskCommented: "{{author}} commented on: {{title}}",
     taskMentioned: "{{author}} mentioned you on: {{title}}",
     taskDueSoon: "Due soon: {{title}}",
+    codingCompleted: "Coding agent finished on {{project}}: {{summary}}",
     projectMemberAdded: "You were added to project: {{project}}",
     projectMemberRemoved: "You were removed from project: {{project}}",
     projectPermissionChanged: "Your access changed on project: {{project}}",

@@ -5,6 +5,21 @@ export const en = {
     taskTitle: "Task",
     projectFallbackTitle: "Project",
   },
+  coding: {
+    action: "Coding agent",
+    heading: "Run a coding agent",
+    hint: "Pick a coding agent and describe the change. It works on the connected repo and opens a draft pull request.",
+    noAgents:
+      "No coding agents are configured yet. Create one with the code runtime in the agents admin.",
+    queued: "Queued. You will be notified when the pull request is ready.",
+    agentLabel: "Agent",
+    instructionLabel: "What should it do?",
+    instructionPlaceholder: "e.g. Add request logging middleware to the API and update the README.",
+    branchLabel: "Branch (optional)",
+    branchPlaceholder: "Leave blank to auto-generate",
+    run: "Run",
+    starting: "Starting...",
+  },
   actions: {
     newProject: "+ New Project",
     create: "Create",

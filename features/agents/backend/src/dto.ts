@@ -16,6 +16,7 @@ export const createAgentSchema = z.object({
   avatarUrl: avatarUrlSchema,
   category: z.string().max(60).nullable().optional(),
   kind: z.string().min(1).max(60).default("custom"),
+  runtime: z.enum(["chat", "code"]).default("chat"),
   modelId: z.string().min(1),
   instructions: z.string().min(1).max(20000),
   skillIds: z.array(z.string()).default([]),

@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { LLM_MAX_RETRIES } from "../client";
 import type { AdapterRequest, AdapterResult, ProviderAdapter } from "./providerAdapter";
 
 // Native OpenAI Responses API adapter. Converts to/from the OpenAI chat message/tool shape and
@@ -16,7 +17,7 @@ class OpenAIResponsesAdapter implements ProviderAdapter {
         `Missing API key for provider '${provider.slug}' (add one in Admin -> AI / Models)`,
       );
     }
-    const client = new OpenAI({ baseURL: provider.baseUrl, apiKey });
+    const client = new OpenAI({ baseURL: provider.baseUrl, apiKey, maxRetries: LLM_MAX_RETRIES });
 
     const { instructions, input } = convertMessagesToResponses(req.messages);
     const tools = req.tools ? convertToolsToResponses(req.tools) : [];

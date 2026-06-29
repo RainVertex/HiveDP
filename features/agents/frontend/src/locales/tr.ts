@@ -75,6 +75,8 @@ export const tr: AgentsResources = {
     modelNoTools: "Seçilen model araçları desteklemiyor. Araç destekli bir model seçin.",
     modelProviderNotReady:
       "Seçilen modelin sağlayıcısının API anahtarı yok, bu yüzden çalışamaz. Yönetim -> Yapay Zeka / Modeller bölümünden bir anahtar ekleyin.",
+    codingUnsupportedProvider:
+      "Kod çalışma zamanı, desteklenen bir sağlayıcıdaki model gerektirir (OpenAI, Anthropic, Gemini veya Ollama).",
     avatarReadError: "Bu görsel okunamadı. Farklı bir dosya deneyin.",
     failedToLoadSkills: "Beceriler yüklenemedi",
     skillNameRequired: "Ad zorunludur.",
@@ -92,6 +94,7 @@ export const tr: AgentsResources = {
     category: "Kategori",
     avatar: "Avatar",
     kind: "Tür",
+    runtime: "Çalışma zamanı",
     systemPrompt: "Sistem komutu",
     skills: "Beceriler",
     model: "Model",
@@ -110,15 +113,28 @@ export const tr: AgentsResources = {
     runId: "Çalıştırma kimliği",
     kind_field: "Tür",
   },
+  runtime: {
+    chat: "Sohbet (konuşur ve araç kullanır)",
+    code: "Kod (kod yazar, PR açar)",
+    chatHint: "Standart ajan: modelle düşünür ve araçları çağırır.",
+    codeHint:
+      "Bağlı depoyu izole bir ortamda klonlar, çalışma ağacı üzerinde seçili modelle Aider'ı çalıştırır ve taslak çekme isteği açar. Desteklenen herhangi bir modelle çalışır (örnek GPT-5.5) ve çalışan kodlama worker'ı gerekir.",
+  },
   form: {
     categoryPlaceholder: "örn. Plan & Koordine",
     categoryHint: "Mevcut bir kategori seçin veya yeni bir tane yazın.",
     avatarHint:
       "PNG, JPG, WebP veya SVG. Kare görseller en iyi görünür, büyük olanlar küçültülür. Baş harfleri göstermek için boş bırakın.",
     selectModel: "Bir model seçin…",
+    codeSkillsNote:
+      "Kodlama ajanları Aider'ın yerleşik araçlarını kullanır, bu yüzden beceriler burada geçerli değildir.",
     recommendedSuffix: " · Önerilen",
     noToolSupportSuffix: " · araç desteği yok",
     noProviderKeySuffix: " · API anahtarı yok",
+    costSuffix: " · 1M token başına {{in}}/{{out}}",
+    costFreeSuffix: " · ücretsiz",
+    costLine: "Maliyet: 1M token başına {{in}} giriş / {{out}} çıkış",
+    costLineFree: "Maliyet: ücretsiz (kendi sunucumuzda barındırılan model)",
     recommendedFor: "{{kind}} için önerilen: {{names}}",
     requiresTools: " (bu tür, araç destekli bir model gerektirir)",
     noModels:

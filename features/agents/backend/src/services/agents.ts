@@ -8,7 +8,7 @@ import { toAgentDetail, toAgentListItem } from "../mappers";
 import { agentRepository } from "../repositories/agents";
 import { runRepository } from "../repositories/runs";
 import { getCallerTeamIds } from "./callers";
-import { validateModelForSkills } from "./models";
+import { validateModelForSkills, assertRuntimeSupported } from "./models";
 import { assertSkillsExist } from "./skills";
 
 export interface CallerContext {
@@ -43,6 +43,7 @@ export async function getAgentDetail(id: string, caller: CallerContext) {
 
 export async function createAgent(input: CreateAgentInput) {
   await validateModelForSkills(input.modelId, input.skillIds);
+  await assertRuntimeSupported(input.modelId, input.runtime);
   await assertSkillsExist(input.skillIds);
 
   const created = await agentRepository.create({
@@ -51,6 +52,7 @@ export async function createAgent(input: CreateAgentInput) {
     avatarUrl: input.avatarUrl ?? null,
     category: input.category ?? null,
     kind: input.kind,
+    runtime: input.runtime,
     modelId: input.modelId,
     instructions: input.instructions,
     skillIds: input.skillIds,
@@ -76,6 +78,7 @@ export async function updateAgent(id: string, input: UpdateAgentInput) {
     input.skillIds ??
     (Array.isArray(existing.skillIds) ? (existing.skillIds as unknown as string[]) : []);
   await validateModelForSkills(effectiveModelId, effectiveSkillIds);
+  await assertRuntimeSupported(effectiveModelId, input.runtime ?? existing.runtime);
 
   if (input.skillIds && input.skillIds.length > 0) await assertSkillsExist(input.skillIds);
 
@@ -85,6 +88,7 @@ export async function updateAgent(id: string, input: UpdateAgentInput) {
     avatarUrl: input.avatarUrl,
     category: input.category,
     kind: input.kind,
+    runtime: input.runtime,
     modelId: input.modelId,
     instructions: input.instructions,
     skillIds: input.skillIds,
@@ -131,10 +135,10 @@ export async function cancelRun(agentId: string, runId: string, caller: CallerCo
   if (!run || run.agentId !== agentId) throw new NotFoundError("Run not found");
   if (!canViewRun(run, caller)) throw new NotFoundError("Run not found");
   if (run.status !== "running") throw new ConflictError("Run is not running");
-  // Graceful abort if the run is live here, otherwise it is orphaned (a prior process died mid-run),
-  // so mark it failed directly. Single-process deployment, so "no live handle" means "not running".
+  // Fast path: the run is live in this process (a sync test run), abort it directly. Otherwise it runs
+  // in a worker, so flag the row and let that process's poll turn it into an abort and finalize there.
   const aborted = cancelAgentRun(run.id);
-  if (!aborted) await runRepository.markCancelled(run.id);
+  if (!aborted) await runRepository.requestCancel(run.id);
   return { ok: true, aborted };
 }
 

@@ -9,15 +9,7 @@ import {
   seedDefaultTemplates,
   seedTemplateAcls,
 } from "@feature/scaffolder-backend";
-import {
-  provisionProjectsForInstallation,
-  registerProjectAgentTaskHandlers,
-} from "@feature/projects-backend";
-import {
-  reconcileStaleAgentRuns,
-  reconcileStaleAgentTasks,
-  registerBuiltinAgentTaskHandlers,
-} from "@feature/agents-backend";
+import { provisionProjectsForInstallation } from "@feature/projects-backend";
 import { runReconciliation } from "@feature/catalog-backend";
 import { prisma } from "@internal/db";
 import { createServer } from "./createServer";
@@ -46,17 +38,8 @@ async function bootstrap() {
   const orphans = await cancelOrphanedRuns();
   if (orphans > 0) logger.warn({ orphans }, "Marked orphaned job runs as cancelled");
 
-  const staleRuns = await reconcileStaleAgentRuns();
-  if (staleRuns.runs > 0) logger.warn(staleRuns, "Marked orphaned agent runs as failed");
-
-  const staleTasks = await reconcileStaleAgentTasks();
-  if (staleTasks > 0)
-    logger.warn({ tasks: staleTasks }, "Released orphaned agent tasks to the queue");
-
-  // Features register their agent-task handlers before the scheduler can drain the queue.
-  registerBuiltinAgentTaskHandlers();
-  registerProjectAgentTaskHandlers();
-
+  // Agent runs and the agent task queue are owned by the worker processes (agent-worker, coding-worker);
+  // they reconcile their own runtimes and register their own task handlers. The API only enqueues.
   registerAllJobs();
   startScheduler();
 
