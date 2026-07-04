@@ -30,8 +30,17 @@ Set `CODING_RUNNER_IMAGE=coding-runner:latest` on the coding worker.
 
 ## Run hardening (enforced by the worker)
 
-The worker runs each container with `--rm -i --read-only --tmpfs /work --tmpfs /tmp --security-opt
-no-new-privileges --cpus --memory` (HOME points at the writable `/work` tmpfs) and an egress-allowlist
-network (`CODING_RUNNER_NETWORK`) that permits only the model provider API (e.g. OpenAI) and GitHub.
-Create that network on the host before enabling the runtime; the default (`none`) fails closed (no
-egress, so the clone cannot reach GitHub). For local dev use `bridge`.
+The worker runs each container with `--runtime=runsc` (gVisor, `CODING_RUNNER_RUNTIME`) as a non-root
+user (`USER node`, uid 1000) with `--cap-drop=ALL --pids-limit --read-only --tmpfs /work --tmpfs /tmp`
+(both `mode=1777` so the non-root user can write) `--security-opt no-new-privileges --cpus --memory`.
+HOME points at the writable `/work` tmpfs, where every runtime write (clone, Aider caches, analytics log)
+lands, so the read-only rootfs and non-root user never block the runner.
+
+gVisor gives a userspace-kernel isolation boundary instead of sharing the host kernel, so it needs
+`runsc` installed and registered as a Docker runtime on the host. `CODING_RUNNER_RUNTIME` defaults to
+`runsc` (a misconfigured deploy fails toward stronger isolation); set it empty to fall back to the default
+Docker runtime for local dev that has no gVisor.
+
+Egress is an allowlist network (`CODING_RUNNER_NETWORK`) that permits only the model provider API (e.g.
+OpenAI) and GitHub. Create that network on the host before enabling the runtime; the default (`none`)
+fails closed (no egress, so the clone cannot reach GitHub). For local dev use `bridge`.

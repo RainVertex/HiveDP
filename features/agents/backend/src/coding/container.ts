@@ -28,31 +28,39 @@ function dockerRunArgs(name: string): string[] {
   const network = process.env.CODING_RUNNER_NETWORK ?? "none";
   const cpus = process.env.CODING_RUNNER_CPUS ?? "2";
   const memory = process.env.CODING_RUNNER_MEMORY ?? "4g";
-  return [
-    "run",
-    "--rm",
-    "-i",
-    "--name",
-    name,
+  const pidsLimit = process.env.CODING_RUNNER_PIDS_LIMIT ?? "512";
+  // gVisor (runsc) puts a userspace kernel between the untrusted run and the host kernel. Defaults to
+  // runsc so a misconfigured deploy fails toward stronger isolation. Set empty to use the default Docker
+  // runtime (e.g. local dev where gVisor is not installed).
+  const runtime = process.env.CODING_RUNNER_RUNTIME ?? "runsc";
+  const args = ["run", "--rm", "-i", "--name", name];
+  if (runtime) args.push("--runtime", runtime);
+  args.push(
     "--network",
     network,
     "--cpus",
     cpus,
     "--memory",
     memory,
+    "--pids-limit",
+    pidsLimit,
+    "--cap-drop",
+    "ALL",
     "--read-only",
+    // mode=1777 so the non-root runner user can write its clone, Aider caches, and analytics log here.
     "--tmpfs",
-    "/work:rw,exec,size=2g",
+    "/work:rw,exec,size=2g,mode=1777",
     // Writable /tmp for tsx's IPC dir, git, and Aider/LiteLLM temp files (rootfs is read-only).
     "--tmpfs",
-    "/tmp:rw,exec,size=512m",
+    "/tmp:rw,exec,size=512m,mode=1777",
     "--security-opt",
     "no-new-privileges",
-    // Aider and its caches/history write under $HOME; point it at the writable tmpfs.
+    // Aider and its caches/history write under $HOME, so point it at the writable tmpfs.
     "--env",
     "HOME=/work",
     image,
-  ];
+  );
+  return args;
 }
 
 // Starts a container that immediately blocks reading stdin (the runner reads all of stdin before doing
