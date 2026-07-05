@@ -33,7 +33,7 @@ export const en = {
     backToAgent: "Back to agent",
     choosePreset: "Choose preset",
     uploadImage: "Upload image",
-    changeImage: "Change image",
+    changeImage: "Upload image",
     remove: "Remove",
     toggleCategoryList: "Toggle category list",
   },
