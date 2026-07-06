@@ -364,7 +364,7 @@ export function DetailsWidget() {
                 <Link
                   key={team.id}
                   to={`/teams/${team.slug}`}
-                  className="inline-flex items-center rounded-full bg-app-primary-soft px-2 py-0.5 text-[11px] font-medium text-app-primary-soft-foreground hover:underline"
+                  className="inline-block max-w-full truncate rounded-full bg-app-primary-soft px-2 py-0.5 text-[11px] font-medium leading-4 text-app-primary-soft-foreground hover:underline"
                   title={team.description ?? team.name}
                 >
                   {team.name}

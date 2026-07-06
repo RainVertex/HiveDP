@@ -46,7 +46,7 @@ export function OwnerCell({ teams }: { teams: Team[] }) {
         <a
           key={team.id}
           href={`/teams/${team.slug}`}
-          className="inline-flex items-center rounded-full bg-app-primary-soft px-2 py-0.5 text-[11px] font-medium text-app-primary-soft-foreground hover:underline"
+          className="inline-block whitespace-nowrap rounded-full bg-app-primary-soft px-2 py-0.5 text-[11px] font-medium leading-4 text-app-primary-soft-foreground hover:underline"
           title={team.description ?? team.name}
         >
           {team.name}
@@ -58,12 +58,13 @@ export function OwnerCell({ teams }: { teams: Team[] }) {
 
 export function TagsCell({ tags }: { tags: string[] }) {
   if (!tags || tags.length === 0) return <span className="text-app-text-muted">—</span>;
+  // En fazla 2 satir, fazlasi sutun olarak yana buyur, tasan kisim tablonun yatay kaydirmasinda gorunur.
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="grid w-max grid-flow-col grid-rows-2 items-center justify-items-start gap-1">
       {tags.map((t) => (
         <span
           key={t}
-          className="rounded bg-app-surface-hover px-1.5 py-0.5 font-mono text-[10px] text-app-text-muted"
+          className="whitespace-nowrap rounded bg-app-surface-hover px-1.5 py-0.5 font-mono text-[10px] text-app-text-muted"
         >
           {t}
         </span>

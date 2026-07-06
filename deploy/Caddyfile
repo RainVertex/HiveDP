@@ -1,0 +1,23 @@
+# TLS Cloudflare kenarinda sonlanir, Caddy tunelden gelen duz HTTP'yi karsilar.
+{
+	auto_https off
+}
+
+:80 {
+	encode zstd gzip
+
+	@backend path /api/* /auth/* /oidc/* /.well-known/openid-configuration /integrations/github/webhook /integrations/github/app-webhook /integrations/grafana/webhook
+	handle @backend {
+		reverse_proxy api:4000 {
+			# Express secure cookie icin gercek semayi gormeli, tunelin ici duz HTTP.
+			header_up X-Forwarded-Proto https
+			flush_interval -1
+		}
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

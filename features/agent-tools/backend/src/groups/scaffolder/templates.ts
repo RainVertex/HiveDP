@@ -3,6 +3,7 @@ import {
   listExecutableTemplates,
   buildAndPersistPlan,
   applyPersistedPlan,
+  registerTemplateDefFromSource,
 } from "@feature/scaffolder-backend/contract";
 import { requireUserId } from "../core";
 
@@ -78,6 +79,41 @@ export const scaffolderPlanTool: RegisteredTool = {
         reversible: s.reversible,
       })),
     };
+  },
+};
+
+export const scaffolderRegisterTemplateTool: RegisteredTool = {
+  id: "scaffolder_register_template",
+  openaiDef: {
+    type: "function",
+    function: {
+      name: "scaffolder_register_template",
+      description:
+        "Register a new scaffolder template from its raw template.yaml source. Admin only. Read the template's template.yaml from the templates repo with repo_read_file (only after it is on the default branch, skeletons render from main) and pass the content verbatim. On success the template is immediately visible and runnable in the gallery. On a validation error, fix the YAML and retry.",
+      parameters: {
+        type: "object",
+        properties: {
+          source: {
+            type: "string",
+            description: "Full template.yaml content, passed verbatim.",
+          },
+        },
+        required: ["source"],
+      },
+    },
+  },
+  handler: async (args, ctx) => {
+    const userId = requireUserId(ctx);
+    if (!ctx.isAdmin) {
+      return { error: "Registering templates requires an admin user." };
+    }
+    const { source } = args as { source?: unknown };
+    if (typeof source !== "string" || source.trim() === "") {
+      return { error: "source must be the full template.yaml content." };
+    }
+    const result = await registerTemplateDefFromSource({ source, userId });
+    if (!result.ok) return { error: result.error };
+    return { registered: true, id: result.id, identifier: result.identifier };
   },
 };
 

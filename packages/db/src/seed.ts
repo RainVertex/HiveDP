@@ -185,13 +185,14 @@ async function seedSkills() {
       label: "Scaffolder",
       description: "Discover, plan, and run scaffolder templates to create new services and repos.",
       guidance:
-        "To scaffold a new service or repo, first call scaffolder_list_templates to see what you can run and the parameters each template needs. Build a preview with scaffolder_plan, passing the template id and a params object that matches its schema. Show the user the plan summary (what it will create, whether it is irreversible) before applying. Then run scaffolder_apply_plan with the planId to execute. Use dryRun true to validate first. A plan can only be applied once and plans expire, so apply promptly after the user confirms.",
+        "To scaffold a new service or repo, first call scaffolder_list_templates to see what you can run and the parameters each template needs. Build a preview with scaffolder_plan, passing the template id and a params object that matches its schema. Show the user the plan summary (what it will create, whether it is irreversible) before applying. Then run scaffolder_apply_plan with the planId to execute. Use dryRun true to validate first. A plan can only be applied once and plans expire, so apply promptly after the user confirms. To publish a brand-new template definition (admin only), pass the full template.yaml content verbatim to scaffolder_register_template. When the YAML lives in the templates repo, read it with repo_read_file first, and only register after the change is on the default branch since skeletons render from main. On success the template shows up in scaffolder_list_templates immediately.",
       toolIds: [
         "whoami",
         "get_today",
         "scaffolder_list_templates",
         "scaffolder_plan",
         "scaffolder_apply_plan",
+        "scaffolder_register_template",
       ],
     },
   ];

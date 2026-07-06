@@ -224,6 +224,7 @@ export const tr: AgentsResources = {
     org: { label: "Organizasyon" },
     projects: { label: "Projeler" },
     repo: { label: "Depo" },
+    scaffolder: { label: "Scaffolder" },
     notifications: { label: "Bildirimler" },
     integrations: { label: "Entegrasyonlar" },
   },

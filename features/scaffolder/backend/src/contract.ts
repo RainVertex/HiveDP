@@ -8,3 +8,7 @@ export {
   type ExecutableTemplate,
   type ApplyPlanOutcome,
 } from "./services/plan-run";
+export {
+  registerTemplateDefFromSource,
+  type RegisterTemplateDefResult,
+} from "./services/register-template-def";

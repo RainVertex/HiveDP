@@ -1,0 +1,98 @@
+# demo.rainvertex.com dagitimi. Dev compose'dan bagimsiz proje adi ve volume kullanir.
+# Kullanim: docker compose -f docker-compose.demo.yml up -d --build
+name: mep-demo
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: deploy/demo.env
+    volumes:
+      - demo-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform -d platform"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: mep-demo-app
+    build:
+      context: .
+      target: app
+    restart: "no"
+    env_file: deploy/demo.env
+    working_dir: /app/packages/db
+    # Seed idempotent, kod sahipli satirlari (skill toolIds, builtin agentlar) her dagitimda tazeler.
+    command: ["sh", "-c", "npx prisma migrate deploy && npx tsx src/seed.ts"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    image: mep-demo-app
+    restart: unless-stopped
+    env_file: deploy/demo.env
+    command: ["node", "apps/api/dist/server.js"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  agent-worker:
+    image: mep-demo-app
+    restart: unless-stopped
+    env_file: deploy/demo.env
+    command: ["node", "apps/agent-worker/dist/worker.js"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  coding-worker:
+    image: mep-demo-app
+    restart: unless-stopped
+    env_file: deploy/demo.env
+    command: ["node", "apps/coding-worker/dist/worker.js"]
+    volumes:
+      # Kosu konteynerlerini host daemon uzerinde kardes olarak baslatir.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    image: mep-demo-web
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    ports:
+      # Yerel kontrol icin, disari acilma cloudflared uzerinden olur.
+      - "8080:80"
+    volumes:
+      # Caddyfile degisiklikleri rebuild gerektirmesin diye imajdakini ezer.
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - api
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    env_file: deploy/demo.env
+    depends_on:
+      - web
+
+volumes:
+  demo-pg:

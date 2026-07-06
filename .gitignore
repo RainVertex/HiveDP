@@ -6,3 +6,4 @@ coverage
 *.log
 .turbo
 /docs/research
+deploy/demo.env

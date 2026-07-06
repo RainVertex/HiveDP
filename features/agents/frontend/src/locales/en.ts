@@ -220,6 +220,7 @@ export const en = {
     org: { label: "Organization" },
     projects: { label: "Projects" },
     repo: { label: "Repository" },
+    scaffolder: { label: "Scaffolder" },
     notifications: { label: "Notifications" },
     integrations: { label: "Integrations" },
   },

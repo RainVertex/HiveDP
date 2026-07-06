@@ -17,6 +17,7 @@ import {
   type AgentJobLogger,
 } from "@feature/agents-backend";
 import { registerProjectAgentTaskHandlers } from "@feature/projects-backend";
+import { registerAllTools } from "@feature/agent-tools-backend";
 
 const CONCURRENCY = Number(process.env.AGENT_WORKER_CONCURRENCY ?? 10);
 const USER_CAP = Number(process.env.AGENT_WORKER_USER_CAP ?? 3);
@@ -29,6 +30,8 @@ const log: AgentJobLogger = {
 
 async function main(): Promise<void> {
   installWorkerFatalHandlers(log);
+  // The tool registry is process-local, without this skills resolve to zero tools in this worker.
+  registerAllTools();
   registerBuiltinAgentTaskHandlers();
   registerProjectAgentTaskHandlers();
 

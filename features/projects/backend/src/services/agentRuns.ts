@@ -20,6 +20,17 @@ function codingInstruction(title: string, description: string | null): string {
   return description && description.trim() ? `${title}\n\n${description}` : title;
 }
 
+// Sibling subtasks share the parent-scoped branch so their commits accumulate into one draft PR.
+function codingBranchName(agentName: string, scopeTaskId: string): string {
+  const slug =
+    agentName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 24) || "agent";
+  return `agent/${slug}/task-${scopeTaskId}`;
+}
+
 // A failed run whose error looks transient (rate limit, timeout, upstream 5xx) is worth retrying via
 // the queue's backoff rather than posting the raw error as a task comment and giving up.
 function isTransientRunError(result: { status: string; error: string | null }): boolean {
@@ -95,6 +106,8 @@ const projectTaskHandler: AgentTaskHandler = {
         id: true,
         title: true,
         description: true,
+        parentTaskId: true,
+        parent: { select: { title: true } },
         project: {
           select: {
             id: true,
@@ -109,7 +122,7 @@ const projectTaskHandler: AgentTaskHandler = {
 
     const agent = await prisma.agent.findUnique({
       where: { userId: agentUserId },
-      select: { runtime: true },
+      select: { runtime: true, name: true },
     });
     if (agent?.runtime === "code") {
       // A coding agent gets the work as an instruction plus the resolved repo coordinates. The git
@@ -120,7 +133,9 @@ const projectTaskHandler: AgentTaskHandler = {
           repoUrl: task.project.catalogEntity?.repoUrl ?? null,
           installationId: task.project.installationId,
         },
-        task: { id: task.id, title: task.title },
+        branch: codingBranchName(agent.name, task.parentTaskId ?? task.id),
+        // The PR represents the whole parent task, so a subtask run titles it after the parent.
+        task: { id: task.id, title: task.parent?.title ?? task.title },
         project: { id: task.project.id, title: task.project.title },
       };
     }

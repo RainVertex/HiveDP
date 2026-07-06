@@ -133,7 +133,14 @@ async function main(): Promise<void> {
   git(["clone", "--depth=1", remote, dir], workRoot);
   git(["config", "user.name", "platform-coding-agent[bot]"], dir);
   git(["config", "user.email", "coding-agent@users.noreply.github.com"], dir);
-  git(["checkout", "-b", spec.branch], dir);
+  // Continue the branch where a sibling run left it so commits accumulate into one PR.
+  try {
+    git(["fetch", "--depth=1", "origin", spec.branch], dir);
+    git(["checkout", "-b", spec.branch, "FETCH_HEAD"], dir);
+    log(`continuing existing branch ${spec.branch}`);
+  } catch {
+    git(["checkout", "-b", spec.branch], dir);
+  }
   const baseSha = git(["rev-parse", "HEAD"], dir).trim();
 
   // Keep the analytics log out of the repo so it never lands in the PR.
